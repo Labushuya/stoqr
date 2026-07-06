@@ -2,7 +2,7 @@
   import { enhance } from '$app/forms'
   import { goto } from '$app/navigation'
   import type { PageData } from './$types'
-  import { formatDate, formatQuantity, unitLabel } from '$lib/utils/format'
+  import { formatDate, unitLabel } from '$lib/utils/format'
   import { getExpiryStatus, getDaysRemaining, getExpiryLabel, EXPIRY_CLASS } from '$lib/utils/expiry'
 
   // ── Props ─────────────────────────────────────────────────────────────────
@@ -19,7 +19,9 @@
 
   // ── Derived item state ────────────────────────────────────────────────────
 
+  // svelte-ignore state_referenced_locally
   let item = $state(data.item)
+  // svelte-ignore state_referenced_locally
   let locationPath = $state(data.locationPath)
 
   // ── Expiry derived ────────────────────────────────────────────────────────
@@ -56,11 +58,16 @@
   type EditField = 'quantity' | 'bestBeforeDate' | 'notes' | 'lotNumber' | 'unit' | null
   let editingField = $state<EditField>(null)
 
-  // Transient edit values
+  // Transient edit values — initialised once from item, refreshed in startEdit()
+  // svelte-ignore state_referenced_locally
   let editQuantity = $state(String(item.quantity))
+  // svelte-ignore state_referenced_locally
   let editBestBeforeDate = $state(item.bestBeforeDate ?? '')
+  // svelte-ignore state_referenced_locally
   let editNotes = $state(item.notes ?? '')
+  // svelte-ignore state_referenced_locally
   let editLotNumber = $state(item.lotNumber ?? '')
+  // svelte-ignore state_referenced_locally
   let editUnit = $state(item.unit)
 
   function startEdit(field: EditField) {
@@ -131,6 +138,7 @@
 
   // ── Quantity stepper ──────────────────────────────────────────────────────
 
+  // svelte-ignore state_referenced_locally
   let qty = $state(Number(item.quantity))
 
   async function changeQuantity(delta: number) {
@@ -317,6 +325,7 @@
     <div class="mhd-row">
       {#if editingField === 'bestBeforeDate'}
         <div class="field-edit-row">
+          <!-- svelte-ignore a11y_autofocus -->
           <input
             class="input"
             type="date"
@@ -440,6 +449,7 @@
     <div class="detail-row">
       <span class="detail-label">Losnummer</span>
       {#if editingField === 'lotNumber'}
+          <!-- svelte-ignore a11y_autofocus -->
         <div class="field-edit-row field-edit-row--inline">
           <input
             class="input input--sm"
@@ -467,6 +477,7 @@
     <!-- Notes -->
     <div class="detail-row">
       <span class="detail-label">Notizen</span>
+          <!-- svelte-ignore a11y_autofocus -->
       {#if editingField === 'notes'}
         <div class="field-edit-col">
           <textarea
@@ -596,10 +607,9 @@
 
 <!-- ── Location picker dialog ────────────────────────────────────────────── -->
 {#if showLocationPicker}
-  <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
-  <div class="dialog-backdrop" onclick={closeLocationPicker}>
-    <div class="dialog" role="dialog" aria-modal="true" aria-label="Lagerort auswählen"
-         onclick={(e) => e.stopPropagation()}>
+  <div class="dialog-backdrop" onclick={closeLocationPicker} onkeydown={(e) => e.key === 'Escape' && closeLocationPicker()} role="presentation">
+    <div class="dialog" role="dialog" aria-modal="true" aria-label="Lagerort auswählen" tabindex="-1"
+         onclick={(e) => e.stopPropagation()} onkeydown={(e) => e.stopPropagation()}>
       <div class="dialog-header">
         <h3 class="dialog-title">Lagerort auswählen</h3>
         <button class="dialog-close" type="button" onclick={closeLocationPicker} aria-label="Schließen">

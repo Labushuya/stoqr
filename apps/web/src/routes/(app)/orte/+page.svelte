@@ -33,6 +33,7 @@
 
   // ── State ─────────────────────────────────────────────────────────────────
 
+  // svelte-ignore state_referenced_locally
   let locations = $state<Location[]>(data.locations as Location[])
 
   // Accordion open/close state
@@ -336,6 +337,7 @@
   <!-- Add location inline form -->
   {#if adding?.kind === 'location'}
     <div class="add-form add-form--top">
+      <!-- svelte-ignore a11y_autofocus -->
       <input
         class="input"
         type="text"
@@ -404,6 +406,7 @@
 
             {#if editing?.kind === 'location' && editing.id === loc.id}
               <div class="inline-edit">
+                <!-- svelte-ignore a11y_autofocus -->
                 <input
                   class="input input--sm"
                   type="text"
@@ -476,6 +479,7 @@
 
                       {#if editing?.kind === 'storage' && editing.id === st.id}
                         <div class="inline-edit">
+                          <!-- svelte-ignore a11y_autofocus -->
                           <input
                             class="input input--sm"
                             type="text"
@@ -521,6 +525,7 @@
                               <div class="place-chip">
                                 {#if editing?.kind === 'place' && editing.id === pl.id}
                                   <div class="inline-edit inline-edit--chip">
+                                    <!-- svelte-ignore a11y_autofocus -->
                                     <input
                                       class="input input--xs"
                                       type="text"
@@ -570,6 +575,7 @@
                         <!-- Add place form -->
                         {#if adding?.kind === 'place' && adding.storageId === st.id}
                           <div class="add-form add-form--inline">
+                            <!-- svelte-ignore a11y_autofocus -->
                             <input
                               class="input input--sm"
                               type="text"
@@ -602,6 +608,7 @@
               <!-- Add storage form -->
               {#if adding?.kind === 'storage' && adding.locationId === loc.id}
                 <div class="add-form add-form--inline">
+                  <!-- svelte-ignore a11y_autofocus -->
                   <input
                     class="input input--sm"
                     type="text"

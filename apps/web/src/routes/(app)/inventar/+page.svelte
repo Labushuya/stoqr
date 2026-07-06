@@ -63,8 +63,9 @@
   let { data }: { data: PageData } = $props()
 
   // ── State ──────────────────────────────────────────────────────────────────
-
+  // svelte-ignore state_referenced_locally
   let items = $state<InventoryItem[]>(data.items as InventoryItem[])
+  // svelte-ignore state_referenced_locally
   let locationTree = $state<LocationTree[]>(data.locations as LocationTree[])
 
   let searchQuery = $state('')
@@ -585,7 +586,8 @@
                   </svg>
                 </button>
                 {#if openMenuId === item.id}
-                  <ul class="dropdown" role="menu" onclick={(e) => e.stopPropagation()}>
+                  <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+                  <ul class="dropdown" role="menu" onclick={(e) => e.stopPropagation()} onkeydown={(e) => e.stopPropagation()}>
                     <li role="menuitem">
                       <button
                         class="dropdown-item"

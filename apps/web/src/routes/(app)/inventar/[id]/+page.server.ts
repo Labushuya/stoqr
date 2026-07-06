@@ -1,17 +1,15 @@
-import { db } from '$lib/server/db';
+import { db } from '$lib/server/db'
 import {
   inventoryItems,
-  products,
   productNutrients,
-  nutrientTypes,
   places,
   storages,
   locations,
   expiryConfig,
-} from '@stoqr/db';
-import { eq, and, asc } from 'drizzle-orm';
-import { error, fail, redirect } from '@sveltejs/kit';
-import type { PageServerLoad, Actions } from './$types';
+} from '@stoqr/db'
+import { eq, and, asc } from 'drizzle-orm'
+import { error, fail, redirect } from '@sveltejs/kit'
+import type { PageServerLoad, Actions } from './$types'
 
 // ---------------------------------------------------------------------------
 // Load

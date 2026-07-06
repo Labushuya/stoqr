@@ -1,6 +1,6 @@
-import { db } from '$lib/server/db';
-import { products, inventoryItems, categories } from '@stoqr/db';
-import { eq, asc, desc, and, ilike, sql } from 'drizzle-orm';
+import { db } from '$lib/server/db'
+import { products, inventoryItems, categories } from '@stoqr/db'
+import { eq, asc, desc, and, ilike } from 'drizzle-orm'
 
 // ---------------------------------------------------------------------------
 // Inventory — list
@@ -181,7 +181,7 @@ export async function updateInventoryItem(
 
 	const [record] = await db
 		.update(inventoryItems)
-		.set(patch as any)
+		.set(patch as Record<string, unknown>)
 		.where(and(eq(inventoryItems.id, id), eq(inventoryItems.userId, userId)))
 		.returning();
 	return record;
@@ -272,7 +272,7 @@ export async function createProduct(data: {
 			expiryToleranceDays: data.expiryToleranceDays,
 			bringItemId: data.bringItemId,
 			createdBy: data.createdBy,
-			offData: data.offData as any,
+			offData: data.offData as Record<string, unknown>,
 		})
 		.returning({ id: products.id });
 	return record.id;
