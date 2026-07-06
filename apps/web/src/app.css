@@ -1,0 +1,276 @@
+@import 'tailwindcss';
+@import url('https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+/* ============================================================
+   STOQR DESIGN TOKEN SYSTEM
+   ============================================================ */
+
+:root {
+  /* ----------------------------------------------------------
+     SURFACES
+     ---------------------------------------------------------- */
+  --color-base:            #E8DCC8;
+  --color-surface:         #F5F0E8;
+  --color-surface-raised:  #FAF7F2;
+  --color-surface-sunken:  #DDD5BE;
+
+  /* ----------------------------------------------------------
+     BRAND
+     ---------------------------------------------------------- */
+  --color-primary:          #C4673A;
+  --color-primary-hover:    #A8542E;
+  --color-primary-subtle:   #F2E4DA;
+
+  --color-secondary:        #7A9E7E;
+  --color-secondary-hover:  #628065;
+  --color-secondary-subtle: #E4EFDF;
+
+  /* ----------------------------------------------------------
+     ACCENT
+     ---------------------------------------------------------- */
+  --color-accent:        #4A4A35;
+  --color-accent-subtle: #EDEADE;
+
+  /* ----------------------------------------------------------
+     SEMANTIC
+     ---------------------------------------------------------- */
+  --color-warning:          #E5A020;
+  --color-warning-subtle:   #FDF2D9;
+
+  --color-danger:           #B03A2E;
+  --color-danger-subtle:    #F5E0DE;
+
+  --color-success:          #7A9E7E;
+  --color-success-subtle:   #E4EFDF;
+
+  /* ----------------------------------------------------------
+     TEXT
+     ---------------------------------------------------------- */
+  --color-text-primary:   #2C1F14;
+  --color-text-secondary: #6B5744;
+  --color-text-muted:     #9C876E;
+  --color-text-inverse:   #F5F0E8;
+  --color-text-link:      #C4673A;
+
+  /* ----------------------------------------------------------
+     BORDERS
+     ---------------------------------------------------------- */
+  --color-border:        #D4C8B0;
+  --color-border-subtle: #E2D8C4;
+  --color-border-strong: #B0A48A;
+  --color-border-focus:  #C4673A;
+
+  /* ----------------------------------------------------------
+     MHD-AMPEL (Mindesthaltbarkeitsdatum)
+     ---------------------------------------------------------- */
+  --color-mhd-fresh:    #7A9E7E;
+  --color-mhd-ok:       #A8C5AB;
+  --color-mhd-soon:     #E5A020;
+  --color-mhd-critical: #C4673A;
+  --color-mhd-expired:  #B03A2E;
+
+  /* ----------------------------------------------------------
+     SPACING (4px base)
+     ---------------------------------------------------------- */
+  --space-1:  0.25rem;   /*  4px */
+  --space-2:  0.5rem;    /*  8px */
+  --space-3:  0.75rem;   /* 12px */
+  --space-4:  1rem;      /* 16px */
+  --space-5:  1.25rem;   /* 20px */
+  --space-6:  1.5rem;    /* 24px */
+  --space-7:  1.75rem;   /* 28px */
+  --space-8:  2rem;      /* 32px */
+  --space-9:  2.25rem;   /* 36px */
+  --space-10: 2.5rem;    /* 40px */
+  --space-11: 2.75rem;   /* 44px */
+  --space-12: 3rem;      /* 48px */
+  --space-13: 3.25rem;   /* 52px */
+  --space-14: 3.5rem;    /* 56px */
+  --space-15: 3.75rem;   /* 60px */
+  --space-16: 4rem;      /* 64px */
+
+  /* ----------------------------------------------------------
+     BORDER RADIUS
+     ---------------------------------------------------------- */
+  --radius-sm:   4px;
+  --radius-md:   8px;
+  --radius-lg:   12px;
+  --radius-xl:   16px;
+  --radius-full: 9999px;
+
+  /* ----------------------------------------------------------
+     SHADOWS
+     ---------------------------------------------------------- */
+  --shadow-sm: 0 1px 2px rgba(44, 31, 20, 0.06),
+               0 1px 3px rgba(44, 31, 20, 0.04);
+  --shadow-md: 0 2px 4px rgba(44, 31, 20, 0.08),
+               0 4px 8px rgba(44, 31, 20, 0.06);
+  --shadow-lg: 0 4px 8px rgba(44, 31, 20, 0.10),
+               0 8px 16px rgba(44, 31, 20, 0.08);
+  --shadow-xl: 0 8px 16px rgba(44, 31, 20, 0.12),
+               0 16px 32px rgba(44, 31, 20, 0.10);
+
+  /* ----------------------------------------------------------
+     TRANSITIONS
+     ---------------------------------------------------------- */
+  --transition-fast: 80ms ease;
+  --transition-base: 160ms ease;
+  --transition-slow: 300ms ease;
+
+  /* ----------------------------------------------------------
+     Z-INDEX
+     ---------------------------------------------------------- */
+  --z-base:     0;
+  --z-raised:   10;
+  --z-dropdown: 100;
+  --z-sticky:   200;
+  --z-overlay:  300;
+  --z-modal:    400;
+  --z-toast:    500;
+
+  /* ----------------------------------------------------------
+     TYPOGRAPHY — FONT FAMILIES
+     ---------------------------------------------------------- */
+  --font-display: 'Sora', sans-serif;
+  --font-body:    'Inter', sans-serif;
+  --font-mono:    'JetBrains Mono', monospace;
+
+  /* ----------------------------------------------------------
+     TYPOGRAPHY — TYPE SCALE (major third, 1.250 ratio)
+     ---------------------------------------------------------- */
+  --text-xs:   0.640rem;   /*  ~10px */
+  --text-sm:   0.800rem;   /*  ~13px */
+  --text-base: 1.000rem;   /*   16px */
+  --text-lg:   1.250rem;   /*   20px */
+  --text-xl:   1.563rem;   /*   25px */
+  --text-2xl:  1.953rem;   /*  ~31px */
+  --text-3xl:  2.441rem;   /*  ~39px */
+  --text-4xl:  3.052rem;   /*  ~49px */
+}
+
+/* ============================================================
+   DARK MODE
+   ============================================================ */
+
+[data-theme="dark"] {
+  /* Surfaces */
+  --color-base:            #1E1610;
+  --color-surface:         #272018;
+  --color-surface-raised:  #302820;
+  --color-surface-sunken:  #171210;
+
+  /* Brand */
+  --color-primary:          #D4784A;
+  --color-primary-hover:    #E08860;
+  --color-primary-subtle:   #3D2318;
+
+  --color-secondary:        #8AAE8E;
+  --color-secondary-hover:  #9EC0A2;
+  --color-secondary-subtle: #1E2E20;
+
+  /* Accent */
+  --color-accent:        #C8C4A0;
+  --color-accent-subtle: #2A2A1E;
+
+  /* Semantic */
+  --color-warning:          #F0B040;
+  --color-warning-subtle:   #2E2208;
+
+  --color-danger:           #C8504A;
+  --color-danger-subtle:    #2E1210;
+
+  --color-success:          #8AAE8E;
+  --color-success-subtle:   #1E2E20;
+
+  /* Text */
+  --color-text-primary:   #EDE3D6;
+  --color-text-secondary: #B8A898;
+  --color-text-muted:     #7A6858;
+  --color-text-inverse:   #2C1F14;
+  --color-text-link:      #D4784A;
+
+  /* Borders */
+  --color-border:        #3D3020;
+  --color-border-subtle: #2E2418;
+  --color-border-strong: #5A4838;
+  --color-border-focus:  #D4784A;
+
+  /* MHD-Ampel (dark) */
+  --color-mhd-fresh:    #8AAE8E;
+  --color-mhd-ok:       #6A9070;
+  --color-mhd-soon:     #F0B040;
+  --color-mhd-critical: #D4784A;
+  --color-mhd-expired:  #C8504A;
+
+  /* Shadows (darker, more opaque) */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.30),
+               0 1px 3px rgba(0, 0, 0, 0.20);
+  --shadow-md: 0 2px 4px rgba(0, 0, 0, 0.36),
+               0 4px 8px rgba(0, 0, 0, 0.28);
+  --shadow-lg: 0 4px 8px rgba(0, 0, 0, 0.40),
+               0 8px 16px rgba(0, 0, 0, 0.32);
+  --shadow-xl: 0 8px 16px rgba(0, 0, 0, 0.48),
+               0 16px 32px rgba(0, 0, 0, 0.40);
+}
+
+/* ============================================================
+   BASE STYLES
+   ============================================================ */
+
+body {
+  font-family: var(--font-body);
+  background-color: var(--color-base);
+  color: var(--color-text-primary);
+  font-size: var(--text-base);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ============================================================
+   MHD BADGE UTILITIES
+   ============================================================ */
+
+.mhd-fresh,
+.mhd-ok,
+.mhd-soon,
+.mhd-critical,
+.mhd-expired {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-full);
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  white-space: nowrap;
+  transition: opacity var(--transition-fast);
+}
+
+.mhd-fresh {
+  background-color: var(--color-mhd-fresh);
+  color: var(--color-text-inverse);
+}
+
+.mhd-ok {
+  background-color: var(--color-mhd-ok);
+  color: var(--color-text-primary);
+}
+
+.mhd-soon {
+  background-color: var(--color-mhd-soon);
+  color: var(--color-text-primary);
+}
+
+.mhd-critical {
+  background-color: var(--color-mhd-critical);
+  color: var(--color-text-inverse);
+}
+
+.mhd-expired {
+  background-color: var(--color-mhd-expired);
+  color: var(--color-text-inverse);
+}

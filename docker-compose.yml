@@ -1,0 +1,55 @@
+services:
+  stoqr:
+    image: ghcr.io/labushuya/stoqr:latest
+    # build:
+    #   context: .
+    #   dockerfile: docker/app/Dockerfile
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://stoqr:${DB_PASSWORD}@postgres:5432/stoqr
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET}
+      BETTER_AUTH_URL: https://${DOMAIN}
+      PUBLIC_APP_URL: https://${DOMAIN}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+      OFF_USER_AGENT: stoqr/0.1.0 (https://github.com/Labushuya/stoqr)
+      TZ: ${TZ:-Europe/Berlin}
+      NODE_ENV: production
+    depends_on:
+      postgres:
+        condition: service_healthy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.stoqr.rule=Host(`${DOMAIN}`)"
+      - "traefik.http.routers.stoqr.entrypoints=websecure"
+      - "traefik.http.routers.stoqr.tls.certresolver=letsencrypt"
+      - "traefik.http.services.stoqr.loadbalancer.server.port=3000"
+    networks:
+      - proxy
+      - internal
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: stoqr
+      POSTGRES_USER: stoqr
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U stoqr"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - internal
+
+volumes:
+  postgres_data:
+
+networks:
+  proxy:
+    external: true
+  internal:
+    internal: true
