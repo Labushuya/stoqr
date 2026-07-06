@@ -1,15 +1,6 @@
 <div align="center">
 
-```
- _____ _____ ___  ___  _____
-/  ___|_   _/ _ \ / _ \|  _  |
-\ `--.  | |/ | | / | | | | | |
- `--. \ | || | | | | | | | | |
-/\__/ / | |\ \_/ \ \_/ \ \/' /
-\____/  \_/ \___/ \___/ \_/\_\
-```
-
-**Self-hosted Lebensmittel-Inventar für den Haushalt**
+<img src="./docs/banner.svg" alt="stoqr — Self-hosted food inventory" width="100%"/>
 
 *Weißt du, was im Kühlschrank ist? Stoqr weiß es.*
 
