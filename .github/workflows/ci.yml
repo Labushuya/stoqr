@@ -77,6 +77,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Sync SvelteKit
+        run: pnpm --filter @stoqr/web exec svelte-kit sync
+
       - name: Run migrations
         run: pnpm --filter @stoqr/db exec drizzle-kit push --force
 
