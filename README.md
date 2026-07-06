@@ -2,7 +2,7 @@
 
 <img src="./docs/banner.svg" alt="stoqr — Self-hosted food inventory" width="100%"/>
 
-<br/>
+<p>&nbsp;</p>
 
 [![CI](https://github.com/Labushuya/stoqr/actions/workflows/ci.yml/badge.svg)](https://github.com/Labushuya/stoqr/actions/workflows/ci.yml)
 [![Docker Publish](https://github.com/Labushuya/stoqr/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/Labushuya/stoqr/actions/workflows/docker-publish.yml)
@@ -13,7 +13,7 @@
 [![SvelteKit](https://img.shields.io/badge/SvelteKit-2.x-FF3E00?logo=svelte&logoColor=white)](https://kit.svelte.dev/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-336791?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
 [![Drizzle ORM](https://img.shields.io/badge/Drizzle-ORM-C5F74F?logo=drizzle&logoColor=black)](https://orm.drizzle.team/)
-[![Bring!](https://img.shields.io/badge/Bring!-integration-F97B2C?logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHBhdGggZmlsbD0id2hpdGUiIGQ9Ik0xOSA3aC0xVjZhNiA2IDAgMCAwLTEyIDB2MUg1Yy0xLjEgMC0yIC45LTIgMnYxMWMwIDEuMS45IDIgMiAyaDE0YzEuMSAwIDItLjkgMi0yVjljMC0xLjEtLjktMi0yLTJ6bS03LTVhNCA0IDAgMCAxIDQgNHYxSDhWNmE0IDQgMCAwIDEgNC00em0wIDEwYy0xLjEgMC0yLS45LTItMnMuOS0yIDItMiAyIC45IDIgMi0uOSAyLTIgMnoiLz48L3N2Zz4=&logoColor=white)](https://www.getbring.com/)
+[![Bring!](https://img.shields.io/badge/Bring!-integration-F97B2C)](https://www.getbring.com/)
 
 </div>
 
