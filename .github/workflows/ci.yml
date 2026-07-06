@@ -59,7 +59,7 @@ jobs:
 
     env:
       DATABASE_URL: postgresql://stoqr:stoqr_test@localhost:5432/stoqr_test
-      BETTER_AUTH_SECRET: test-secret-ci-only-not-for-production
+      BETTER_AUTH_SECRET: ${{ secrets.BETTER_AUTH_SECRET || 'fb2d0ee68bcc82a0a9a80e73e95735ba31cb3e9a21492cd2f3ec1d8520b20808' }}
       BETTER_AUTH_URL: http://localhost:5173
       ENCRYPTION_KEY: 0000000000000000000000000000000000000000000000000000000000000000
 
@@ -109,6 +109,6 @@ jobs:
         run: pnpm run build
         env:
           DATABASE_URL: postgresql://localhost/placeholder
-          BETTER_AUTH_SECRET: a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2
+          BETTER_AUTH_SECRET: ${{ secrets.BETTER_AUTH_SECRET || 'fb2d0ee68bcc82a0a9a80e73e95735ba31cb3e9a21492cd2f3ec1d8520b20808' }}
           BETTER_AUTH_URL: http://localhost:5173
           ENCRYPTION_KEY: 0000000000000000000000000000000000000000000000000000000000000000
