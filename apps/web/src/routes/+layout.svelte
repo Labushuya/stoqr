@@ -13,6 +13,7 @@
     { href: '/inventar',  label: 'Inventar'  },
     { href: '/orte',      label: 'Orte'      },
     { href: '/einkaufsliste', label: 'Einkaufsliste' },
+    { href: '/einstellungen', label: 'Einstellungen' },
   ]
 
   function isActive(href: string): boolean {

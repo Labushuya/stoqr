@@ -10,7 +10,8 @@
     "generate": "drizzle-kit generate",
     "migrate": "drizzle-kit migrate",
     "studio": "drizzle-kit studio",
-    "push": "drizzle-kit push"
+    "push": "drizzle-kit push",
+    "seed": "tsx seeds/index.ts"
   },
   "dependencies": {
     "drizzle-orm": "^0.45.2",
@@ -18,6 +19,7 @@
   },
   "devDependencies": {
     "drizzle-kit": "^0.29.0",
+    "tsx": "^4.0.0",
     "typescript": "^5.0.0"
   }
 }
