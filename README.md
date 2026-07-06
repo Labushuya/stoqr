@@ -82,13 +82,28 @@ ENCRYPTION_KEY=$(openssl rand -hex 32)
 docker compose up -d
 ```
 
-Stoqr ist jetzt unter `https://stoqr.home.example.com` erreichbar.
+Beim ersten Start führt der Container automatisch alle ausstehenden Datenbankmigrationen aus (via `entrypoint.sh` → `migrate.js`). Kein manueller Schritt nötig.
 
-### 3. Datenbank migrieren
+### 3. Seed-Daten einspielen (einmalig)
+
+Nährwert-Typen und Standard-Kategorien befüllen — einmalig nach dem ersten Start:
 
 ```bash
-docker compose exec stoqr node -e "require('./build/migrate.js')"
+docker compose cp packages/db/drizzle/seed.sql stoqr_postgres_1:/tmp/seed.sql
+docker compose exec postgres psql -U stoqr -d stoqr -f /tmp/seed.sql
 ```
+
+> Servicename ggf. anpassen (`docker compose ps` zeigt den genauen Namen).
+
+### 4. Ersten Account anlegen
+
+```bash
+curl -X POST https://DEINE_DOMAIN/api/auth/sign-up/email \
+  -H "Content-Type: application/json" \
+  -d '{"email":"dein@email.de","password":"sicherespasswort","name":"Admin"}'
+```
+
+Danach unter `https://DEINE_DOMAIN/login` einloggen.
 
 ### Auto-Updates mit Watchtower
 

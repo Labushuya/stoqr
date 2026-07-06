@@ -25,7 +25,10 @@ COPY --from=builder /app/apps/web/build ./build
 COPY --from=builder /app/apps/web/package.json ./package.json
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/packages/db/drizzle ./drizzle
+COPY docker/app/migrate.js ./migrate.js
+COPY docker/app/entrypoint.sh ./entrypoint.sh
+RUN chmod +x entrypoint.sh
 USER stoqr
 EXPOSE 3000
 ENV NODE_ENV=production
-CMD ["node", "build"]
+CMD ["./entrypoint.sh"]
