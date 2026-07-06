@@ -8,6 +8,13 @@
       "when": 1783356420311,
       "tag": "0000_sticky_dracula",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1783358292283,
+      "tag": "0001_wooden_hedge_knight",
+      "breakpoints": true
     }
   ]
 }

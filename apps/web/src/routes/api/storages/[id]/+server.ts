@@ -1,0 +1,64 @@
+import { json } from '@sveltejs/kit'
+import type { RequestHandler } from './$types'
+import { db } from '$lib/server/db'
+import { storages, locations } from '@stoqr/db'
+import { eq } from 'drizzle-orm'
+
+async function getStorageForUser(storageId: string, userId: string) {
+  const [row] = await db
+    .select({ storage: storages, locationUserId: locations.userId })
+    .from(storages)
+    .innerJoin(locations, eq(storages.locationId, locations.id))
+    .where(eq(storages.id, storageId))
+
+  if (!row || row.locationUserId !== userId) return null
+  return row.storage
+}
+
+export const PATCH: RequestHandler = async ({ locals, params, request }) => {
+  if (!locals.user) {
+    return json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  const existing = await getStorageForUser(params.id, locals.user.id)
+  if (!existing) {
+    return json({ error: 'Not found' }, { status: 404 })
+  }
+
+  const body = await request.json()
+  const { name, storageType, temperatureZone, icon, sortOrder } = body
+
+  const updates: Record<string, unknown> = {}
+  if (name !== undefined) updates.name = name
+  if (storageType !== undefined) updates.storageType = storageType
+  if (temperatureZone !== undefined) updates.temperatureZone = temperatureZone
+  if (icon !== undefined) updates.icon = icon
+  if (sortOrder !== undefined) updates.sortOrder = sortOrder
+
+  if (Object.keys(updates).length === 0) {
+    return json({ error: 'No fields to update' }, { status: 400 })
+  }
+
+  const [updated] = await db
+    .update(storages)
+    .set(updates)
+    .where(eq(storages.id, params.id))
+    .returning()
+
+  return json(updated)
+}
+
+export const DELETE: RequestHandler = async ({ locals, params }) => {
+  if (!locals.user) {
+    return json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  const existing = await getStorageForUser(params.id, locals.user.id)
+  if (!existing) {
+    return json({ error: 'Not found' }, { status: 404 })
+  }
+
+  await db.delete(storages).where(eq(storages.id, params.id))
+
+  return new Response(null, { status: 204 })
+}

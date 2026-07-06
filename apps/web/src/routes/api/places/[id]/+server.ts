@@ -1,0 +1,63 @@
+import { json } from '@sveltejs/kit'
+import type { RequestHandler } from './$types'
+import { db } from '$lib/server/db'
+import { places, storages, locations } from '@stoqr/db'
+import { eq } from 'drizzle-orm'
+
+async function getPlaceForUser(placeId: string, userId: string) {
+  const [row] = await db
+    .select({ place: places, locationUserId: locations.userId })
+    .from(places)
+    .innerJoin(storages, eq(places.storageId, storages.id))
+    .innerJoin(locations, eq(storages.locationId, locations.id))
+    .where(eq(places.id, placeId))
+
+  if (!row || row.locationUserId !== userId) return null
+  return row.place
+}
+
+export const PATCH: RequestHandler = async ({ locals, params, request }) => {
+  if (!locals.user) {
+    return json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  const existing = await getPlaceForUser(params.id, locals.user.id)
+  if (!existing) {
+    return json({ error: 'Not found' }, { status: 404 })
+  }
+
+  const body = await request.json()
+  const { name, icon, sortOrder } = body
+
+  const updates: Record<string, unknown> = {}
+  if (name !== undefined) updates.name = name
+  if (icon !== undefined) updates.icon = icon
+  if (sortOrder !== undefined) updates.sortOrder = sortOrder
+
+  if (Object.keys(updates).length === 0) {
+    return json({ error: 'No fields to update' }, { status: 400 })
+  }
+
+  const [updated] = await db
+    .update(places)
+    .set(updates)
+    .where(eq(places.id, params.id))
+    .returning()
+
+  return json(updated)
+}
+
+export const DELETE: RequestHandler = async ({ locals, params }) => {
+  if (!locals.user) {
+    return json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  const existing = await getPlaceForUser(params.id, locals.user.id)
+  if (!existing) {
+    return json({ error: 'Not found' }, { status: 404 })
+  }
+
+  await db.delete(places).where(eq(places.id, params.id))
+
+  return new Response(null, { status: 204 })
+}
