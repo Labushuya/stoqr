@@ -1,101 +1,108 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 320" width="1280" height="320">
   <defs>
-    <linearGradient id="bgGrad" x1="0" y1="0" x2="1" y2="1">
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0%" stop-color="#EDE3D6"/>
-      <stop offset="100%" stop-color="#E0D4BC"/>
+      <stop offset="100%" stop-color="#DDD0B8"/>
     </linearGradient>
-    <linearGradient id="boxGrad" x1="0" y1="0" x2="0" y2="1">
+    <linearGradient id="box" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0%" stop-color="#5A5A42"/>
       <stop offset="100%" stop-color="#3A3A28"/>
     </linearGradient>
-    <filter id="shadow" x="-10%" y="-10%" width="120%" height="130%">
-      <feDropShadow dx="0" dy="4" stdDeviation="8" flood-color="#2C1F14" flood-opacity="0.18"/>
+    <filter id="dropshadow">
+      <feDropShadow dx="0" dy="3" stdDeviation="6" flood-color="#2C1F14" flood-opacity="0.20"/>
     </filter>
-    <filter id="textShadow">
-      <feDropShadow dx="0" dy="1" stdDeviation="2" flood-color="#2C1F14" flood-opacity="0.12"/>
-    </filter>
-    <clipPath id="boxClip">
-      <rect x="0" y="0" width="96" height="96" rx="18" ry="18"/>
-    </clipPath>
   </defs>
 
   <!-- Background -->
-  <rect width="1280" height="320" fill="url(#bgGrad)"/>
+  <rect width="1280" height="320" fill="url(#bg)"/>
 
   <!-- Left accent stripe -->
   <rect x="0" y="0" width="6" height="320" fill="#C4673A"/>
 
-  <!-- Subtle grain texture overlay -->
-  <rect width="1280" height="320" fill="none" opacity="0.03"/>
-
-  <!-- Logo box -->
-  <g transform="translate(72, 112)" filter="url(#shadow)">
-    <rect width="96" height="96" rx="18" ry="18" fill="url(#boxGrad)"/>
-    <!-- Tag notch top-right corner -->
-    <polygon points="78,0 96,0 96,18" fill="#C4673A" opacity="0.9"/>
-    <!-- S letterform — custom path for optical weight -->
-    <text x="48" y="67" font-family="Georgia, serif" font-size="62" font-weight="700"
-          text-anchor="middle" fill="#F5F0E8" letter-spacing="-2">S</text>
+  <!-- ── Logo box (S icon) ───────────────────────────── -->
+  <g transform="translate(56, 104)" filter="url(#dropshadow)">
+    <!-- Box body -->
+    <rect x="0" y="0" width="112" height="112" rx="20" fill="url(#box)"/>
+    <!-- Terracotta notch top-right = price-tag corner -->
+    <polygon points="86,0 112,0 112,26" fill="#C4673A"/>
+    <!-- S -->
+    <text x="56" y="80"
+          font-family="Georgia, 'Times New Roman', serif"
+          font-size="72" font-weight="700"
+          text-anchor="middle"
+          fill="#F5F0E8">S</text>
   </g>
 
-  <!-- Wordmark: stoqr -->
-  <text x="200" y="178"
-        font-family="'Trebuchet MS', 'Segoe UI', Arial, sans-serif"
-        font-size="88" font-weight="700" letter-spacing="-4"
-        fill="#2C1F14" filter="url(#textShadow)">sto</text>
-  <!-- q in primary color for visual anchor -->
-  <text x="430" y="178"
-        font-family="'Trebuchet MS', 'Segoe UI', Arial, sans-serif"
-        font-size="88" font-weight="700" letter-spacing="-4"
-        fill="#C4673A">q</text>
-  <text x="492" y="178"
-        font-family="'Trebuchet MS', 'Segoe UI', Arial, sans-serif"
-        font-size="88" font-weight="700" letter-spacing="-4"
-        fill="#2C1F14">r</text>
+  <!-- ── Wordmark "stoqr" — single text node, tspan for q colour ── -->
+  <text x="196" y="196"
+        font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif"
+        font-size="100" font-weight="700"
+        letter-spacing="-3"
+        fill="#2C1F14"
+        filter="url(#dropshadow)">sto<tspan fill="#C4673A">q</tspan>r</text>
 
-  <!-- Tagline -->
-  <text x="200" y="218"
-        font-family="'Trebuchet MS', 'Segoe UI', Arial, sans-serif"
-        font-size="20" font-weight="400" letter-spacing="1"
+  <!-- ── Tagline ──────────────────────────────────────── -->
+  <text x="196" y="236"
+        font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif"
+        font-size="19" font-weight="400"
+        letter-spacing="0.5"
         fill="#6B5744">Self-hosted food inventory · MHD tracking · Bring! integration</text>
 
-  <!-- Decorative separator line -->
-  <line x1="200" y1="232" x2="620" y2="232" stroke="#D4C8B0" stroke-width="1.5" opacity="0.8"/>
+  <!-- Separator -->
+  <line x1="196" y1="252" x2="740" y2="252" stroke="#C4B89A" stroke-width="1" opacity="0.7"/>
 
-  <!-- Stack pills -->
-  <g transform="translate(200, 252)">
-    <!-- SvelteKit pill -->
-    <rect x="0" y="0" width="86" height="26" rx="13" fill="#4A4A35" opacity="0.9"/>
-    <text x="43" y="17" font-family="'Trebuchet MS', Arial, sans-serif" font-size="11"
-          font-weight="600" text-anchor="middle" fill="#E8DCC8" letter-spacing="0.5">SvelteKit</text>
+  <!-- ── Tech pills ─────────────────────────────────── -->
+  <!-- SvelteKit -->
+  <rect x="196" y="264" width="88" height="26" rx="13" fill="#4A4A35"/>
+  <text x="240" y="281" font-family="'Segoe UI', Arial, sans-serif" font-size="11" font-weight="600"
+        text-anchor="middle" fill="#E8DCC8" letter-spacing="0.4">SvelteKit</text>
 
-    <!-- PostgreSQL pill -->
-    <rect x="94" y="0" width="90" height="26" rx="13" fill="#4A4A35" opacity="0.9"/>
-    <text x="139" y="17" font-family="'Trebuchet MS', Arial, sans-serif" font-size="11"
-          font-weight="600" text-anchor="middle" fill="#E8DCC8" letter-spacing="0.5">PostgreSQL</text>
+  <!-- PostgreSQL -->
+  <rect x="292" y="264" width="96" height="26" rx="13" fill="#4A4A35"/>
+  <text x="340" y="281" font-family="'Segoe UI', Arial, sans-serif" font-size="11" font-weight="600"
+        text-anchor="middle" fill="#E8DCC8" letter-spacing="0.4">PostgreSQL</text>
 
-    <!-- Docker pill -->
-    <rect x="192" y="0" width="68" height="26" rx="13" fill="#C4673A" opacity="0.9"/>
-    <text x="226" y="17" font-family="'Trebuchet MS', Arial, sans-serif" font-size="11"
-          font-weight="600" text-anchor="middle" fill="#F5F0E8" letter-spacing="0.5">Docker</text>
+  <!-- Drizzle -->
+  <rect x="396" y="264" width="68" height="26" rx="13" fill="#4A4A35"/>
+  <text x="430" y="281" font-family="'Segoe UI', Arial, sans-serif" font-size="11" font-weight="600"
+        text-anchor="middle" fill="#E8DCC8" letter-spacing="0.4">Drizzle</text>
 
-    <!-- Raspberry Pi pill -->
-    <rect x="268" y="0" width="104" height="26" rx="13" fill="#7A9E7E" opacity="0.9"/>
-    <text x="320" y="17" font-family="'Trebuchet MS', Arial, sans-serif" font-size="11"
-          font-weight="600" text-anchor="middle" fill="#F5F0E8" letter-spacing="0.5">Raspberry Pi</text>
+  <!-- Docker -->
+  <rect x="472" y="264" width="68" height="26" rx="13" fill="#C4673A"/>
+  <text x="506" y="281" font-family="'Segoe UI', Arial, sans-serif" font-size="11" font-weight="600"
+        text-anchor="middle" fill="#F5F0E8" letter-spacing="0.4">Docker</text>
 
-    <!-- AGPL pill -->
-    <rect x="380" y="0" width="62" height="26" rx="13" fill="#4A4A35" opacity="0.6"/>
-    <text x="411" y="17" font-family="'Trebuchet MS', Arial, sans-serif" font-size="11"
-          font-weight="600" text-anchor="middle" fill="#E8DCC8" letter-spacing="0.5">AGPL-3.0</text>
-  </g>
+  <!-- Raspberry Pi -->
+  <rect x="548" y="264" width="106" height="26" rx="13" fill="#7A9E7E"/>
+  <text x="601" y="281" font-family="'Segoe UI', Arial, sans-serif" font-size="11" font-weight="600"
+        text-anchor="middle" fill="#F5F0E8" letter-spacing="0.4">Raspberry Pi</text>
 
-  <!-- Right side decorative element: storage icon suggestion -->
-  <g transform="translate(1050, 80)" opacity="0.12">
-    <rect x="0" y="0" width="160" height="160" rx="24" fill="#4A4A35"/>
-    <rect x="16" y="16" width="128" height="128" rx="16" fill="none" stroke="#4A4A35" stroke-width="3"/>
-    <rect x="32" y="52" width="96" height="22" rx="6" fill="#4A4A35"/>
-    <rect x="32" y="84" width="96" height="22" rx="6" fill="#4A4A35"/>
-    <rect x="32" y="116" width="96" height="22" rx="6" fill="#4A4A35"/>
+  <!-- AGPL -->
+  <rect x="662" y="264" width="70" height="26" rx="13" fill="#9C876E"/>
+  <text x="697" y="281" font-family="'Segoe UI', Arial, sans-serif" font-size="11" font-weight="600"
+        text-anchor="middle" fill="#F5F0E8" letter-spacing="0.4">AGPL-3.0</text>
+
+  <!-- ── Right decorative: shelf shelves ────────────── -->
+  <g transform="translate(960, 44)" opacity="0.10" fill="#4A4A35">
+    <!-- Outer cabinet frame -->
+    <rect x="0"  y="0"   width="260" height="230" rx="16"/>
+    <!-- Shelf slots cut out (lighter) -->
+    <rect x="14" y="14"  width="232" height="202" rx="10" fill="#EDE3D6"/>
+    <!-- Three shelves -->
+    <rect x="14" y="14"  width="232" height="2"   fill="#4A4A35"/>
+    <rect x="14" y="76"  width="232" height="2"   fill="#4A4A35"/>
+    <rect x="14" y="138" width="232" height="2"   fill="#4A4A35"/>
+    <rect x="14" y="200" width="232" height="2"   fill="#4A4A35"/>
+    <!-- Items on shelves (boxes) -->
+    <rect x="24"  y="20" width="38" height="50" rx="5" fill="#C4673A" opacity="0.5"/>
+    <rect x="70"  y="28" width="28" height="42" rx="5" fill="#7A9E7E" opacity="0.5"/>
+    <rect x="106" y="22" width="44" height="48" rx="5" fill="#4A4A35" opacity="0.4"/>
+    <rect x="24"  y="82" width="28" height="48" rx="5" fill="#7A9E7E" opacity="0.5"/>
+    <rect x="60"  y="90" width="44" height="40" rx="5" fill="#C4673A" opacity="0.5"/>
+    <rect x="112" y="84" width="32" height="46" rx="5" fill="#4A4A35" opacity="0.4"/>
+    <rect x="152" y="86" width="36" height="44" rx="5" fill="#7A9E7E" opacity="0.4"/>
+    <rect x="24"  y="144" width="50" height="48" rx="5" fill="#4A4A35" opacity="0.4"/>
+    <rect x="82"  y="152" width="34" height="40" rx="5" fill="#C4673A" opacity="0.5"/>
+    <rect x="124" y="146" width="28" height="46" rx="5" fill="#7A9E7E" opacity="0.4"/>
   </g>
 </svg>
