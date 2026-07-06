@@ -2,6 +2,7 @@
 
 <img src="./docs/banner.svg" alt="stoqr — Self-hosted food inventory" width="100%"/>
 
+<br/>
 
 [![CI](https://github.com/Labushuya/stoqr/actions/workflows/ci.yml/badge.svg)](https://github.com/Labushuya/stoqr/actions/workflows/ci.yml)
 [![Docker Publish](https://github.com/Labushuya/stoqr/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/Labushuya/stoqr/actions/workflows/docker-publish.yml)
