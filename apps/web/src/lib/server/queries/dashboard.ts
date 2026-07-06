@@ -1,6 +1,6 @@
 import { db } from '$lib/server/db'
 import { inventoryItems, locations } from '@stoqr/db'
-import { and, eq, lt, lte, isNotNull, asc } from 'drizzle-orm'
+import { and, eq, lt, lte, gte, isNotNull, asc, sql } from 'drizzle-orm'
 
 // ---------------------------------------------------------------------------
 // Helpers
