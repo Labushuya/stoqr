@@ -21,13 +21,27 @@ RUN pnpm run build
 FROM node:22-alpine AS runner
 WORKDIR /app
 RUN addgroup -S stoqr && adduser -S stoqr -G stoqr
-COPY --from=builder /app/apps/web/build ./build
+
+# SvelteKit app build
+COPY --from=builder /app/apps/web/build        ./build
 COPY --from=builder /app/apps/web/package.json ./package.json
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/packages/db/drizzle ./drizzle
-COPY docker/app/migrate.js ./migrate.js
+
+# Root node_modules (SvelteKit runtime deps)
+COPY --from=builder /app/node_modules          ./node_modules
+
+# Drizzle migrations folder (referenced by migrate.js)
+COPY --from=builder /app/packages/db/drizzle   ./drizzle
+
+# Migration runner + its dependencies
+# migrate.js lives under packages/db/ so Node resolves drizzle-orm
+# and postgres from packages/db/node_modules via upward traversal
+COPY --from=builder /app/packages/db/node_modules ./packages/db/node_modules
+COPY docker/app/migrate.js                     ./packages/db/migrate.js
+
+# Entrypoint
 COPY docker/app/entrypoint.sh ./entrypoint.sh
 RUN chmod +x entrypoint.sh
+
 USER stoqr
 EXPOSE 3000
 ENV NODE_ENV=production
