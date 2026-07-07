@@ -30,7 +30,7 @@ RUN npm install --omit=dev
 # ─── Stage 4: Migration runner deps ──────────────────────────────────────────
 FROM node:22-alpine AS migrate-deps
 WORKDIR /migrate-deps
-RUN npm init -y && npm install drizzle-orm postgres --save
+RUN npm init -y && npm install drizzle-orm postgres @opentelemetry/api --save
 
 # ─── Stage 5: Runner ─────────────────────────────────────────────────────────
 FROM node:22-alpine AS runner
@@ -44,9 +44,11 @@ COPY --from=builder /app/apps/web/package.json ./package.json
 # Flat, symlink-free node_modules with all web runtime deps
 COPY --from=web-deps  /web-deps/node_modules   ./node_modules
 
-# drizzle-orm + postgres for migrate.js
-COPY --from=migrate-deps /migrate-deps/node_modules/drizzle-orm ./node_modules/drizzle-orm
-COPY --from=migrate-deps /migrate-deps/node_modules/postgres     ./node_modules/postgres
+# drizzle-orm + postgres for migrate.js, @opentelemetry/api for better-auth
+# These are installed via a separate npm stage to guarantee real files (no pnpm symlinks)
+COPY --from=migrate-deps /migrate-deps/node_modules/drizzle-orm          ./node_modules/drizzle-orm
+COPY --from=migrate-deps /migrate-deps/node_modules/postgres              ./node_modules/postgres
+COPY --from=migrate-deps /migrate-deps/node_modules/@opentelemetry        ./node_modules/@opentelemetry
 
 # Drizzle migration files
 COPY --from=builder /app/packages/db/drizzle   ./drizzle
