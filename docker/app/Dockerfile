@@ -18,22 +18,14 @@ COPY . .
 RUN pnpm run build
 
 # ─── Stage 3: Install web runtime deps via npm (no workspace, no symlinks) ───
-# We extract only the runtime dependencies from apps/web/package.json,
-# strip the workspace dep (@stoqr/db — bundled by SvelteKit anyway),
-# and run a plain npm install to get a flat, symlink-free node_modules.
+# Plain npm install produces real files — no pnpm store symlinks
 FROM node:22-alpine AS web-deps
 WORKDIR /web-deps
 COPY apps/web/package.json ./package.json
-# Remove @stoqr/db workspace reference (bundled into build/index.js by SvelteKit)
-# and install only the external runtime deps
-RUN node -e "
-  const pkg = JSON.parse(require('fs').readFileSync('package.json','utf8'));
-  delete pkg.dependencies['@stoqr/db'];
-  pkg.devDependencies = {};
-  pkg.scripts = {};
-  require('fs').writeFileSync('package.json', JSON.stringify(pkg, null, 2));
-"
-RUN npm install --omit=dev --prefer-offline 2>/dev/null || npm install --omit=dev
+COPY docker/app/strip-workspace-deps.mjs ./strip-workspace-deps.mjs
+# Strip workspace: references so npm can install the remaining deps
+RUN node strip-workspace-deps.mjs
+RUN npm install --omit=dev
 
 # ─── Stage 4: Migration runner deps ──────────────────────────────────────────
 FROM node:22-alpine AS migrate-deps
@@ -45,14 +37,14 @@ FROM node:22-alpine AS runner
 WORKDIR /app
 RUN addgroup -S stoqr && adduser -S stoqr -G stoqr
 
-# SvelteKit build output (self-contained bundle from adapter-node)
+# SvelteKit build output
 COPY --from=builder /app/apps/web/build        ./build
 COPY --from=builder /app/apps/web/package.json ./package.json
 
 # Flat, symlink-free node_modules with all web runtime deps
 COPY --from=web-deps  /web-deps/node_modules   ./node_modules
 
-# drizzle-orm + postgres for migrate.js (may already be in web-deps, but ensure correct version)
+# drizzle-orm + postgres for migrate.js
 COPY --from=migrate-deps /migrate-deps/node_modules/drizzle-orm ./node_modules/drizzle-orm
 COPY --from=migrate-deps /migrate-deps/node_modules/postgres     ./node_modules/postgres
 
