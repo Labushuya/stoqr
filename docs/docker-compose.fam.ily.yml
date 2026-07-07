@@ -35,6 +35,7 @@ services:
       start_period: 30s
     labels:
       - "traefik.enable=true"
+      - "traefik.docker.network=proxy"
       - "traefik.http.routers.stoqr.rule=Host(`stoqr.fam.ily`)"
       - "traefik.http.routers.stoqr.entrypoints=websecure"
       # Kein certresolver — lokales TLS vom bestehenden Traefik
