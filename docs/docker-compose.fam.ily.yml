@@ -2,17 +2,20 @@
 # Pfad auf dem Pi: /srv/hubdata/stacks/stoqr/docker-compose.yml
 #
 # Voraussetzungen:
-#   - Externes Docker-Netzwerk "proxy" existiert (docker network create proxy)
+#   - Externes Docker-Netzwerk "proxy" existiert
 #   - Traefik läuft und überwacht dieses Netzwerk
 #   - Pi-hole DNS: stoqr.fam.ily → Pi-IP
-#   - .env liegt neben dieser Datei mit allen CHANGE_ME-Werten befüllt
+#   - Secrets liegen in: /srv/hubdata/state/stoqr/.env
 #
 # Verzeichnisstruktur:
 #   /srv/hubdata/stacks/stoqr/
-#     ├── docker-compose.yml   ← diese Datei
-#     └── .env
+#     └── docker-compose.yml      ← diese Datei
 #   /srv/hubdata/state/stoqr/
-#     └── postgres/            ← PostgreSQL Datenvolume
+#     ├── .env                    ← Secrets (nie ins Repo)
+#     └── postgres/               ← PostgreSQL Datenvolume
+#
+# Optionaler Symlink (nur zur Bequemlichkeit, nicht zwingend):
+#   ln -s /srv/hubdata/state/stoqr/.env /srv/hubdata/stacks/stoqr/.env
 
 services:
 
@@ -20,15 +23,7 @@ services:
   stoqr:
     image: ghcr.io/labushuya/stoqr:main
     restart: unless-stopped
-    environment:
-      DATABASE_URL: postgresql://stoqr:${DB_PASSWORD}@postgres:5432/stoqr
-      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET}
-      BETTER_AUTH_URL: ${BETTER_AUTH_URL}
-      PUBLIC_APP_URL: ${PUBLIC_APP_URL}
-      ENCRYPTION_KEY: ${ENCRYPTION_KEY}
-      OFF_USER_AGENT: ${OFF_USER_AGENT:-stoqr/0.1.0 (https://github.com/Labushuya/stoqr)}
-      TZ: ${TZ:-Europe/Berlin}
-      NODE_ENV: production
+    env_file: /srv/hubdata/state/stoqr/.env
     depends_on:
       postgres:
         condition: service_healthy
@@ -40,29 +35,23 @@ services:
       start_period: 30s
     labels:
       - "traefik.enable=true"
-      # Routing: stoqr.fam.ily → dieser Container
-      - "traefik.http.routers.stoqr.rule=Host(`${DOMAIN}`)"
+      - "traefik.http.routers.stoqr.rule=Host(`stoqr.fam.ily`)"
       - "traefik.http.routers.stoqr.entrypoints=websecure"
-      # TLS: lokale Konfiguration vom bestehenden Traefik übernehmen
-      # Kein certresolver — Traefik nutzt das bestehende lokale Zertifikat
+      # Kein certresolver — lokales TLS vom bestehenden Traefik
       - "traefik.http.routers.stoqr.tls=true"
       - "traefik.http.services.stoqr.loadbalancer.server.port=3000"
-      # Middleware: HTTPS-Weiterleitung (falls Traefik-weit nicht schon aktiv)
+      # HTTP→HTTPS-Redirect falls nicht Traefik-global aktiv:
       # - "traefik.http.routers.stoqr.middlewares=redirect-to-https@docker"
     networks:
-      - proxy      # Traefik-seitig
-      - internal   # DB-Kommunikation (kein Außenzugang)
+      - proxy
+      - internal
 
   # ── PostgreSQL ──────────────────────────────────────────────────────────────
   postgres:
     image: postgres:16-alpine
     restart: unless-stopped
-    environment:
-      POSTGRES_DB: stoqr
-      POSTGRES_USER: stoqr
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    env_file: /srv/hubdata/state/stoqr/.env
     volumes:
-      # Persistent state unter /srv/hubdata/state/stoqr/postgres
       - /srv/hubdata/state/stoqr/postgres:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U stoqr -d stoqr"]
@@ -71,13 +60,10 @@ services:
       retries: 5
       start_period: 15s
     networks:
-      - internal   # Nur intern erreichbar — kein Port-Mapping nach außen!
+      - internal
 
 networks:
   proxy:
-    external: true   # Bestehendes Traefik-Netzwerk
+    external: true
   internal:
-    internal: true   # Isoliertes internes Netz für DB-Kommunikation
-
-# KEIN volumes-Block für postgres_data — wir nutzen einen Host-Pfad statt
-# eines named volume, damit Backups mit Standard-Dateisystem-Tools möglich sind.
+    internal: true
