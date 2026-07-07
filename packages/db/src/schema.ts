@@ -20,7 +20,7 @@ import { relations, sql } from 'drizzle-orm';
 // ---------------------------------------------------------------------------
 
 export const users = pgTable('users', {
-  id: uuid('id').primaryKey().defaultRandom(),
+  id: text('id').primaryKey(),
   username: varchar('username', { length: 64 }).notNull().unique(),
   displayName: varchar('display_name', { length: 128 }).notNull(),
   email: varchar('email', { length: 255 }).unique(),
@@ -56,7 +56,7 @@ export const usersRelations = relations(users, ({ many, one }) => ({
 
 export const locations = pgTable('locations', {
   id: uuid('id').primaryKey().defaultRandom(),
-  userId: uuid('user_id')
+  userId: text('user_id')
     .notNull()
     .references(() => users.id),
   name: varchar('name', { length: 128 }).notNull(),
@@ -171,7 +171,7 @@ export const products = pgTable('products', {
   isVerified: boolean('is_verified').notNull().default(false),
   expiryToleranceDays: integer('expiry_tolerance_days'),
   bringItemId: varchar('bring_item_id', { length: 128 }),
-  createdBy: uuid('created_by').references(() => users.id, { relationName: 'productCreator' } as any),
+  createdBy: text('created_by').references(() => users.id, { relationName: 'productCreator' } as any),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 });
@@ -261,7 +261,7 @@ export const productNutrientsRelations = relations(productNutrients, ({ one }) =
 
 export const stores = pgTable('stores', {
   id: uuid('id').primaryKey().defaultRandom(),
-  userId: uuid('user_id')
+  userId: text('user_id')
     .notNull()
     .references(() => users.id),
   name: varchar('name', { length: 128 }).notNull(),
@@ -297,7 +297,7 @@ export const inventoryItems = pgTable('inventory_items', {
     .notNull()
     .references(() => products.id),
   placeId: uuid('place_id').references(() => places.id),
-  userId: uuid('user_id')
+  userId: text('user_id')
     .notNull()
     .references(() => users.id),
   quantity: numeric('quantity', { precision: 10, scale: 3 }).notNull().default('1'),
@@ -346,7 +346,7 @@ export const inventoryItemsRelations = relations(inventoryItems, ({ one }) => ({
 
 export const expiryConfig = pgTable('expiry_config', {
   id: uuid('id').primaryKey().defaultRandom(),
-  userId: uuid('user_id')
+  userId: text('user_id')
     .notNull()
     .unique()
     .references(() => users.id),
@@ -370,7 +370,7 @@ export const stockTargets = pgTable(
   'stock_targets',
   {
     id: uuid('id').primaryKey().defaultRandom(),
-    userId: uuid('user_id')
+    userId: text('user_id')
       .notNull()
       .references(() => users.id),
     productId: uuid('product_id')
@@ -427,7 +427,7 @@ export const productStores = pgTable(
     storeId: uuid('store_id')
       .notNull()
       .references(() => stores.id, { onDelete: 'cascade' }),
-    userId: uuid('user_id')
+    userId: text('user_id')
       .notNull()
       .references(() => users.id),
     priority: varchar('priority', { length: 16 })
@@ -469,7 +469,7 @@ export const productStoresRelations = relations(productStores, ({ one }) => ({
 
 export const shoppingListItems = pgTable('shopping_list_items', {
   id: uuid('id').primaryKey().defaultRandom(),
-  userId: uuid('user_id')
+  userId: text('user_id')
     .notNull()
     .references(() => users.id),
   productId: uuid('product_id').references(() => products.id),
@@ -512,7 +512,7 @@ export const shoppingListItemsRelations = relations(shoppingListItems, ({ one })
 
 export const bringSync = pgTable('bring_sync_log', {
   id: uuid('id').primaryKey().defaultRandom(),
-  userId: uuid('user_id')
+  userId: text('user_id')
     .notNull()
     .references(() => users.id),
   direction: varchar('direction', { length: 8 })
@@ -545,7 +545,7 @@ export const bringSyncRelations = relations(bringSync, ({ one }) => ({
 
 export const auditLog = pgTable('audit_log', {
   id: bigserial('id', { mode: 'bigint' }).primaryKey(),
-  userId: uuid('user_id').references(() => users.id),
+  userId: text('user_id').references(() => users.id),
   action: varchar('action', { length: 16 })
     .notNull()
     .$type<'INSERT' | 'UPDATE' | 'DELETE'>(),

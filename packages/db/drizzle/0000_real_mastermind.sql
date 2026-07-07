@@ -1,6 +1,22 @@
+CREATE TABLE IF NOT EXISTS "accounts" (
+	"id" text PRIMARY KEY NOT NULL,
+	"account_id" text NOT NULL,
+	"provider_id" text NOT NULL,
+	"user_id" text NOT NULL,
+	"access_token" text,
+	"refresh_token" text,
+	"id_token" text,
+	"access_token_expires_at" timestamp,
+	"refresh_token_expires_at" timestamp,
+	"scope" text,
+	"password" text,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"updated_at" timestamp DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
 CREATE TABLE IF NOT EXISTS "audit_log" (
 	"id" bigserial PRIMARY KEY NOT NULL,
-	"user_id" uuid,
+	"user_id" text,
 	"action" varchar(16) NOT NULL,
 	"table_name" varchar(64) NOT NULL,
 	"record_id" uuid NOT NULL,
@@ -14,7 +30,7 @@ CREATE TABLE IF NOT EXISTS "audit_log" (
 --> statement-breakpoint
 CREATE TABLE IF NOT EXISTS "bring_sync_log" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"user_id" uuid NOT NULL,
+	"user_id" text NOT NULL,
 	"direction" varchar(8) NOT NULL,
 	"store_id" uuid,
 	"item_count" integer,
@@ -37,7 +53,7 @@ CREATE TABLE IF NOT EXISTS "categories" (
 --> statement-breakpoint
 CREATE TABLE IF NOT EXISTS "expiry_config" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"user_id" uuid NOT NULL,
+	"user_id" text NOT NULL,
 	"yellow_days_before" integer DEFAULT 7 NOT NULL,
 	"red_days_before" integer DEFAULT 2 NOT NULL,
 	"grace_days_after" integer DEFAULT 0 NOT NULL,
@@ -48,7 +64,7 @@ CREATE TABLE IF NOT EXISTS "inventory_items" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"product_id" uuid NOT NULL,
 	"place_id" uuid,
-	"user_id" uuid NOT NULL,
+	"user_id" text NOT NULL,
 	"quantity" numeric(10, 3) DEFAULT '1' NOT NULL,
 	"unit" varchar(16) DEFAULT 'piece' NOT NULL,
 	"weight_g" numeric(10, 2),
@@ -69,7 +85,7 @@ CREATE TABLE IF NOT EXISTS "inventory_items" (
 --> statement-breakpoint
 CREATE TABLE IF NOT EXISTS "locations" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"user_id" uuid NOT NULL,
+	"user_id" text NOT NULL,
 	"name" varchar(128) NOT NULL,
 	"icon" varchar(64),
 	"sort_order" integer DEFAULT 0 NOT NULL,
@@ -109,7 +125,7 @@ CREATE TABLE IF NOT EXISTS "product_stores" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"product_id" uuid NOT NULL,
 	"store_id" uuid NOT NULL,
-	"user_id" uuid NOT NULL,
+	"user_id" text NOT NULL,
 	"priority" varchar(16) DEFAULT 'secondary' NOT NULL,
 	"store_sku" varchar(64),
 	"last_seen_price_ct" integer,
@@ -134,15 +150,27 @@ CREATE TABLE IF NOT EXISTS "products" (
 	"is_verified" boolean DEFAULT false NOT NULL,
 	"expiry_tolerance_days" integer,
 	"bring_item_id" varchar(128),
-	"created_by" uuid,
+	"created_by" text,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp DEFAULT now() NOT NULL,
 	CONSTRAINT "products_gtin_unique" UNIQUE("gtin")
 );
 --> statement-breakpoint
+CREATE TABLE IF NOT EXISTS "sessions" (
+	"id" text PRIMARY KEY NOT NULL,
+	"expires_at" timestamp NOT NULL,
+	"token" text NOT NULL,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"updated_at" timestamp DEFAULT now() NOT NULL,
+	"ip_address" text,
+	"user_agent" text,
+	"user_id" text NOT NULL,
+	CONSTRAINT "sessions_token_unique" UNIQUE("token")
+);
+--> statement-breakpoint
 CREATE TABLE IF NOT EXISTS "shopping_list_items" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"user_id" uuid NOT NULL,
+	"user_id" text NOT NULL,
 	"product_id" uuid,
 	"free_text_name" varchar(255),
 	"quantity" numeric(10, 3) DEFAULT '1' NOT NULL,
@@ -161,7 +189,7 @@ CREATE TABLE IF NOT EXISTS "shopping_list_items" (
 --> statement-breakpoint
 CREATE TABLE IF NOT EXISTS "stock_targets" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"user_id" uuid NOT NULL,
+	"user_id" text NOT NULL,
 	"product_id" uuid NOT NULL,
 	"target_quantity" numeric(10, 3) NOT NULL,
 	"unit" varchar(16) DEFAULT 'piece' NOT NULL,
@@ -187,7 +215,7 @@ CREATE TABLE IF NOT EXISTS "storages" (
 --> statement-breakpoint
 CREATE TABLE IF NOT EXISTS "stores" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"user_id" uuid NOT NULL,
+	"user_id" text NOT NULL,
 	"name" varchar(128) NOT NULL,
 	"chain" varchar(64),
 	"address" text,
@@ -200,10 +228,12 @@ CREATE TABLE IF NOT EXISTS "stores" (
 );
 --> statement-breakpoint
 CREATE TABLE IF NOT EXISTS "users" (
-	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"id" text PRIMARY KEY NOT NULL,
 	"username" varchar(64) NOT NULL,
 	"display_name" varchar(128) NOT NULL,
 	"email" varchar(255),
+	"email_verified" boolean DEFAULT false NOT NULL,
+	"image" text,
 	"password_hash" text NOT NULL,
 	"is_active" boolean DEFAULT true NOT NULL,
 	"locale" varchar(10) DEFAULT 'de-DE' NOT NULL,
@@ -212,6 +242,21 @@ CREATE TABLE IF NOT EXISTS "users" (
 	CONSTRAINT "users_username_unique" UNIQUE("username"),
 	CONSTRAINT "users_email_unique" UNIQUE("email")
 );
+--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS "verifications" (
+	"id" text PRIMARY KEY NOT NULL,
+	"identifier" text NOT NULL,
+	"value" text NOT NULL,
+	"expires_at" timestamp NOT NULL,
+	"created_at" timestamp DEFAULT now(),
+	"updated_at" timestamp DEFAULT now()
+);
+--> statement-breakpoint
+DO $$ BEGIN
+ ALTER TABLE "accounts" ADD CONSTRAINT "accounts_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;
+EXCEPTION
+ WHEN duplicate_object THEN null;
+END $$;
 --> statement-breakpoint
 DO $$ BEGIN
  ALTER TABLE "audit_log" ADD CONSTRAINT "audit_log_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;
@@ -323,6 +368,12 @@ END $$;
 --> statement-breakpoint
 DO $$ BEGIN
  ALTER TABLE "products" ADD CONSTRAINT "products_created_by_users_id_fk" FOREIGN KEY ("created_by") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;
+EXCEPTION
+ WHEN duplicate_object THEN null;
+END $$;
+--> statement-breakpoint
+DO $$ BEGIN
+ ALTER TABLE "sessions" ADD CONSTRAINT "sessions_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;
 EXCEPTION
  WHEN duplicate_object THEN null;
 END $$;
