@@ -1,0 +1,72 @@
+{
+  "$schema": "https://hubctl.fam.ily/schema/hubctl-app-v1.json",
+  "name": "stoqr",
+  "kind": "compose-image-app",
+  "description": "Self-hosted food inventory — MHD tracking, barcode scan, Bring! integration",
+  "version": "0.1.0",
+  "repository": "https://github.com/Labushuya/stoqr",
+
+  "image": {
+    "ref": "ghcr.io/labushuya/stoqr:main",
+    "requiredArchitecture": "linux/arm64",
+    "verifiedOnPi": {
+      "pullOk": true,
+      "archConfirmed": "linux/arm64",
+      "networkInspect": "proxy-ok"
+    }
+  },
+
+  "paths": {
+    "composeTemplate": "docs/docker-compose.fam.ily.yml",
+    "envExample":      "docs/env.fam.ily.example",
+    "stackPath":       "/srv/hubdata/stacks/stoqr/docker-compose.yml",
+    "statePath":       "/srv/hubdata/state/stoqr",
+    "envPath":         "/srv/hubdata/state/stoqr/.env",
+    "backupScript":    "scripts/backup-db.sh",
+    "seedSql":         "packages/db/drizzle/seed.sql"
+  },
+
+  "database": {
+    "kind":      "postgres",
+    "service":   "postgres",
+    "name":      "stoqr",
+    "user":      "stoqr",
+    "dataPath":  "/srv/hubdata/state/stoqr/postgres"
+  },
+
+  "network": {
+    "traefikNetwork":     "proxy",
+    "traefikEntrypoint":  "websecure",
+    "domain":             "stoqr.fam.ily",
+    "dns": {
+      "host":         "stoqr.fam.ily",
+      "piholeConf":   "/srv/hubdata/state/pihole/etc-dnsmasq.d/02-fam-ily.conf"
+    },
+    "health": [
+      "https://stoqr.fam.ily/",
+      "https://stoqr.fam.ily/login"
+    ]
+  },
+
+  "capabilities": {
+    "bootstrap":            true,
+    "deployFromDev":        false,
+    "deployComposeTemplate": true,
+    "stackStatus":          true,
+    "logs":                 true,
+    "restart":              true,
+    "recreate":             true,
+    "backup":               true,
+    "restore":              true,
+    "databaseDump":         true,
+    "databaseRestore":      true,
+    "seed":                 true
+  },
+
+  "safety": {
+    "neverOverwriteEnv":       true,
+    "neverDeleteState":        true,
+    "confirmComposeOverwrite": true,
+    "backupBeforeBootstrap":   true
+  }
+}
