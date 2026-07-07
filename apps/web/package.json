@@ -12,6 +12,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@opentelemetry/api": "^1.9.1",
     "@stoqr/db": "workspace:*",
     "@zxing/browser": "^0.1.0",
     "@zxing/library": "^0.21.0",
