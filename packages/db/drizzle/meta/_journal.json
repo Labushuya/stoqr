@@ -7,6 +7,13 @@
       "when": 1783460232092,
       "tag": "0000_real_mastermind",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1783510288069,
+      "tag": "0001_foamy_snowbird",
+      "breakpoints": true
     }
   ]
 }
