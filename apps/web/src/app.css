@@ -153,64 +153,64 @@
    ============================================================ */
 
 [data-theme="dark"] {
-  /* Surfaces */
-  --color-base:            #1E1610;
-  --color-surface:         #272018;
-  --color-surface-raised:  #302820;
-  --color-surface-sunken:  #171210;
+  /* Surfaces — deep blue-indigo base */
+  --color-base:            #101522;
+  --color-surface:         #161d30;
+  --color-surface-raised:  #1c2540;
+  --color-surface-sunken:  #0d1019;
 
-  /* Brand */
-  --color-primary:          #D4784A;
-  --color-primary-hover:    #E08860;
-  --color-primary-subtle:   #3D2318;
+  /* Brand — violet/lavender accent replaces terracotta in dark */
+  --color-primary:          #9b7cff;
+  --color-primary-hover:    #b090ff;
+  --color-primary-subtle:   #1e1540;
 
-  --color-secondary:        #8AAE8E;
-  --color-secondary-hover:  #9EC0A2;
-  --color-secondary-subtle: #1E2E20;
+  --color-secondary:        #6ab0c8;
+  --color-secondary-hover:  #7ec4dc;
+  --color-secondary-subtle: #0e2030;
 
-  /* Accent */
-  --color-accent:        #C8C4A0;
-  --color-accent-subtle: #2A2A1E;
+  /* Accent — cool slate instead of olive */
+  --color-accent:        #a8b8d8;
+  --color-accent-subtle: #161d30;
 
-  /* Semantic */
-  --color-warning:          #F0B040;
-  --color-warning-subtle:   #2E2208;
+  /* Semantic — slightly desaturated for night readability */
+  --color-warning:          #e8c060;
+  --color-warning-subtle:   #201a04;
 
-  --color-danger:           #C8504A;
-  --color-danger-subtle:    #2E1210;
+  --color-danger:           #f07070;
+  --color-danger-subtle:    #200a0a;
 
-  --color-success:          #8AAE8E;
-  --color-success-subtle:   #1E2E20;
+  --color-success:          #70c090;
+  --color-success-subtle:   #0a2018;
 
-  /* Text */
-  --color-text-primary:   #EDE3D6;
-  --color-text-secondary: #B8A898;
-  --color-text-muted:     #7A6858;
-  --color-text-inverse:   #2C1F14;
-  --color-text-link:      #D4784A;
+  /* Text — cool white, readable on dark blue */
+  --color-text-primary:   #e8edf8;
+  --color-text-secondary: #9aaac8;
+  --color-text-muted:     #5a6888;
+  --color-text-inverse:   #101522;
+  --color-text-link:      #a090ff;
 
-  /* Borders */
-  --color-border:        #3D3020;
-  --color-border-subtle: #2E2418;
-  --color-border-strong: #5A4838;
-  --color-border-focus:  #D4784A;
+  /* Borders — blue-slate tones */
+  --color-border:        #2a3550;
+  --color-border-subtle: #1e2840;
+  --color-border-strong: #3d5070;
+  --color-border-focus:  #9b7cff;
 
-  /* MHD-Ampel (dark) */
-  --color-mhd-fresh:    #8AAE8E;
-  --color-mhd-ok:       #6A9070;
-  --color-mhd-soon:     #F0B040;
-  --color-mhd-critical: #D4784A;
-  --color-mhd-expired:  #C8504A;
+  /* MHD-Ampel (dark — cooler hues) */
+  --color-mhd-fresh:    #70c090;
+  --color-mhd-ok:       #5090a0;
+  --color-mhd-soon:     #e8c060;
+  --color-mhd-critical: #e09050;
+  --color-mhd-expired:  #f07070;
 
-  /* Shadows (darker, more opaque) */
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.30),
-               0 1px 3px rgba(0, 0, 0, 0.20);
-  --shadow-md: 0 2px 4px rgba(0, 0, 0, 0.36),
-               0 4px 8px rgba(0, 0, 0, 0.28);
-  --shadow-lg: 0 4px 8px rgba(0, 0, 0, 0.40),
-               0 8px 16px rgba(0, 0, 0, 0.32);
-  --shadow-xl: 0 8px 16px rgba(0, 0, 0, 0.48),
-               0 16px 32px rgba(0, 0, 0, 0.40);
+  /* Shadows */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.40),
+               0 1px 3px rgba(0, 0, 0, 0.30);
+  --shadow-md: 0 2px 4px rgba(0, 0, 0, 0.48),
+               0 4px 8px rgba(0, 0, 0, 0.36);
+  --shadow-lg: 0 4px 8px rgba(0, 0, 0, 0.54),
+               0 8px 16px rgba(0, 0, 0, 0.42);
+  --shadow-xl: 0 8px 16px rgba(0, 0, 0, 0.60),
+               0 16px 32px rgba(0, 0, 0, 0.50);
 }
 
 /* ============================================================
