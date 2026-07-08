@@ -992,24 +992,6 @@
     background-color: var(--color-primary-subtle);
   }
 
-  .btn-change-emoji {
-    display: inline-flex;
-    align-items: center;
-    height: 30px;
-    padding: 0 var(--space-2);
-    border-radius: var(--radius-md);
-    border: 1px solid var(--color-border);
-    background-color: transparent;
-    color: var(--color-text-secondary);
-    font-family: var(--font-body);
-    font-size: var(--text-xs);
-    font-weight: 500;
-    cursor: pointer;
-    white-space: nowrap;
-    transition: border-color var(--transition-fast), color var(--transition-fast);
-    flex-shrink: 0;
-  }
-
   .btn-change-emoji:hover {
     border-color: var(--color-border-strong);
     color: var(--color-text-primary);
@@ -1087,19 +1069,22 @@
     display: flex;
     align-items: center;
     gap: var(--space-2);
+    flex-shrink: 0;
   }
 
   .emoji-preview {
-    font-size: 1.5rem;
-    padding: 4px 8px;
+    font-size: 1.4rem;
+    padding: 2px 6px;
     border: 1px solid var(--color-border);
     border-radius: var(--radius-md);
     background: var(--color-surface);
     cursor: pointer;
-    min-width: 48px;
+    min-width: 40px;
+    max-width: 40px;
     text-align: center;
-    line-height: 1.4;
+    line-height: 1.5;
     transition: border-color var(--transition-fast);
+    flex-shrink: 0;
   }
 
   .emoji-preview:hover {
@@ -1115,10 +1100,11 @@
     border: 1px solid var(--color-border);
     border-radius: var(--radius-md);
     position: absolute;
-    top: calc(100% + 4px);
+    top: calc(100% + 6px);
     left: 0;
-    z-index: 200;
-    box-shadow: var(--shadow-md);
+    z-index: var(--z-dropdown, 100);
+    box-shadow: var(--shadow-lg);
+    min-width: 220px;
   }
 
   .emoji-opt {
@@ -1223,8 +1209,9 @@
     background-color: var(--color-surface-raised);
     border: 1px solid var(--color-border);
     border-radius: var(--radius-lg);
-    overflow: hidden;
+    overflow: visible;
     box-shadow: var(--shadow-sm);
+    position: relative;
   }
 
   .location-header {
@@ -1256,7 +1243,8 @@
     background-color: var(--color-surface-raised);
     border: 1px solid var(--color-border-subtle);
     border-radius: var(--radius-md);
-    overflow: hidden;
+    overflow: visible;
+    position: relative;
   }
 
   .storage-header {

@@ -8,6 +8,28 @@
 
   let menuOpen = $state(false)
 
+  // Dark mode — persisted in localStorage
+  let darkMode = $state(
+    typeof localStorage !== 'undefined'
+      ? localStorage.getItem('stoqr-theme') === 'dark'
+      : false
+  )
+
+  function toggleDarkMode() {
+    darkMode = !darkMode
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem('stoqr-theme', darkMode ? 'dark' : 'light')
+    }
+    document.documentElement.setAttribute('data-theme', darkMode ? 'dark' : '')
+  }
+
+  // Apply on mount
+  $effect(() => {
+    if (darkMode) {
+      document.documentElement.setAttribute('data-theme', 'dark')
+    }
+  })
+
   const navLinks = [
     { href: '/',          label: 'Dashboard' },
     { href: '/inventar',  label: 'Inventar'  },
@@ -58,9 +80,19 @@
           {/each}
         </ul>
 
-        <!-- Right side: user + logout -->
+        <!-- Right side: user + theme toggle + logout -->
         <div class="nav-right">
           <span class="username">{data.user.name || data.user.email}</span>
+          <button
+            class="btn-theme"
+            class:btn-theme--dark={darkMode}
+            onclick={toggleDarkMode}
+            type="button"
+            title={darkMode ? 'Light Mode' : 'Dark Mode'}
+            aria-label={darkMode ? 'Light Mode aktivieren' : 'Dark Mode aktivieren'}
+          >
+            {#if darkMode}🌙{:else}☀️{/if}
+          </button>
           <button class="btn-logout" onclick={logout} type="button">
             Abmelden
           </button>
@@ -224,6 +256,38 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+
+
+  .btn-theme {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 32px;
+    width: 36px;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--color-border);
+    background: var(--color-surface);
+    cursor: pointer;
+    font-size: 1rem;
+    transition: background var(--transition-base), border-color var(--transition-base), box-shadow var(--transition-base);
+  }
+
+  .btn-theme:hover {
+    border-color: var(--color-border-strong);
+    background: var(--color-surface-sunken);
+  }
+
+  /* Dark mode button — bläulich-lila */
+  .btn-theme--dark {
+    background: linear-gradient(135deg, #2d2060 0%, #1a1040 100%);
+    border-color: #6040b0;
+    box-shadow: 0 0 8px rgba(100, 60, 200, 0.25);
+  }
+
+  .btn-theme--dark:hover {
+    background: linear-gradient(135deg, #3d2880 0%, #221560 100%);
+    border-color: #7050c0;
   }
 
   .btn-logout {

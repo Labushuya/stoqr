@@ -1143,10 +1143,12 @@
 
   .units-list {
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
+    flex-wrap: wrap;
     gap: var(--space-2);
     margin-bottom: var(--space-5);
     min-height: 36px;
+    align-items: flex-start;
   }
 
   .unit-row {
