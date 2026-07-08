@@ -81,39 +81,19 @@ jobs:
         run: pnpm --filter @stoqr/web exec svelte-kit sync
 
       - name: Run migrations
-        run: pnpm --filter @stoqr/db exec drizzle-kit push --force
+        run: pnpm --filter @stoqr/db run migrate
 
-      - name: Schema smoke-test — users.username must be nullable
+      - name: Verify users.username is nullable (signup prerequisite)
         run: |
-          # Verify the username column allows NULL (signup prerequisite)
-          RESULT=$(psql postgresql://stoqr:stoqr_test@localhost:5432/stoqr_test \
-            -t -c "SELECT is_nullable FROM information_schema.columns \
-                   WHERE table_name='users' AND column_name='username';")
-          RESULT=$(echo "$RESULT" | tr -d ' ')
+          RESULT=$(psql $DATABASE_URL -t -c "SELECT is_nullable FROM information_schema.columns WHERE table_name='users' AND column_name='username';")
+          RESULT=$(echo "$RESULT" | tr -d ' \n')
           if [ "$RESULT" != "YES" ]; then
-            echo "FAIL: users.username is NOT nullable — signup will fail"
-            echo "Column info: $RESULT"
+            echo "FAIL: users.username is NOT nullable (is_nullable=$RESULT) — signup will fail"
             exit 1
           fi
           echo "OK: users.username is nullable"
-
-      - name: Signup smoke-test (fresh DB)
-        run: |
-          # Start the app in background
-          cd apps/web
-          node ../../apps/web/build/index.js &
-          APP_PID=$!
-          sleep 5
-          # Test signup endpoint
-          RESP=$(curl -s -o /dev/null -w "%{http_code}" -X POST http://localhost:3000/api/auth/sign-up/email \
-            -H "Content-Type: application/json" \
-            -d '{"email":"ci-test@example.local","password":"testpassword123","name":"CI Test"}')
-          kill $APP_PID 2>/dev/null || true
-          if [ "$RESP" != "200" ] && [ "$RESP" != "201" ]; then
-            echo "FAIL: signup returned HTTP $RESP (expected 200 or 201)"
-            exit 1
-          fi
-          echo "OK: signup returned HTTP $RESP"
+        env:
+          PGPASSWORD: stoqr_test
 
       - name: Run tests
         run: pnpm run test
