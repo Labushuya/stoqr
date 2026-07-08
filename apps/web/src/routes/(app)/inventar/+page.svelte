@@ -43,6 +43,7 @@
       name: string
       brand: string | null
       imageUrl: string | null
+      categoryId: string | null
       category: Category | null
     }
   }
@@ -369,6 +370,7 @@
         if (!res.ok) throw new Error(await res.text())
         const updated = await res.json()
         // Patch local state (product stays same, only item fields change)
+        const selectedCat = categories.find((c) => c.id === formCategoryId) || null
         items = items.map((i) =>
           i.id === editingItem!.id
             ? {
@@ -378,6 +380,7 @@
                 bestBeforeDate: updated.bestBeforeDate,
                 placeId: updated.placeId,
                 notes: updated.notes,
+                product: { ...i.product, categoryId: formCategoryId || null, category: selectedCat },
               }
             : i
         )

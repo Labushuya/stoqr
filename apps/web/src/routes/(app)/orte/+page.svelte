@@ -31,6 +31,10 @@
 
   let { data }: { data: PageData } = $props()
 
+  // ── Emoji picker constant ─────────────────────────────────────────────────
+
+  const LOCATION_EMOJIS = ['🍳','🛁','🛏','🚗','🏠','🪴','🌿','📦','🧊','❄️','🥫','🍷','🧴','🧹','🫙','🍶','🫖','🧃','🥤','🏪','🛒','🍎','🥦','🍞','🥩','🧀','🥚','☕','🪣','🧺']
+
   // ── State ─────────────────────────────────────────────────────────────────
 
   // svelte-ignore state_referenced_locally
@@ -57,6 +61,12 @@
   let adding = $state<AddTarget | null>(null)
   let addName = $state('')
   let addIcon = $state('')
+
+  // Emoji picker open state per context
+  let showLocationPicker = $state(false)
+  let showEditLocationPicker = $state(false)
+  let showStoragePicker = $state(false)
+  let showEditStoragePicker = $state(false)
 
   // Toast
   type Toast = { id: number; message: string; type: 'success' | 'error' }
@@ -184,6 +194,8 @@
       adding = null
       addName = ''
       addIcon = ''
+      showLocationPicker = false
+      showStoragePicker = false
     }
   }
 
@@ -191,12 +203,16 @@
     adding = null
     addName = ''
     addIcon = ''
+    showLocationPicker = false
+    showStoragePicker = false
   }
 
   // ── EDIT mutations ────────────────────────────────────────────────────────
 
   function startEdit(target: EditTarget) {
     editing = { ...target }
+    showEditLocationPicker = false
+    showEditStoragePicker = false
   }
 
   async function submitEdit() {
@@ -254,11 +270,15 @@
       showToast('Fehler beim Speichern', 'error')
     } finally {
       editing = null
+      showEditLocationPicker = false
+      showEditStoragePicker = false
     }
   }
 
   function cancelEdit() {
     editing = null
+    showEditLocationPicker = false
+    showEditStoragePicker = false
   }
 
   // ── DELETE mutations ──────────────────────────────────────────────────────
@@ -330,7 +350,7 @@
     <button
       class="btn-primary"
       type="button"
-      onclick={() => { adding = { kind: 'location' }; addName = ''; addIcon = '' }}
+      onclick={() => { adding = { kind: 'location' }; addName = ''; addIcon = ''; showLocationPicker = false }}
     >
       <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
         <path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
@@ -342,26 +362,51 @@
   <!-- Add location inline form -->
   {#if adding?.kind === 'location'}
     <div class="add-form add-form--top">
-      <span class="emoji-preview" aria-hidden="true">{addIcon || '📍'}</span>
-      <input
-        class="input input--emoji"
-        type="text"
-        placeholder="Emoji"
-        maxlength="4"
-        bind:value={addIcon}
-        onkeydown={onAddKeydown}
-      />
-      <!-- svelte-ignore a11y_autofocus -->
-      <input
-        class="input"
-        type="text"
-        placeholder="Name des Ortes"
-        autofocus
-        bind:value={addName}
-        onkeydown={onAddKeydown}
-      />
-      <button class="btn-save" type="button" onclick={submitAdd}>Hinzufügen</button>
-      <button class="btn-cancel" type="button" onclick={cancelAdd}>Abbrechen</button>
+      <div class="field">
+        <span class="field-label">Icon</span>
+        <div class="emoji-field">
+          <button
+            type="button"
+            class="emoji-preview"
+            onclick={() => { showLocationPicker = !showLocationPicker }}
+            title="Emoji wählen"
+          >{addIcon || '📍'}</button>
+          <button
+            type="button"
+            class="btn-change-emoji"
+            onclick={() => { showLocationPicker = !showLocationPicker }}
+          >Ändern</button>
+          {#if showLocationPicker}
+            <div class="emoji-grid" role="listbox" aria-label="Emoji auswählen">
+              {#each LOCATION_EMOJIS as e}
+                <button
+                  type="button"
+                  class="emoji-opt"
+                  role="option"
+                  aria-selected={addIcon === e}
+                  onclick={() => { addIcon = e; showLocationPicker = false }}
+                >{e}</button>
+              {/each}
+            </div>
+          {/if}
+        </div>
+      </div>
+      <div class="field field--grow">
+        <span class="field-label">Name</span>
+        <!-- svelte-ignore a11y_autofocus -->
+        <input
+          class="input"
+          type="text"
+          placeholder="Name des Ortes"
+          autofocus
+          bind:value={addName}
+          onkeydown={onAddKeydown}
+        />
+      </div>
+      <div class="field field--actions">
+        <button class="btn-save" type="button" onclick={submitAdd}>Hinzufügen</button>
+        <button class="btn-cancel" type="button" onclick={cancelAdd}>Abbrechen</button>
+      </div>
     </div>
   {/if}
 
@@ -380,7 +425,7 @@
       <button
         class="btn-primary btn-primary--lg"
         type="button"
-        onclick={() => { adding = { kind: 'location' }; addName = ''; addIcon = '' }}
+        onclick={() => { adding = { kind: 'location' }; addName = ''; addIcon = ''; showLocationPicker = false }}
       >
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
           <path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
@@ -420,15 +465,32 @@
 
             {#if editing?.kind === 'location' && editing.id === loc.id}
               <div class="inline-edit">
-                <span class="emoji-preview" aria-hidden="true">{editing.icon || '📍'}</span>
-                <input
-                  class="input input--sm input--emoji"
-                  type="text"
-                  placeholder="Emoji"
-                  maxlength="4"
-                  bind:value={editing.icon}
-                  onkeydown={onEditKeydown}
-                />
+                <div class="emoji-field">
+                  <button
+                    type="button"
+                    class="emoji-preview"
+                    onclick={() => { showEditLocationPicker = !showEditLocationPicker }}
+                    title="Emoji wählen"
+                  >{editing.icon || '📍'}</button>
+                  <button
+                    type="button"
+                    class="btn-change-emoji"
+                    onclick={() => { showEditLocationPicker = !showEditLocationPicker }}
+                  >Ändern</button>
+                  {#if showEditLocationPicker}
+                    <div class="emoji-grid" role="listbox" aria-label="Emoji auswählen">
+                      {#each LOCATION_EMOJIS as e}
+                        <button
+                          type="button"
+                          class="emoji-opt"
+                          role="option"
+                          aria-selected={editing.icon === e}
+                          onclick={() => { if (editing && editing.kind === 'location') { editing = { ...editing, icon: e }; showEditLocationPicker = false } }}
+                        >{e}</button>
+                      {/each}
+                    </div>
+                  {/if}
+                </div>
                 <!-- svelte-ignore a11y_autofocus -->
                 <input
                   class="input input--sm"
@@ -502,15 +564,32 @@
 
                       {#if editing?.kind === 'storage' && editing.id === st.id}
                         <div class="inline-edit">
-                          <span class="emoji-preview" aria-hidden="true">{editing.icon || '📦'}</span>
-                          <input
-                            class="input input--sm input--emoji"
-                            type="text"
-                            placeholder="Emoji"
-                            maxlength="4"
-                            bind:value={editing.icon}
-                            onkeydown={onEditKeydown}
-                          />
+                          <div class="emoji-field">
+                            <button
+                              type="button"
+                              class="emoji-preview"
+                              onclick={() => { showEditStoragePicker = !showEditStoragePicker }}
+                              title="Emoji wählen"
+                            >{editing.icon || '📦'}</button>
+                            <button
+                              type="button"
+                              class="btn-change-emoji"
+                              onclick={() => { showEditStoragePicker = !showEditStoragePicker }}
+                            >Ändern</button>
+                            {#if showEditStoragePicker}
+                              <div class="emoji-grid" role="listbox" aria-label="Emoji auswählen">
+                                {#each LOCATION_EMOJIS as e}
+                                  <button
+                                    type="button"
+                                    class="emoji-opt"
+                                    role="option"
+                                    aria-selected={editing.icon === e}
+                                    onclick={() => { if (editing && editing.kind === 'storage') { editing = { ...editing, icon: e }; showEditStoragePicker = false } }}
+                                  >{e}</button>
+                                {/each}
+                              </div>
+                            {/if}
+                          </div>
                           <!-- svelte-ignore a11y_autofocus -->
                           <input
                             class="input input--sm"
@@ -639,33 +718,58 @@
 
               <!-- Add storage form -->
               {#if adding?.kind === 'storage' && adding.locationId === loc.id}
-                <div class="add-form add-form--inline">
-                  <span class="emoji-preview" aria-hidden="true">{addIcon || '📦'}</span>
-                  <input
-                    class="input input--sm input--emoji"
-                    type="text"
-                    placeholder="Emoji"
-                    maxlength="4"
-                    bind:value={addIcon}
-                    onkeydown={onAddKeydown}
-                  />
-                  <!-- svelte-ignore a11y_autofocus -->
-                  <input
-                    class="input input--sm"
-                    type="text"
-                    placeholder="Name des Lagerorts"
-                    autofocus
-                    bind:value={addName}
-                    onkeydown={onAddKeydown}
-                  />
-                  <button class="btn-save" type="button" onclick={submitAdd}>Hinzufügen</button>
-                  <button class="btn-cancel" type="button" onclick={cancelAdd}>Abbrechen</button>
+                <div class="add-form add-form--inline add-form--storage">
+                  <div class="field">
+                    <span class="field-label">Icon</span>
+                    <div class="emoji-field">
+                      <button
+                        type="button"
+                        class="emoji-preview"
+                        onclick={() => { showStoragePicker = !showStoragePicker }}
+                        title="Emoji wählen"
+                      >{addIcon || '📦'}</button>
+                      <button
+                        type="button"
+                        class="btn-change-emoji"
+                        onclick={() => { showStoragePicker = !showStoragePicker }}
+                      >Ändern</button>
+                      {#if showStoragePicker}
+                        <div class="emoji-grid" role="listbox" aria-label="Emoji auswählen">
+                          {#each LOCATION_EMOJIS as e}
+                            <button
+                              type="button"
+                              class="emoji-opt"
+                              role="option"
+                              aria-selected={addIcon === e}
+                              onclick={() => { addIcon = e; showStoragePicker = false }}
+                            >{e}</button>
+                          {/each}
+                        </div>
+                      {/if}
+                    </div>
+                  </div>
+                  <div class="field field--grow">
+                    <span class="field-label">Name</span>
+                    <!-- svelte-ignore a11y_autofocus -->
+                    <input
+                      class="input input--sm"
+                      type="text"
+                      placeholder="Name des Lagerorts"
+                      autofocus
+                      bind:value={addName}
+                      onkeydown={onAddKeydown}
+                    />
+                  </div>
+                  <div class="field field--actions">
+                    <button class="btn-save" type="button" onclick={submitAdd}>Hinzufügen</button>
+                    <button class="btn-cancel" type="button" onclick={cancelAdd}>Abbrechen</button>
+                  </div>
                 </div>
               {:else}
                 <button
                   class="btn-add-child"
                   type="button"
-                  onclick={() => { adding = { kind: 'storage', locationId: loc.id }; addName = ''; addIcon = '' }}
+                  onclick={() => { adding = { kind: 'storage', locationId: loc.id }; addName = ''; addIcon = ''; showStoragePicker = false }}
                 >
                   <svg width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden="true">
                     <path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
@@ -888,6 +992,29 @@
     background-color: var(--color-primary-subtle);
   }
 
+  .btn-change-emoji {
+    display: inline-flex;
+    align-items: center;
+    height: 30px;
+    padding: 0 var(--space-2);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--color-border);
+    background-color: transparent;
+    color: var(--color-text-secondary);
+    font-family: var(--font-body);
+    font-size: var(--text-xs);
+    font-weight: 500;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: border-color var(--transition-fast), color var(--transition-fast);
+    flex-shrink: 0;
+  }
+
+  .btn-change-emoji:hover {
+    border-color: var(--color-border-strong);
+    color: var(--color-text-primary);
+  }
+
   /* ── Input ────────────────────────────────────────────────────────────── */
 
   .input {
@@ -925,30 +1052,97 @@
     padding: 0 var(--space-2);
   }
 
-  .input--emoji {
-    width: 64px;
-    flex: none;
-    text-align: center;
-    font-size: 1.2em;
-    padding: 0 var(--space-2);
+  /* ── Field layout ─────────────────────────────────────────────────────── */
+
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    margin-bottom: 0;
   }
 
-  /* ── Emoji preview ────────────────────────────────────────────────────── */
+  .field--grow {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .field--actions {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-end;
+    gap: var(--space-2);
+  }
+
+  .field-label {
+    font-size: var(--text-xs);
+    font-weight: 500;
+    color: var(--color-text-muted);
+    white-space: nowrap;
+  }
+
+  /* ── Emoji picker ─────────────────────────────────────────────────────── */
+
+  .emoji-field {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
 
   .emoji-preview {
-    font-size: 1.4em;
-    line-height: 1;
-    flex-shrink: 0;
-    min-width: 1.6em;
+    font-size: 1.5rem;
+    padding: 4px 8px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-surface);
+    cursor: pointer;
+    min-width: 48px;
     text-align: center;
+    line-height: 1.4;
+    transition: border-color var(--transition-fast);
+  }
+
+  .emoji-preview:hover {
+    border-color: var(--color-border-strong);
+  }
+
+  .emoji-grid {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 4px;
+    padding: 8px;
+    background: var(--color-surface-raised);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    z-index: 200;
+    box-shadow: var(--shadow-md);
+  }
+
+  .emoji-opt {
+    font-size: 1.25rem;
+    padding: 4px;
+    cursor: pointer;
+    border: none;
+    background: none;
+    border-radius: 4px;
+    line-height: 1.4;
+    text-align: center;
+    transition: background-color var(--transition-fast);
+  }
+
+  .emoji-opt:hover {
+    background: var(--color-surface-sunken);
   }
 
   /* ── Add form ─────────────────────────────────────────────────────────── */
 
   .add-form {
     display: flex;
-    align-items: center;
-    gap: var(--space-2);
+    align-items: flex-end;
+    gap: var(--space-3);
   }
 
   .add-form--top {
@@ -957,6 +1151,10 @@
 
   .add-form--inline {
     margin-top: var(--space-3);
+  }
+
+  .add-form--storage {
+    flex-wrap: wrap;
   }
 
   /* ── Inline edit ──────────────────────────────────────────────────────── */

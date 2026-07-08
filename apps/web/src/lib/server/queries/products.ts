@@ -31,6 +31,10 @@ export async function getInventoryItems(
 					defaultUnit: true,
 					defaultQuantity: true,
 					gtin: true,
+					categoryId: true,
+				},
+				with: {
+					category: true,
 				},
 			},
 			place: {

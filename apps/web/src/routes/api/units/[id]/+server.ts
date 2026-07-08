@@ -2,8 +2,8 @@ import { json } from '@sveltejs/kit'
 import type { RequestHandler } from './$types'
 import { requireHouseholdId } from '$lib/server/queries/households'
 import { db } from '$lib/server/db'
-import { units } from '@stoqr/db'
-import { eq } from 'drizzle-orm'
+import { units, inventoryItems } from '@stoqr/db'
+import { eq, and, count } from 'drizzle-orm'
 
 // ---------------------------------------------------------------------------
 // DELETE /api/units/[id]
@@ -33,7 +33,96 @@ export const DELETE: RequestHandler = async ({ locals, params }) => {
     return json({ error: 'Not found' }, { status: 404 })
   }
 
+  const [{ usedBy }] = await db
+    .select({ usedBy: count() })
+    .from(inventoryItems)
+    .where(
+      and(
+        eq(inventoryItems.householdId, householdId),
+        eq(inventoryItems.unit, unit.symbol)
+      )
+    )
+
+  if (usedBy > 0) {
+    return json(
+      {
+        error: `Diese Einheit wird von ${usedBy} Artikel(n) verwendet und kann nicht gelöscht werden.`,
+        usedBy,
+      },
+      { status: 409 }
+    )
+  }
+
   await db.delete(units).where(eq(units.id, params.id))
 
   return json({ ok: true })
+}
+
+// ---------------------------------------------------------------------------
+// PATCH /api/units/[id]
+// ---------------------------------------------------------------------------
+
+export const PATCH: RequestHandler = async ({ locals, params, request }) => {
+  if (!locals.user) {
+    return json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  const householdId = await requireHouseholdId(locals.user.id)
+
+  const body = await request.json().catch(() => null)
+  if (!body || typeof body !== 'object') {
+    return json({ error: 'Invalid request body' }, { status: 400 })
+  }
+
+  const { name, symbol } = body as { name?: string; symbol?: string }
+
+  if (name !== undefined && typeof name !== 'string') {
+    return json({ error: 'name muss ein String sein' }, { status: 400 })
+  }
+  if (symbol !== undefined && typeof symbol !== 'string') {
+    return json({ error: 'symbol muss ein String sein' }, { status: 400 })
+  }
+
+  const trimmedName = name?.trim()
+  const trimmedSymbol = symbol?.trim()
+
+  if (trimmedName !== undefined && trimmedName.length === 0) {
+    return json({ error: 'Name darf nicht leer sein' }, { status: 400 })
+  }
+  if (trimmedSymbol !== undefined && trimmedSymbol.length === 0) {
+    return json({ error: 'Kürzel darf nicht leer sein' }, { status: 400 })
+  }
+
+  const [unit] = await db
+    .select()
+    .from(units)
+    .where(eq(units.id, params.id))
+
+  if (!unit) {
+    return json({ error: 'Not found' }, { status: 404 })
+  }
+
+  if (unit.isSystem) {
+    return json({ error: 'System-Einheiten können nicht bearbeitet werden' }, { status: 403 })
+  }
+
+  if (unit.householdId !== householdId) {
+    return json({ error: 'Not found' }, { status: 404 })
+  }
+
+  const updates: Partial<typeof unit> = {}
+  if (trimmedName !== undefined) updates.name = trimmedName
+  if (trimmedSymbol !== undefined) updates.symbol = trimmedSymbol
+
+  if (Object.keys(updates).length === 0) {
+    return json(unit)
+  }
+
+  const [updated] = await db
+    .update(units)
+    .set(updates)
+    .where(eq(units.id, params.id))
+    .returning()
+
+  return json(updated)
 }
