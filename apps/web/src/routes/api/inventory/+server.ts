@@ -9,7 +9,7 @@ import {
 } from '$lib/server/queries/products'
 import { requireHouseholdId } from '$lib/server/queries/households'
 import { db } from '$lib/server/db'
-import { places, storages, locations, nutrientTypes, productNutrients } from '@stoqr/db'
+import { places, storages, locations, nutrientTypes, productNutrients, products } from '@stoqr/db'
 import { eq, inArray } from 'drizzle-orm'
 
 // ---------------------------------------------------------------------------
@@ -122,6 +122,14 @@ export const POST: RequestHandler = async ({ locals, request }) => {
         createdBy: locals.user.id,
       })
     }
+  }
+
+  // Apply categoryId to the product whenever it's provided (works for all cases:
+  // new product, existing product by GTIN, or directly-supplied productId)
+  if (categoryId && resolvedProductId) {
+    await db.update(products)
+      .set({ categoryId })
+      .where(eq(products.id, resolvedProductId))
   }
 
   // ---------------------------------------------------------------------------

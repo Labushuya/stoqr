@@ -42,8 +42,8 @@
 
   // Inline edit state
   type EditTarget =
-    | { kind: 'location'; id: string; name: string }
-    | { kind: 'storage'; id: string; name: string }
+    | { kind: 'location'; id: string; name: string; icon: string }
+    | { kind: 'storage'; id: string; name: string; icon: string }
     | { kind: 'place'; id: string; name: string }
 
   let editing = $state<EditTarget | null>(null)
@@ -56,6 +56,7 @@
 
   let adding = $state<AddTarget | null>(null)
   let addName = $state('')
+  let addIcon = $state('')
 
   // Toast
   type Toast = { id: number; message: string; type: 'success' | 'error' }
@@ -137,7 +138,7 @@
         const res = await fetch('/api/locations', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name }),
+          body: JSON.stringify({ name, icon: addIcon.trim() || null }),
         })
         if (!res.ok) throw new Error(await res.text())
         const created: Location = await res.json()
@@ -148,7 +149,7 @@
         const res = await fetch('/api/storages', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ locationId: adding.locationId, name }),
+          body: JSON.stringify({ locationId: adding.locationId, name, icon: addIcon.trim() || null }),
         })
         if (!res.ok) throw new Error(await res.text())
         const created: Storage = await res.json()
@@ -182,12 +183,14 @@
     } finally {
       adding = null
       addName = ''
+      addIcon = ''
     }
   }
 
   function cancelAdd() {
     adding = null
     addName = ''
+    addIcon = ''
   }
 
   // ── EDIT mutations ────────────────────────────────────────────────────────
@@ -203,27 +206,29 @@
 
     try {
       if (editing.kind === 'location') {
+        const icon = editing.icon.trim() || null
         const res = await fetch(`/api/locations/${editing.id}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name }),
+          body: JSON.stringify({ name, icon }),
         })
         if (!res.ok) throw new Error(await res.text())
         locations = locations.map((loc) =>
-          loc.id === editing!.id ? { ...loc, name } : loc
+          loc.id === editing!.id ? { ...loc, name, icon } : loc
         )
         showToast('Ort umbenannt')
       } else if (editing.kind === 'storage') {
+        const icon = editing.icon.trim() || null
         const res = await fetch(`/api/storages/${editing.id}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name }),
+          body: JSON.stringify({ name, icon }),
         })
         if (!res.ok) throw new Error(await res.text())
         locations = locations.map((loc) => ({
           ...loc,
           storages: loc.storages.map((s) =>
-            s.id === editing!.id ? { ...s, name } : s
+            s.id === editing!.id ? { ...s, name, icon } : s
           ),
         }))
         showToast('Lagerort umbenannt')
@@ -325,7 +330,7 @@
     <button
       class="btn-primary"
       type="button"
-      onclick={() => { adding = { kind: 'location' }; addName = '' }}
+      onclick={() => { adding = { kind: 'location' }; addName = ''; addIcon = '' }}
     >
       <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
         <path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
@@ -337,6 +342,15 @@
   <!-- Add location inline form -->
   {#if adding?.kind === 'location'}
     <div class="add-form add-form--top">
+      <span class="emoji-preview" aria-hidden="true">{addIcon || '📍'}</span>
+      <input
+        class="input input--emoji"
+        type="text"
+        placeholder="Emoji"
+        maxlength="4"
+        bind:value={addIcon}
+        onkeydown={onAddKeydown}
+      />
       <!-- svelte-ignore a11y_autofocus -->
       <input
         class="input"
@@ -366,7 +380,7 @@
       <button
         class="btn-primary btn-primary--lg"
         type="button"
-        onclick={() => { adding = { kind: 'location' }; addName = '' }}
+        onclick={() => { adding = { kind: 'location' }; addName = ''; addIcon = '' }}
       >
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
           <path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
@@ -406,6 +420,15 @@
 
             {#if editing?.kind === 'location' && editing.id === loc.id}
               <div class="inline-edit">
+                <span class="emoji-preview" aria-hidden="true">{editing.icon || '📍'}</span>
+                <input
+                  class="input input--sm input--emoji"
+                  type="text"
+                  placeholder="Emoji"
+                  maxlength="4"
+                  bind:value={editing.icon}
+                  onkeydown={onEditKeydown}
+                />
                 <!-- svelte-ignore a11y_autofocus -->
                 <input
                   class="input input--sm"
@@ -423,7 +446,7 @@
                   class="btn-icon"
                   type="button"
                   title="Bearbeiten"
-                  onclick={() => startEdit({ kind: 'location', id: loc.id, name: loc.name })}
+                  onclick={() => startEdit({ kind: 'location', id: loc.id, name: loc.name, icon: loc.icon ?? '' })}
                 >
                   <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
                     <path d="M9.5 2.5L11.5 4.5L5 11H3V9L9.5 2.5Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>
@@ -479,6 +502,15 @@
 
                       {#if editing?.kind === 'storage' && editing.id === st.id}
                         <div class="inline-edit">
+                          <span class="emoji-preview" aria-hidden="true">{editing.icon || '📦'}</span>
+                          <input
+                            class="input input--sm input--emoji"
+                            type="text"
+                            placeholder="Emoji"
+                            maxlength="4"
+                            bind:value={editing.icon}
+                            onkeydown={onEditKeydown}
+                          />
                           <!-- svelte-ignore a11y_autofocus -->
                           <input
                             class="input input--sm"
@@ -496,7 +528,7 @@
                             class="btn-icon"
                             type="button"
                             title="Bearbeiten"
-                            onclick={() => startEdit({ kind: 'storage', id: st.id, name: st.name })}
+                            onclick={() => startEdit({ kind: 'storage', id: st.id, name: st.name, icon: st.icon ?? '' })}
                           >
                             <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
                               <path d="M9.5 2.5L11.5 4.5L5 11H3V9L9.5 2.5Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>
@@ -608,6 +640,15 @@
               <!-- Add storage form -->
               {#if adding?.kind === 'storage' && adding.locationId === loc.id}
                 <div class="add-form add-form--inline">
+                  <span class="emoji-preview" aria-hidden="true">{addIcon || '📦'}</span>
+                  <input
+                    class="input input--sm input--emoji"
+                    type="text"
+                    placeholder="Emoji"
+                    maxlength="4"
+                    bind:value={addIcon}
+                    onkeydown={onAddKeydown}
+                  />
                   <!-- svelte-ignore a11y_autofocus -->
                   <input
                     class="input input--sm"
@@ -624,7 +665,7 @@
                 <button
                   class="btn-add-child"
                   type="button"
-                  onclick={() => { adding = { kind: 'storage', locationId: loc.id }; addName = '' }}
+                  onclick={() => { adding = { kind: 'storage', locationId: loc.id }; addName = ''; addIcon = '' }}
                 >
                   <svg width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden="true">
                     <path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
@@ -882,6 +923,24 @@
     height: 28px;
     font-size: var(--text-sm);
     padding: 0 var(--space-2);
+  }
+
+  .input--emoji {
+    width: 64px;
+    flex: none;
+    text-align: center;
+    font-size: 1.2em;
+    padding: 0 var(--space-2);
+  }
+
+  /* ── Emoji preview ────────────────────────────────────────────────────── */
+
+  .emoji-preview {
+    font-size: 1.4em;
+    line-height: 1;
+    flex-shrink: 0;
+    min-width: 1.6em;
+    text-align: center;
   }
 
   /* ── Add form ─────────────────────────────────────────────────────────── */

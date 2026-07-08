@@ -11,19 +11,25 @@ export const load: PageServerLoad = async ({ locals, url }) => {
     redirect(302, '/')
   }
 
+  // Check whether any users exist so we can guide the UI
+  const [{ count }] = await db
+    .select({ count: sql<number>`cast(count(*) as integer)` })
+    .from(users)
+  const isFirstUser = count === 0
+
   const token = url.searchParams.get('token')
   if (!token) {
-    return {}
+    return { isFirstUser }
   }
 
   const invite = await getInviteByToken(token)
   const now = new Date()
 
   if (!invite || invite.usedAt !== null || invite.expiresAt <= now) {
-    return { tokenInvalid: true }
+    return { isFirstUser, tokenInvalid: true }
   }
 
-  return { token, inviteEmail: invite.email }
+  return { isFirstUser, token, inviteEmail: invite.email }
 }
 
 export const actions: Actions = {

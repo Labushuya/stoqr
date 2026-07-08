@@ -5,6 +5,8 @@
   let { data, form }: { data: PageData; form: ActionData } = $props()
 
   let loading = $state(false)
+  // svelte-ignore state_referenced_locally
+  let tokenValue = $state((data as any).token ?? '')
 </script>
 
 <div class="page">
@@ -29,7 +31,7 @@
     <h1 class="heading">Konto erstellen</h1>
     <p class="subheading">Richte deinen Haushalt ein und starte mit stoqr.</p>
 
-    <!-- Invite banner -->
+    <!-- Invite banner — token present and valid -->
     {#if (data as any).token}
       <div class="invite-banner" role="status">
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true" style="flex-shrink:0">
@@ -37,6 +39,20 @@
           <path d="M8 7v4M8 5v.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
         </svg>
         Du wurdest eingeladen. Erstelle jetzt dein Konto.
+      </div>
+    {/if}
+
+    <!-- Warning — no token and not first user -->
+    {#if !(data as any).token && !(data as any).isFirstUser}
+      <div class="warn-box" role="alert">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true" style="flex-shrink:0">
+          <circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.5"/>
+          <path d="M8 5v3.5M8 11v.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+        <span>
+          Für die Registrierung wird ein Einladungslink benötigt. Bitte öffne den Link aus der
+          Einladungs-E-Mail oder frage den Administrator nach einem Einladungslink.
+        </span>
       </div>
     {/if}
 
@@ -73,8 +89,23 @@
       }}
       novalidate
     >
+      <!-- Visible token field — hidden only when token is pre-filled from URL -->
       {#if (data as any).token}
         <input type="hidden" name="token" value={(data as any).token} />
+      {:else}
+        <div class="field">
+          <label class="label" for="token">Einladungscode</label>
+          <input
+            id="token"
+            class="input"
+            type="text"
+            name="token"
+            autocomplete="off"
+            placeholder="Einladungstoken aus dem Link"
+            bind:value={tokenValue}
+            disabled={loading}
+          />
+        </div>
       {/if}
 
       <div class="field">
@@ -214,6 +245,22 @@
     color: var(--color-primary);
     font-size: var(--text-sm);
     font-weight: 500;
+    line-height: 1.5;
+    margin-bottom: var(--space-6);
+  }
+
+  /* ── Warning box ─────────────────────────────────── */
+
+  .warn-box {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-2);
+    padding: var(--space-3) var(--space-4);
+    border-radius: var(--radius-md);
+    background-color: var(--color-warning-subtle, #fef9c3);
+    border: 1px solid var(--color-warning, #ca8a04);
+    color: var(--color-warning-text, #854d0e);
+    font-size: var(--text-sm);
     line-height: 1.5;
     margin-bottom: var(--space-6);
   }

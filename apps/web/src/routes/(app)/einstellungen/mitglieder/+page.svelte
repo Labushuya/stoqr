@@ -134,11 +134,17 @@
         </div>
         <div class="invite-link-box">
           <span class="invite-link-label">Einladungslink:</span>
-          <code class="invite-link-value">{(form as any).inviteLink}</code>
+          <input
+            class="invite-link-input"
+            type="text"
+            readonly
+            value={(form as any).inviteLink}
+            onclick={(e) => (e.currentTarget as HTMLInputElement).select()}
+          />
           <button
             class="btn-copy"
             type="button"
-            onclick={() => navigator.clipboard.writeText(window.location.origin + (form as any).inviteLink)}
+            onclick={() => navigator.clipboard.writeText((form as any).inviteLink)}
           >
             Kopieren
           </button>
@@ -499,12 +505,17 @@
     white-space: nowrap;
   }
 
-  .invite-link-value {
+  .invite-link-input {
     font-family: var(--font-mono, monospace);
     font-size: var(--text-xs);
     color: var(--color-text-primary);
-    word-break: break-all;
+    background-color: transparent;
+    border: none;
+    outline: none;
     flex: 1;
+    min-width: 0;
+    cursor: text;
+    padding: 0;
   }
 
   .btn-copy {

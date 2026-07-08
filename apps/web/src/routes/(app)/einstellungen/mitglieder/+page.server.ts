@@ -36,7 +36,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 }
 
 export const actions: Actions = {
-  invite: async ({ locals, request }) => {
+  invite: async ({ locals, request, url }) => {
     if (!locals.user) redirect(302, '/login')
 
     const userId = locals.user.id
@@ -59,7 +59,7 @@ export const actions: Actions = {
     return {
       action: 'invite',
       success: true,
-      inviteLink: '/register?token=' + token,
+      inviteLink: url.origin + '/register?token=' + token,
     }
   },
 

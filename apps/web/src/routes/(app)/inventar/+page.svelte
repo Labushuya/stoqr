@@ -84,9 +84,10 @@
   let toasts = $state<Toast[]>([])
   let toastCounter = 0
 
-  // Categories loaded lazily
-  let categories = $state<Category[]>([])
-  let categoriesLoaded = $state(false)
+  // Categories — initialised from server data, refreshed lazily if needed
+  // svelte-ignore state_referenced_locally
+  let categories = $state<Category[]>(data.categories as Category[])
+  let categoriesLoaded = $state(true)
 
   // Add/edit form fields
   let formProductName = $state('')
@@ -116,11 +117,6 @@
 
   // svelte-ignore state_referenced_locally
   let unitOptions = $state(data.units as { id: string; name: string; symbol: string }[])
-
-  // Custom unit input state
-  let newUnitName = $state('')
-  let newUnitSymbol = $state('')
-  let addingUnit = $state(false)
 
   // ── Derived ────────────────────────────────────────────────────────────────
 
@@ -954,52 +950,6 @@
               <option value={u.symbol}>{u.name}</option>
             {/each}
           </select>
-          <!-- Custom unit section -->
-          <div class="custom-unit-row">
-            <input
-              class="input custom-unit-input"
-              type="text"
-              placeholder="Name (z.B. Packung)"
-              bind:value={newUnitName}
-            />
-            <input
-              class="input custom-unit-input"
-              type="text"
-              placeholder="Symbol (z.B. Pkg)"
-              bind:value={newUnitSymbol}
-            />
-            <button
-              class="btn-secondary btn-add-unit"
-              type="button"
-              disabled={addingUnit || !newUnitName.trim() || !newUnitSymbol.trim()}
-              onclick={async () => {
-                addingUnit = true
-                try {
-                  const res = await fetch('/api/units', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name: newUnitName.trim(), symbol: newUnitSymbol.trim() }),
-                  })
-                  if (!res.ok) throw new Error(await res.text())
-                  const created = await res.json()
-                  unitOptions = [...unitOptions, created]
-                  formUnit = created.symbol
-                  newUnitName = ''
-                  newUnitSymbol = ''
-                } catch {
-                  showToast('Fehler beim Anlegen der Einheit', 'error')
-                } finally {
-                  addingUnit = false
-                }
-              }}
-            >
-              {#if addingUnit}
-                <span class="spinner spinner--dark" aria-hidden="true"></span>
-              {:else}
-                Einheit anlegen
-              {/if}
-            </button>
-          </div>
         </div>
       </div>
 
@@ -2080,36 +2030,6 @@
   .spinner--dark {
     border-color: rgba(0, 0, 0, 0.2);
     border-top-color: var(--color-primary);
-  }
-
-  /* ── Custom unit row ──────────────────────────────────────────────────── */
-
-  .custom-unit-row {
-    display: flex;
-    gap: var(--space-2);
-    align-items: center;
-    flex-wrap: wrap;
-    margin-top: var(--space-2);
-  }
-
-  .custom-unit-input {
-    flex: 1;
-    min-width: 80px;
-    height: 34px;
-    font-size: var(--text-sm);
-  }
-
-  .btn-add-unit {
-    height: 34px;
-    padding: 0 var(--space-3);
-    font-size: var(--text-sm);
-    white-space: nowrap;
-    flex-shrink: 0;
-  }
-
-  .btn-add-unit:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
   }
 
 </style>
