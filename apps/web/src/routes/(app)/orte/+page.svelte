@@ -33,7 +33,7 @@
 
   // ── Emoji picker constant ─────────────────────────────────────────────────
 
-  const LOCATION_EMOJIS = ['🍳','🛁','🛏','🚗','🏠','🪴','🌿','📦','🧊','❄️','🥫','🍷','🧴','🧹','🫙','🍶','🫖','🧃','🥤','🏪','🛒','🍎','🥦','🍞','🥩','🧀','🥚','☕','🪣','🧺']
+  const LOCATION_EMOJIS = ['🍳','🧊','❄️','🥫','🧺','🧴','🧼','📦','🍞','🥛','🥕','🍎','🥩','🐟','🧀','🍫','🥤','☕','🍵','🧂','🛁','🛏','🚗','🏠','🪴','🌿','🍷','🚿','🏪','🛒']
 
   // ── State ─────────────────────────────────────────────────────────────────
 
@@ -362,7 +362,7 @@
   <!-- Add location inline form -->
   {#if adding?.kind === 'location'}
     <div class="add-form add-form--top">
-      <div class="field">
+      <div class="field field--emoji">
         <span class="field-label">Icon</span>
         <div class="emoji-field">
           <button
@@ -371,11 +371,6 @@
             onclick={() => { showLocationPicker = !showLocationPicker }}
             title="Emoji wählen"
           >{addIcon || '📍'}</button>
-          <button
-            type="button"
-            class="btn-change-emoji"
-            onclick={() => { showLocationPicker = !showLocationPicker }}
-          >Ändern</button>
           {#if showLocationPicker}
             <div class="emoji-grid" role="listbox" aria-label="Emoji auswählen">
               {#each LOCATION_EMOJIS as e}
@@ -472,11 +467,6 @@
                     onclick={() => { showEditLocationPicker = !showEditLocationPicker }}
                     title="Emoji wählen"
                   >{editing.icon || '📍'}</button>
-                  <button
-                    type="button"
-                    class="btn-change-emoji"
-                    onclick={() => { showEditLocationPicker = !showEditLocationPicker }}
-                  >Ändern</button>
                   {#if showEditLocationPicker}
                     <div class="emoji-grid" role="listbox" aria-label="Emoji auswählen">
                       {#each LOCATION_EMOJIS as e}
@@ -571,11 +561,6 @@
                               onclick={() => { showEditStoragePicker = !showEditStoragePicker }}
                               title="Emoji wählen"
                             >{editing.icon || '📦'}</button>
-                            <button
-                              type="button"
-                              class="btn-change-emoji"
-                              onclick={() => { showEditStoragePicker = !showEditStoragePicker }}
-                            >Ändern</button>
                             {#if showEditStoragePicker}
                               <div class="emoji-grid" role="listbox" aria-label="Emoji auswählen">
                                 {#each LOCATION_EMOJIS as e}
@@ -719,7 +704,7 @@
               <!-- Add storage form -->
               {#if adding?.kind === 'storage' && adding.locationId === loc.id}
                 <div class="add-form add-form--inline add-form--storage">
-                  <div class="field">
+                  <div class="field field--emoji">
                     <span class="field-label">Icon</span>
                     <div class="emoji-field">
                       <button
@@ -728,11 +713,6 @@
                         onclick={() => { showStoragePicker = !showStoragePicker }}
                         title="Emoji wählen"
                       >{addIcon || '📦'}</button>
-                      <button
-                        type="button"
-                        class="btn-change-emoji"
-                        onclick={() => { showStoragePicker = !showStoragePicker }}
-                      >Ändern</button>
                       {#if showStoragePicker}
                         <div class="emoji-grid" role="listbox" aria-label="Emoji auswählen">
                           {#each LOCATION_EMOJIS as e}
@@ -992,11 +972,6 @@
     background-color: var(--color-primary-subtle);
   }
 
-  .btn-change-emoji:hover {
-    border-color: var(--color-border-strong);
-    color: var(--color-text-primary);
-  }
-
   /* ── Input ────────────────────────────────────────────────────────────── */
 
   .input {
@@ -1048,6 +1023,11 @@
     min-width: 0;
   }
 
+  .field--emoji {
+    flex-shrink: 0;
+    width: auto;
+  }
+
   .field--actions {
     display: flex;
     flex-direction: row;
@@ -1080,7 +1060,7 @@
     background: var(--color-surface);
     cursor: pointer;
     min-width: 40px;
-    max-width: 40px;
+    max-width: 44px;
     text-align: center;
     line-height: 1.5;
     transition: border-color var(--transition-fast);

@@ -8,27 +8,23 @@
 
   let menuOpen = $state(false)
 
-  // Dark mode — persisted in localStorage
-  let darkMode = $state(
-    typeof localStorage !== 'undefined'
-      ? localStorage.getItem('stoqr-theme') === 'dark'
-      : false
-  )
+  // Dark mode — SSR-safe: initialize to false, read localStorage only on client after hydration
+  let darkMode = $state(false)
 
-  function toggleDarkMode() {
-    darkMode = !darkMode
-    if (typeof localStorage !== 'undefined') {
-      localStorage.setItem('stoqr-theme', darkMode ? 'dark' : 'light')
-    }
-    document.documentElement.setAttribute('data-theme', darkMode ? 'dark' : '')
-  }
-
-  // Apply on mount
   $effect(() => {
-    if (darkMode) {
+    // Runs only on the client after hydration — localStorage is safe here
+    const stored = localStorage.getItem('stoqr-theme')
+    if (stored === 'dark') {
+      darkMode = true
       document.documentElement.setAttribute('data-theme', 'dark')
     }
   })
+
+  function toggleDarkMode() {
+    darkMode = !darkMode
+    localStorage.setItem('stoqr-theme', darkMode ? 'dark' : 'light')
+    document.documentElement.setAttribute('data-theme', darkMode ? 'dark' : '')
+  }
 
   const navLinks = [
     { href: '/',          label: 'Dashboard' },
@@ -88,10 +84,21 @@
             class:btn-theme--dark={darkMode}
             onclick={toggleDarkMode}
             type="button"
-            title={darkMode ? 'Light Mode' : 'Dark Mode'}
+            title={darkMode ? 'Light Mode aktivieren' : 'Dark Mode aktivieren'}
             aria-label={darkMode ? 'Light Mode aktivieren' : 'Dark Mode aktivieren'}
           >
-            {#if darkMode}🌙{:else}☀️{/if}
+            {#if darkMode}
+              <!-- Moon icon — shown in dark mode -->
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                <path d="M13.5 9.5A6 6 0 0 1 6.5 2.5a6.5 6.5 0 1 0 7 7z" fill="currentColor"/>
+              </svg>
+            {:else}
+              <!-- Sun icon — shown in light mode -->
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                <circle cx="8" cy="8" r="3.5" stroke="currentColor" stroke-width="1.5"/>
+                <path d="M8 1v2M8 13v2M1 8h2M13 8h2M3.22 3.22l1.42 1.42M11.36 11.36l1.42 1.42M11.36 4.64l-1.42 1.42M4.64 11.36l-1.42 1.42" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+              </svg>
+            {/if}
           </button>
           <button class="btn-logout" onclick={logout} type="button">
             Abmelden
@@ -267,27 +274,29 @@
     width: 36px;
     border-radius: var(--radius-md);
     border: 1px solid var(--color-border);
-    background: var(--color-surface);
+    background: linear-gradient(135deg, #fff8e8 0%, #fdecc8 100%);
+    color: #b45309;
     cursor: pointer;
     font-size: 1rem;
-    transition: background var(--transition-base), border-color var(--transition-base), box-shadow var(--transition-base);
+    transition: background var(--transition-base), border-color var(--transition-base), box-shadow var(--transition-base), color var(--transition-base);
   }
 
   .btn-theme:hover {
-    border-color: var(--color-border-strong);
-    background: var(--color-surface-sunken);
+    border-color: #f5a623;
+    background: linear-gradient(135deg, #fff3d4 0%, #fde5a8 100%);
   }
 
-  /* Dark mode button — bläulich-lila */
+  /* Dark mode button — deep blue-purple, wins via !important */
   .btn-theme--dark {
-    background: linear-gradient(135deg, #2d2060 0%, #1a1040 100%);
-    border-color: #6040b0;
-    box-shadow: 0 0 8px rgba(100, 60, 200, 0.25);
+    background: linear-gradient(135deg, #2d2060 0%, #1a1040 100%) !important;
+    border-color: #7060c0 !important;
+    box-shadow: 0 0 10px rgba(110, 80, 220, 0.3) !important;
+    color: #c0b0ff !important;
   }
 
   .btn-theme--dark:hover {
-    background: linear-gradient(135deg, #3d2880 0%, #221560 100%);
-    border-color: #7050c0;
+    background: linear-gradient(135deg, #3d2880 0%, #221560 100%) !important;
+    border-color: #8070d0 !important;
   }
 
   .btn-logout {

@@ -29,6 +29,17 @@
 </script>
 
 <div class="page">
+  <nav class="breadcrumb" aria-label="Breadcrumb">
+    <a href="/einstellungen" class="breadcrumb-link">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+        <path d="M10 3L5 8l5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      Einstellungen
+    </a>
+    <span class="breadcrumb-sep" aria-hidden="true">/</span>
+    <span class="breadcrumb-current">Mitglieder</span>
+  </nav>
+
   <header class="page-header">
     <h1 class="page-title">Haushaltsmitglieder</h1>
     <p class="page-desc">Verwalte die Mitglieder deines Haushalts und verschicke Einladungen.</p>
@@ -222,6 +233,25 @@
 
 <style>
   /* ── Page ─────────────────────────────────────────────────────────────── */
+
+  .breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin-bottom: var(--space-6);
+    font-size: var(--text-sm);
+  }
+  .breadcrumb-link {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    color: var(--color-text-secondary);
+    text-decoration: none;
+    transition: color var(--transition-fast);
+  }
+  .breadcrumb-link:hover { color: var(--color-primary); }
+  .breadcrumb-sep { color: var(--color-text-muted); }
+  .breadcrumb-current { color: var(--color-text-primary); font-weight: 500; }
 
   .page {
     max-width: 760px;

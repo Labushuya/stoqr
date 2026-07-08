@@ -1,6 +1,7 @@
 <script lang="ts">
   import { enhance } from '$app/forms'
   import type { PageData, ActionData } from './$types'
+  import { toast } from '$lib/stores/toast'
 
   // ── Props ──────────────────────────────────────────────────────────────────
 
@@ -158,17 +159,16 @@
   }
 
   async function deleteUnit(id: string) {
-    unitRowErrors = { ...unitRowErrors, [id]: '' }
     try {
       const res = await fetch(`/api/units/${id}`, { method: 'DELETE' })
       if (!res.ok) {
         const body = await res.json().catch(() => ({}))
-        unitRowErrors = { ...unitRowErrors, [id]: body.error ?? `Fehler ${res.status}` }
+        toast.error(body.error ?? `Fehler ${res.status}`)
         return
       }
       unitRows = unitRows.filter((u) => u.id !== id)
     } catch {
-      unitRowErrors = { ...unitRowErrors, [id]: 'Netzwerkfehler.' }
+      toast.error('Netzwerkfehler.')
     }
   }
 </script>
@@ -595,15 +595,6 @@
                 </button>
               {/if}
             </div>
-          {/if}
-          {#if unitRowErrors[unit.id]}
-            <span class="unit-row-error">
-              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-                <circle cx="6" cy="6" r="5" stroke="currentColor" stroke-width="1.2"/>
-                <path d="M6 4v2.5M6 8v.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
-              </svg>
-              {unitRowErrors[unit.id]}
-            </span>
           {/if}
         </div>
       {/each}
@@ -1260,15 +1251,6 @@
   .unit-input-inline--symbol {
     flex: 0 1 72px;
     max-width: 80px;
-  }
-
-  .unit-row-error {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--space-1);
-    font-size: var(--text-xs);
-    color: var(--color-danger, #dc2626);
-    padding-left: var(--space-3);
   }
 
   .unit-add-row {
