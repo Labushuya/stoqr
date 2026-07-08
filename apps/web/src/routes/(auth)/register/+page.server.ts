@@ -1,5 +1,5 @@
 import { db } from '$lib/server/db'
-import { users, householdMembers } from '@stoqr/db'
+import { users, invites, householdMembers } from '@stoqr/db'
 import { auth } from '$lib/server/auth'
 import { createHousehold, getInviteByToken } from '$lib/server/queries/households'
 import { eq, sql } from 'drizzle-orm'
