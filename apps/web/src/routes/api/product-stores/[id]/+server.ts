@@ -31,3 +31,23 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 
   return json({ ok: true })
 }
+
+export const DELETE: RequestHandler = async ({ locals, params }) => {
+  if (!locals.user) {
+    throw error(401, 'Unauthorized')
+  }
+
+  const householdId = await requireHouseholdId(locals.user.id)
+
+  const [deleted] = await db
+    .delete(productStores)
+    .where(and(eq(productStores.id, params.id), eq(productStores.householdId, householdId)))
+    .returning({ id: productStores.id })
+
+  if (!deleted) {
+    throw error(404, 'Not found')
+  }
+
+  return json({ ok: true })
+}
+

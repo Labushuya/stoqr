@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { goto } from '$app/navigation'
+  import { goto, invalidateAll } from '$app/navigation'
 
   let email = $state('')
   let password = $state('')
@@ -24,6 +24,7 @@
         return
       }
 
+      await invalidateAll()
       goto('/')
     } catch {
       error = 'Netzwerkfehler. Bitte versuche es erneut.'

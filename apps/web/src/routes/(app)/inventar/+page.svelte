@@ -367,7 +367,7 @@
             quantity: formQuantity,
             unit: unitValue,
             notes: formNotes.trim() || null,
-            categoryId: editingItem?.product?.category?.id || undefined,
+            categoryId: formCategoryId || undefined,
           }),
         })
         if (!res.ok) throw new Error(await res.text())
@@ -1270,7 +1270,8 @@
     background-color: var(--color-surface-raised);
     border: 1px solid var(--color-border);
     border-radius: var(--radius-lg);
-    overflow: hidden;
+    /* overflow: hidden removed — it clips the dropdown menu */
+    overflow: visible;
     display: flex;
     flex-direction: column;
     box-shadow: var(--shadow-sm);
@@ -1296,6 +1297,8 @@
     justify-content: center;
     overflow: hidden;
     flex-shrink: 0;
+    /* Round top corners to compensate for overflow:visible on .item-card */
+    border-radius: calc(var(--radius-lg) - 1px) calc(var(--radius-lg) - 1px) 0 0;
   }
 
   .item-image {

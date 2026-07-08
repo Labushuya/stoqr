@@ -6,6 +6,8 @@ import {
   storages,
   locations,
   expiryConfig,
+  stores,
+  productStores,
 } from '@stoqr/db'
 import { eq, and, asc } from 'drizzle-orm'
 import { error, fail, redirect } from '@sveltejs/kit'
@@ -95,11 +97,26 @@ export const load: PageServerLoad = async ({ params, locals }) => {
     },
   });
 
+  // Fetch all stores for the household (for the add-store dropdown)
+  const availableStores = await db.query.stores.findMany({
+    where: eq(stores.householdId, householdId),
+    orderBy: asc(stores.name),
+  });
+
+  // Fetch product stores (Bezugsquellen) ordered by sortOrder
+  const productStoresList = await db.query.productStores.findMany({
+    where: eq(productStores.productId, item.productId),
+    with: { store: true },
+    orderBy: asc(productStores.sortOrder),
+  });
+
   return {
     item,
     locationPath,
     allLocations,
     expirySettings,
+    availableStores,
+    productStores: productStoresList,
   };
 };
 

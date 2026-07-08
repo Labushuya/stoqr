@@ -6,6 +6,9 @@ import {
   deleteInventoryItem,
 } from '$lib/server/queries/products'
 import { requireHouseholdId } from '$lib/server/queries/households'
+import { db } from '$lib/server/db'
+import { products } from '@stoqr/db'
+import { eq } from 'drizzle-orm'
 
 export const GET: RequestHandler = async ({ locals, params }) => {
   if (!locals.user) {
@@ -43,6 +46,7 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
     lotNumber,
     weightG,
     volumeMl,
+    categoryId,
   } = body
 
   const patch: Parameters<typeof updateInventoryItem>[2] = {}
@@ -61,13 +65,22 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
   if (weightG !== undefined) patch.weightG = weightG
   if (volumeMl !== undefined) patch.volumeMl = volumeMl
 
-  if (Object.keys(patch).length === 0) {
+  if (Object.keys(patch).length === 0 && categoryId === undefined) {
     return json({ error: 'No fields to update' }, { status: 400 })
   }
 
   const updated = await updateInventoryItem(params.id, householdId, patch)
   if (!updated) {
     return json({ error: 'Not found' }, { status: 404 })
+  }
+
+  if (categoryId !== undefined) {
+    const item = await getInventoryItem(params.id, householdId)
+    if (item?.productId) {
+      await db.update(products)
+        .set({ categoryId: categoryId || null })
+        .where(eq(products.id, item.productId))
+    }
   }
 
   return json(updated)

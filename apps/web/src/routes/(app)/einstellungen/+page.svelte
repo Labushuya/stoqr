@@ -57,6 +57,71 @@
   const categoryError = $derived(
     form && (form as any).action === 'updateCategoryTolerance' ? (form as any).error : null
   )
+
+  // ── Units state ────────────────────────────────────────────────────────────
+
+  type Unit = {
+    id: string
+    name: string
+    symbol: string
+    isSystem: boolean
+    householdId: string | null
+    sortOrder: number | null
+  }
+
+  // svelte-ignore state_referenced_locally
+  let unitRows = $state<Unit[]>((data as any).units as Unit[])
+  let newUnitName = $state('')
+  let newUnitSymbol = $state('')
+  let unitAdding = $state(false)
+  let unitAddError = $state<string | null>(null)
+  let unitDeleteError = $state<string | null>(null)
+
+  async function addUnit() {
+    const name = newUnitName.trim()
+    const symbol = newUnitSymbol.trim()
+    if (!name || !symbol) {
+      unitAddError = 'Name und Kürzel sind erforderlich.'
+      return
+    }
+    unitAdding = true
+    unitAddError = null
+    try {
+      const res = await fetch('/api/units', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, symbol }),
+      })
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        unitAddError = body.error ?? `Fehler ${res.status}`
+        return
+      }
+      const created: Unit = await res.json()
+      unitRows = [...unitRows, created]
+      newUnitName = ''
+      newUnitSymbol = ''
+    } catch {
+      unitAddError = 'Netzwerkfehler.'
+    } finally {
+      unitAdding = false
+    }
+  }
+
+  async function deleteUnit(id: string) {
+    unitDeleteError = null
+    try {
+      const res = await fetch(`/api/units/${id}`, { method: 'DELETE' })
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        unitDeleteError = body.error ?? `Fehler ${res.status}`
+        return
+      }
+      unitRows = unitRows.filter((u) => u.id !== id)
+    } catch {
+      unitDeleteError = 'Netzwerkfehler.'
+    }
+  }
 </script>
 
 <div class="page">
@@ -64,7 +129,22 @@
     <h1 class="page-title">Einstellungen</h1>
   </header>
 
-  <!-- ── Section 1: MHD-Ampel Konfiguration ─────────────────────────────── -->
+  <!-- ── Haushaltsmitglieder ───────────────────────────────────────────────── -->
+
+  <section class="settings-section">
+    <div class="section-header">
+      <h2 class="section-title">Haushaltsmitglieder</h2>
+      <span class="section-desc">Mitglieder einladen und verwalten</span>
+    </div>
+    <div class="section-body">
+      <a href="/einstellungen/mitglieder" class="members-link">
+        <span>Mitglieder verwalten</span>
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+          <path d="M6 3l5 5-5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </a>
+    </div>
+  </section>
 
   <section class="settings-section">
     <div class="section-header">
@@ -348,7 +428,110 @@
     {/if}
   </section>
 
-  <!-- ── Section 3: Bring! Integration (Placeholder) ───────────────────── -->
+  <!-- ── Section 3: Einheiten ──────────────────────────────────────────── -->
+
+  <section class="settings-section">
+    <div class="section-header">
+      <h2 class="section-title">
+        <span class="section-icon" aria-hidden="true">
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+            <path d="M4 14V4M4 9h6M10 4v10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M13 7l2 2-2 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </span>
+        Einheiten
+      </h2>
+      <p class="section-desc">
+        Verwalte die Mengeneinheiten, die bei Artikeln verwendet werden. System-Einheiten sind
+        schreibgeschützt. Eigene Einheiten können jederzeit gelöscht werden.
+      </p>
+    </div>
+
+    {#if unitDeleteError}
+      <div class="alert alert--error" role="alert">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+          <circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.5"/>
+          <path d="M8 5v3.5M8 11v.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+        {unitDeleteError}
+      </div>
+    {/if}
+
+    {#if unitAddError}
+      <div class="alert alert--error" role="alert">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+          <circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.5"/>
+          <path d="M8 5v3.5M8 11v.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+        {unitAddError}
+      </div>
+    {/if}
+
+    <div class="units-list" role="list">
+      {#each unitRows as unit (unit.id)}
+        <div class="unit-chip" role="listitem">
+          <span class="unit-name">{unit.name}</span>
+          <span class="unit-symbol">({unit.symbol})</span>
+          {#if unit.isSystem}
+            <span class="unit-badge" aria-label="System-Einheit">
+              <svg width="11" height="11" viewBox="0 0 11 11" fill="none" aria-hidden="true">
+                <rect x="3" y="5" width="5" height="4" rx="0.75" stroke="currentColor" stroke-width="1.2"/>
+                <path d="M4 5V3.5a1.5 1.5 0 013 0V5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+              </svg>
+              System
+            </span>
+          {:else}
+            <button
+              class="unit-delete"
+              type="button"
+              aria-label="Einheit {unit.name} löschen"
+              onclick={() => deleteUnit(unit.id)}
+            >
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+                <path d="M2 2l8 8M10 2l-8 8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+              </svg>
+            </button>
+          {/if}
+        </div>
+      {/each}
+    </div>
+
+    <div class="unit-add-row">
+      <input
+        class="input unit-input"
+        type="text"
+        placeholder="Name"
+        bind:value={newUnitName}
+        maxlength="64"
+        aria-label="Name der neuen Einheit"
+        onkeydown={(e) => { if (e.key === 'Enter') addUnit() }}
+      />
+      <input
+        class="input unit-input unit-input--symbol"
+        type="text"
+        placeholder="Kürzel"
+        bind:value={newUnitSymbol}
+        maxlength="16"
+        aria-label="Kürzel der neuen Einheit"
+        onkeydown={(e) => { if (e.key === 'Enter') addUnit() }}
+      />
+      <button
+        class="btn-primary"
+        type="button"
+        disabled={unitAdding}
+        onclick={addUnit}
+      >
+        {#if unitAdding}
+          <span class="spinner" aria-hidden="true"></span>
+          Hinzufügen…
+        {:else}
+          Hinzufügen
+        {/if}
+      </button>
+    </div>
+  </section>
+
+  <!-- ── Section 4: Bring! Integration (Placeholder) ───────────────────── -->
 
   <section class="settings-section settings-section--disabled">
     <div class="section-header">
@@ -843,6 +1026,92 @@
     padding: var(--space-4) 0;
   }
 
+  /* ── Units ────────────────────────────────────────────────────────────── */
+
+  .units-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    margin-bottom: var(--space-5);
+    min-height: 36px;
+  }
+
+  .unit-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    height: 32px;
+    padding: 0 var(--space-3);
+    border-radius: var(--radius-full);
+    border: 1px solid var(--color-border);
+    background-color: var(--color-surface);
+    font-size: var(--text-sm);
+    color: var(--color-text-primary);
+    white-space: nowrap;
+  }
+
+  .unit-name {
+    font-weight: 500;
+  }
+
+  .unit-symbol {
+    color: var(--color-text-muted);
+    font-size: var(--text-xs);
+  }
+
+  .unit-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    height: 20px;
+    padding: 0 var(--space-2);
+    border-radius: var(--radius-full);
+    background-color: var(--color-surface-sunken);
+    color: var(--color-text-muted);
+    font-size: 11px;
+    font-weight: 600;
+    margin-left: var(--space-1);
+  }
+
+  .unit-delete {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    border: none;
+    background-color: transparent;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    padding: 0;
+    margin-left: var(--space-1);
+    flex-shrink: 0;
+    transition: background-color var(--transition-fast), color var(--transition-fast);
+  }
+
+  .unit-delete:hover {
+    background-color: var(--color-danger-subtle, #fee2e2);
+    color: var(--color-danger, #dc2626);
+  }
+
+  .unit-add-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    flex-wrap: wrap;
+  }
+
+  .unit-input {
+    flex: 1 1 140px;
+    max-width: 220px;
+  }
+
+  .unit-input--symbol {
+    flex: 0 1 100px;
+    max-width: 100px;
+  }
+
   /* ── Spinner ──────────────────────────────────────────────────────────── */
 
   .spinner {
@@ -892,5 +1161,31 @@
     .action-row {
       gap: var(--space-1);
     }
+  }
+
+  .members-link {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    color: var(--color-primary);
+    text-decoration: none;
+    font-weight: 500;
+    font-size: var(--text-base);
+    padding: var(--space-3) var(--space-4);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-surface);
+    transition: background var(--transition-fast), border-color var(--transition-fast);
+  }
+  .members-link:hover {
+    background: var(--color-primary-subtle);
+    border-color: var(--color-primary);
+  }
+
+  .section-desc {
+    font-size: var(--text-sm);
+    color: var(--color-text-muted);
+    margin-top: var(--space-1);
+    display: block;
   }
 </style>

@@ -245,11 +245,18 @@
   // svelte-ignore state_referenced_locally
   let unitOptions = $state(data.units as { id: string; name: string; symbol: string }[])
 
-  // ── Stores (product-store priority) ──────────────────────────────────────
+  // ── Bezugsquellen (product stores) ───────────────────────────────────────
 
   // svelte-ignore state_referenced_locally
-  let productStores = $state<ProductStore[]>(
-    [...(item.product.stores ?? [])].sort((a, b) => a.sortOrder - b.sortOrder)
+  let productStores = $state<ProductStore[]>([...data.productStores])
+
+  // svelte-ignore state_referenced_locally
+  let selectedAddStoreId = $state('')
+
+  const unassignedStores = $derived(() =>
+    data.availableStores.filter(
+      (s: { id: string; name: string }) => !productStores.some((ps) => ps.store.id === s.id)
+    )
   )
 
   async function moveStore(index: number, direction: -1 | 1) {
@@ -277,7 +284,6 @@
     ])
 
     if (resA.ok && resB.ok) {
-      // Optimistically update local state
       const updated = [...productStores]
       updated[index] = { ...current, sortOrder: currentNewOrder }
       updated[targetIndex] = { ...adjacent, sortOrder: adjacentNewOrder }
@@ -285,6 +291,39 @@
       showToast('Reihenfolge gespeichert')
     } else {
       showToast('Fehler beim Speichern der Reihenfolge', 'error')
+    }
+  }
+
+  async function removeStore(ps: ProductStore) {
+    const res = await fetch(`/api/product-stores/${ps.id}`, { method: 'DELETE' })
+    if (res.ok) {
+      productStores = productStores.filter((p) => p.id !== ps.id)
+      showToast('Bezugsquelle entfernt')
+    } else {
+      showToast('Fehler beim Entfernen', 'error')
+    }
+  }
+
+  async function addStore() {
+    if (!selectedAddStoreId) return
+    const maxOrder = productStores.length > 0 ? Math.max(...productStores.map((p) => p.sortOrder)) : 0
+    const res = await fetch('/api/product-stores', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        productId: item.productId,
+        storeId: selectedAddStoreId,
+        householdId: item.householdId,
+        sortOrder: maxOrder + 1,
+      }),
+    })
+    if (res.ok) {
+      const newPs = await res.json()
+      productStores = [...productStores, newPs].sort((a, b) => a.sortOrder - b.sortOrder)
+      selectedAddStoreId = ''
+      showToast('Bezugsquelle hinzugefügt')
+    } else {
+      showToast('Fehler beim Hinzufügen', 'error')
     }
   }
 </script>
@@ -597,25 +636,27 @@
     {/if}
   </div>
 
-  <!-- ── Geschäfte card ────────────────────────────────────────────────── -->
+  <!-- ── Bezugsquellen card ───────────────────────────────────────────── -->
   <div class="card">
-    <h2 class="section-title" style="margin-bottom: var(--space-4)">Geschäfte</h2>
+    <div class="section-header">
+      <h2 class="section-title">Bezugsquellen</h2>
+    </div>
 
     {#if productStores.length === 0}
-      <p class="stores-empty">Keine Geschäfte zugewiesen.</p>
+      <p class="stores-empty">Keine Bezugsquellen zugewiesen.</p>
     {:else}
       <ul class="stores-list">
         {#each productStores as ps, i (ps.id)}
           <li class="store-row">
-            <span class="store-name">{ps.store.name}</span>
             <span class="store-order-badge">{ps.sortOrder}</span>
+            <span class="store-name">{ps.store.name}</span>
             <div class="store-order-btns">
               <button
                 class="btn-order"
                 type="button"
                 onclick={() => moveStore(i, -1)}
                 disabled={i === 0}
-                aria-label="Priorität erhöhen"
+                aria-label="Nach oben"
                 title="Nach oben"
               >↑</button>
               <button
@@ -623,21 +664,46 @@
                 type="button"
                 onclick={() => moveStore(i, 1)}
                 disabled={i === productStores.length - 1}
-                aria-label="Priorität verringern"
+                aria-label="Nach unten"
                 title="Nach unten"
               >↓</button>
             </div>
+            <button
+              class="btn-remove-store"
+              type="button"
+              onclick={() => removeStore(ps)}
+              aria-label="Bezugsquelle entfernen"
+              title="Entfernen"
+            >
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+                <path d="M2 2l8 8M10 2l-8 8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+              </svg>
+            </button>
           </li>
         {/each}
       </ul>
     {/if}
 
-    <button class="btn-add-store" type="button" disabled>
-      <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-        <path d="M7 2v10M2 7h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-      </svg>
-      Geschäft hinzufügen
-    </button>
+    {#if unassignedStores().length > 0}
+      <div class="add-store-row">
+        <select class="input select input--sm add-store-select" bind:value={selectedAddStoreId}>
+          <option value="">+ Bezugsquelle wählen…</option>
+          {#each unassignedStores() as s (s.id)}
+            <option value={s.id}>{s.name}</option>
+          {/each}
+        </select>
+        <button
+          class="btn-save"
+          type="button"
+          onclick={addStore}
+          disabled={!selectedAddStoreId}
+        >
+          Hinzufügen
+        </button>
+      </div>
+    {:else if data.availableStores.length === 0}
+      <p class="stores-hint">Lege zuerst Geschäfte im Haushalt an.</p>
+    {/if}
   </div>
 
   <!-- ── Actions card ───────────────────────────────────────────────────── -->
@@ -1603,13 +1669,18 @@
     to   { opacity: 1; transform: translateY(0); }
   }
 
-  /* ── Stores list ──────────────────────────────────────────────────────── */
-
   .stores-empty {
     font-size: var(--text-sm);
     color: var(--color-text-muted);
     font-style: italic;
     margin: 0 0 var(--space-4);
+  }
+
+  .stores-hint {
+    font-size: var(--text-sm);
+    color: var(--color-text-muted);
+    font-style: italic;
+    margin: var(--space-3) 0 0;
   }
 
   .stores-list {
@@ -1689,21 +1760,36 @@
     cursor: not-allowed;
   }
 
-  .btn-add-store {
+  .btn-remove-store {
     display: inline-flex;
     align-items: center;
-    gap: var(--space-2);
-    height: 34px;
-    padding: 0 var(--space-3);
+    justify-content: center;
+    width: 26px;
+    height: 26px;
     border-radius: var(--radius-md);
-    border: 1.5px dashed var(--color-border);
+    border: none;
     background-color: transparent;
     color: var(--color-text-muted);
-    font-family: var(--font-body);
-    font-size: var(--text-sm);
-    font-weight: 500;
-    cursor: not-allowed;
-    opacity: 0.6;
+    cursor: pointer;
+    transition: background-color var(--transition-fast), color var(--transition-fast);
+    flex-shrink: 0;
+  }
+
+  .btn-remove-store:hover {
+    background-color: var(--color-danger-subtle);
+    color: var(--color-danger);
+  }
+
+  .add-store-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    flex-wrap: wrap;
+  }
+
+  .add-store-select {
+    flex: 1;
+    min-width: 160px;
   }
 
   /* ── Mobile ───────────────────────────────────────────────────────────── */
