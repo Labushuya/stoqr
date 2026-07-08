@@ -83,6 +83,38 @@ jobs:
       - name: Run migrations
         run: pnpm --filter @stoqr/db exec drizzle-kit push --force
 
+      - name: Schema smoke-test — users.username must be nullable
+        run: |
+          # Verify the username column allows NULL (signup prerequisite)
+          RESULT=$(psql postgresql://stoqr:stoqr_test@localhost:5432/stoqr_test \
+            -t -c "SELECT is_nullable FROM information_schema.columns \
+                   WHERE table_name='users' AND column_name='username';")
+          RESULT=$(echo "$RESULT" | tr -d ' ')
+          if [ "$RESULT" != "YES" ]; then
+            echo "FAIL: users.username is NOT nullable — signup will fail"
+            echo "Column info: $RESULT"
+            exit 1
+          fi
+          echo "OK: users.username is nullable"
+
+      - name: Signup smoke-test (fresh DB)
+        run: |
+          # Start the app in background
+          cd apps/web
+          node ../../apps/web/build/index.js &
+          APP_PID=$!
+          sleep 5
+          # Test signup endpoint
+          RESP=$(curl -s -o /dev/null -w "%{http_code}" -X POST http://localhost:3000/api/auth/sign-up/email \
+            -H "Content-Type: application/json" \
+            -d '{"email":"ci-test@example.local","password":"testpassword123","name":"CI Test"}')
+          kill $APP_PID 2>/dev/null || true
+          if [ "$RESP" != "200" ] && [ "$RESP" != "201" ]; then
+            echo "FAIL: signup returned HTTP $RESP (expected 200 or 201)"
+            exit 1
+          fi
+          echo "OK: signup returned HTTP $RESP"
+
       - name: Run tests
         run: pnpm run test
 

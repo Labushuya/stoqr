@@ -21,13 +21,15 @@ import { relations, sql } from 'drizzle-orm';
 
 export const users = pgTable('users', {
   id: text('id').primaryKey(),
-  username: varchar('username', { length: 64 }).unique(),           // nullable — Better Auth doesn't set this
-  displayName: varchar('display_name', { length: 128 }),            // nullable — mapped from Better Auth 'name'
+  // stoqr-internal field, not managed by Better Auth.
+  // Nullable so Better Auth signup (which doesn't provide username) works out of the box.
+  username: varchar('username', { length: 64 }).unique(),
+  displayName: varchar('display_name', { length: 128 }),
   email: varchar('email', { length: 255 }).unique(),
   // Better Auth required fields
   emailVerified: boolean('email_verified').notNull().default(false),
   image: text('image'),
-  passwordHash: text('password_hash'),                              // nullable — Better Auth stores hash in accounts table
+  passwordHash: text('password_hash'),
   isActive: boolean('is_active').notNull().default(true),
   locale: varchar('locale', { length: 10 }).notNull().default('de-DE'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
