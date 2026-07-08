@@ -2,18 +2,19 @@ import { redirect, fail } from '@sveltejs/kit'
 import { db } from '$lib/server/db'
 import { expiryConfig, categories } from '@stoqr/db'
 import { eq, asc } from 'drizzle-orm'
+import { requireHouseholdId } from '$lib/server/queries/households'
 import type { PageServerLoad, Actions } from './$types'
 
 export const load: PageServerLoad = async ({ locals }) => {
   if (!locals.user) redirect(302, '/login')
 
-  const userId = locals.user.id
+  const householdId = await requireHouseholdId(locals.user.id)
 
   const [configRows, categoryRows] = await Promise.all([
     db
       .select()
       .from(expiryConfig)
-      .where(eq(expiryConfig.userId, userId))
+      .where(eq(expiryConfig.householdId, householdId))
       .limit(1),
 
     db.query.categories.findMany({
@@ -47,7 +48,8 @@ export const load: PageServerLoad = async ({ locals }) => {
 export const actions: Actions = {
   updateGlobalTolerance: async ({ locals, request }) => {
     if (!locals.user) redirect(302, '/login')
-    const userId = locals.user.id
+
+    const householdId = await requireHouseholdId(locals.user.id)
 
     const data = await request.formData()
     const yellowRaw = data.get('yellow_days_before')
@@ -75,9 +77,9 @@ export const actions: Actions = {
 
     await db
       .insert(expiryConfig)
-      .values({ userId, yellowDaysBefore, redDaysBefore, graceDaysAfter })
+      .values({ householdId, yellowDaysBefore, redDaysBefore, graceDaysAfter })
       .onConflictDoUpdate({
-        target: expiryConfig.userId,
+        target: expiryConfig.householdId,
         set: { yellowDaysBefore, redDaysBefore, graceDaysAfter },
       })
 

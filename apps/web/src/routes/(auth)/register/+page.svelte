@@ -1,36 +1,10 @@
 <script lang="ts">
-  import { goto } from '$app/navigation'
+  import { enhance } from '$app/forms'
+  import type { PageData, ActionData } from './$types'
 
-  let email = $state('')
-  let password = $state('')
-  let error = $state('')
+  let { data, form }: { data: PageData; form: ActionData } = $props()
+
   let loading = $state(false)
-
-  async function handleSubmit(e: SubmitEvent) {
-    e.preventDefault()
-    error = ''
-    loading = true
-
-    try {
-      const res = await fetch('/api/auth/sign-in/email', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      })
-
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}))
-        error = data?.message ?? 'Anmeldung fehlgeschlagen. Bitte prüfe deine Eingaben.'
-        return
-      }
-
-      goto('/')
-    } catch {
-      error = 'Netzwerkfehler. Bitte versuche es erneut.'
-    } finally {
-      loading = false
-    }
-  }
 </script>
 
 <div class="page">
@@ -52,32 +26,83 @@
       <span class="brand-name">stoqr</span>
     </div>
 
-    <h1 class="heading">Willkommen zurück</h1>
-    <p class="subheading">Melde dich an, um dein Inventar zu verwalten.</p>
+    <h1 class="heading">Konto erstellen</h1>
+    <p class="subheading">Richte deinen Haushalt ein und starte mit stoqr.</p>
 
-    <!-- Error -->
-    {#if error}
-      <div class="error-box" role="alert">
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true" flex-shrink="0">
-          <circle cx="8" cy="8" r="7" stroke="var(--color-danger)" stroke-width="1.5"/>
-          <path d="M8 5v3.5M8 11v.5" stroke="var(--color-danger)" stroke-width="1.5" stroke-linecap="round"/>
+    <!-- Invite banner -->
+    {#if (data as any).token}
+      <div class="invite-banner" role="status">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true" style="flex-shrink:0">
+          <circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.5"/>
+          <path d="M8 7v4M8 5v.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
         </svg>
-        {error}
+        Du wurdest eingeladen. Erstelle jetzt dein Konto.
       </div>
     {/if}
 
-    <form onsubmit={handleSubmit} novalidate>
+    {#if (data as any).tokenInvalid}
+      <div class="error-box" role="alert">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true" style="flex-shrink:0">
+          <circle cx="8" cy="8" r="7" stroke="var(--color-danger)" stroke-width="1.5"/>
+          <path d="M8 5v3.5M8 11v.5" stroke="var(--color-danger)" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+        Der Einladungslink ist ungültig oder abgelaufen.
+      </div>
+    {/if}
+
+    <!-- Error from form action -->
+    {#if form?.error}
+      <div class="error-box" role="alert">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true" style="flex-shrink:0">
+          <circle cx="8" cy="8" r="7" stroke="var(--color-danger)" stroke-width="1.5"/>
+          <path d="M8 5v3.5M8 11v.5" stroke="var(--color-danger)" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+        {(form as any).error}
+      </div>
+    {/if}
+
+    <form
+      method="POST"
+      action="?/register"
+      use:enhance={() => {
+        loading = true
+        return async ({ update }) => {
+          await update()
+          loading = false
+        }
+      }}
+      novalidate
+    >
+      {#if (data as any).token}
+        <input type="hidden" name="token" value={(data as any).token} />
+      {/if}
+
+      <div class="field">
+        <label class="label" for="name">Name</label>
+        <input
+          id="name"
+          class="input"
+          type="text"
+          name="name"
+          autocomplete="name"
+          placeholder="Dein Name"
+          required
+          disabled={loading}
+        />
+      </div>
+
       <div class="field">
         <label class="label" for="email">E-Mail</label>
         <input
           id="email"
           class="input"
           type="email"
+          name="email"
           autocomplete="email"
           placeholder="name@example.com"
+          value={(data as any).inviteEmail ?? ''}
           required
-          bind:value={email}
-          disabled={loading}
+          disabled={loading || !!(data as any).inviteEmail}
         />
       </div>
 
@@ -87,10 +112,11 @@
           id="password"
           class="input"
           type="password"
-          autocomplete="current-password"
-          placeholder="••••••••"
+          name="password"
+          autocomplete="new-password"
+          placeholder="Mindestens 8 Zeichen"
+          minlength="8"
           required
-          bind:value={password}
           disabled={loading}
         />
       </div>
@@ -98,14 +124,15 @@
       <button class="btn-primary" type="submit" disabled={loading}>
         {#if loading}
           <span class="spinner" aria-hidden="true"></span>
-          Anmelden...
+          Registrieren...
         {:else}
-          Anmelden
+          Konto erstellen
         {/if}
       </button>
     </form>
-    <p style="text-align:center; margin-top: var(--space-4); font-size: var(--text-sm); color: var(--color-text-muted);">
-      Neu hier? <a href="/register" style="color: var(--color-primary);">Konto erstellen</a>
+
+    <p class="footer-link">
+      Bereits registriert? <a href="/login">Anmelden</a>
     </p>
   </div>
 </div>
@@ -172,6 +199,23 @@
     color: var(--color-text-muted);
     margin: 0 0 var(--space-8);
     line-height: 1.5;
+  }
+
+  /* ── Invite banner ───────────────────────────────── */
+
+  .invite-banner {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-2);
+    padding: var(--space-3) var(--space-4);
+    border-radius: var(--radius-md);
+    background-color: var(--color-primary-subtle);
+    border: 1px solid var(--color-primary);
+    color: var(--color-primary);
+    font-size: var(--text-sm);
+    font-weight: 500;
+    line-height: 1.5;
+    margin-bottom: var(--space-6);
   }
 
   /* ── Error box ───────────────────────────────────── */
@@ -298,6 +342,25 @@
 
   @keyframes spin {
     to { transform: rotate(360deg); }
+  }
+
+  /* ── Footer link ─────────────────────────────────── */
+
+  .footer-link {
+    margin: var(--space-6) 0 0;
+    text-align: center;
+    font-size: var(--text-sm);
+    color: var(--color-text-muted);
+  }
+
+  .footer-link a {
+    color: var(--color-primary);
+    text-decoration: none;
+    font-weight: 500;
+  }
+
+  .footer-link a:hover {
+    text-decoration: underline;
   }
 
   /* ── Responsive ──────────────────────────────────── */

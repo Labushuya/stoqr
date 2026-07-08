@@ -36,18 +36,7 @@ export const users = pgTable('users', {
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 });
 
-export const usersRelations = relations(users, ({ many, one }) => ({
-  locations: many(locations),
-  inventoryItems: many(inventoryItems),
-  expiryConfig: one(expiryConfig, {
-    fields: [users.id],
-    references: [expiryConfig.userId],
-  }),
-  stockTargets: many(stockTargets),
-  stores: many(stores),
-  productStores: many(productStores),
-  shoppingListItems: many(shoppingListItems),
-  bringSync: many(bringSync),
+export const usersRelations = relations(users, ({ many }) => ({
   auditLog: many(auditLog),
   createdProducts: many(products, { relationName: 'productCreator' }),
 }));
@@ -58,9 +47,9 @@ export const usersRelations = relations(users, ({ many, one }) => ({
 
 export const locations = pgTable('locations', {
   id: uuid('id').primaryKey().defaultRandom(),
-  userId: text('user_id')
+  householdId: text('household_id')
     .notNull()
-    .references(() => users.id),
+    .references(() => households.id),
   name: varchar('name', { length: 128 }).notNull(),
   icon: varchar('icon', { length: 64 }),
   sortOrder: integer('sort_order').notNull().default(0),
@@ -68,9 +57,9 @@ export const locations = pgTable('locations', {
 });
 
 export const locationsRelations = relations(locations, ({ one, many }) => ({
-  user: one(users, {
-    fields: [locations.userId],
-    references: [users.id],
+  household: one(households, {
+    fields: [locations.householdId],
+    references: [households.id],
   }),
   storages: many(storages),
 }));
@@ -263,9 +252,9 @@ export const productNutrientsRelations = relations(productNutrients, ({ one }) =
 
 export const stores = pgTable('stores', {
   id: uuid('id').primaryKey().defaultRandom(),
-  userId: text('user_id')
+  householdId: text('household_id')
     .notNull()
-    .references(() => users.id),
+    .references(() => households.id),
   name: varchar('name', { length: 128 }).notNull(),
   chain: varchar('chain', { length: 64 }),
   address: text('address'),
@@ -278,9 +267,9 @@ export const stores = pgTable('stores', {
 });
 
 export const storesRelations = relations(stores, ({ one, many }) => ({
-  user: one(users, {
-    fields: [stores.userId],
-    references: [users.id],
+  household: one(households, {
+    fields: [stores.householdId],
+    references: [households.id],
   }),
   inventoryItems: many(inventoryItems),
   stockTargets: many(stockTargets),
@@ -299,9 +288,9 @@ export const inventoryItems = pgTable('inventory_items', {
     .notNull()
     .references(() => products.id),
   placeId: uuid('place_id').references(() => places.id),
-  userId: text('user_id')
+  householdId: text('household_id')
     .notNull()
-    .references(() => users.id),
+    .references(() => households.id),
   quantity: numeric('quantity', { precision: 10, scale: 3 }).notNull().default('1'),
   unit: varchar('unit', { length: 16 }).notNull().default('piece'),
   weightG: numeric('weight_g', { precision: 10, scale: 2 }),
@@ -332,9 +321,9 @@ export const inventoryItemsRelations = relations(inventoryItems, ({ one }) => ({
     fields: [inventoryItems.placeId],
     references: [places.id],
   }),
-  user: one(users, {
-    fields: [inventoryItems.userId],
-    references: [users.id],
+  household: one(households, {
+    fields: [inventoryItems.householdId],
+    references: [households.id],
   }),
   store: one(stores, {
     fields: [inventoryItems.storeId],
@@ -348,19 +337,19 @@ export const inventoryItemsRelations = relations(inventoryItems, ({ one }) => ({
 
 export const expiryConfig = pgTable('expiry_config', {
   id: uuid('id').primaryKey().defaultRandom(),
-  userId: text('user_id')
+  householdId: text('household_id')
     .notNull()
     .unique()
-    .references(() => users.id),
+    .references(() => households.id),
   yellowDaysBefore: integer('yellow_days_before').notNull().default(7),
   redDaysBefore: integer('red_days_before').notNull().default(2),
   graceDaysAfter: integer('grace_days_after').notNull().default(0),
 });
 
 export const expiryConfigRelations = relations(expiryConfig, ({ one }) => ({
-  user: one(users, {
-    fields: [expiryConfig.userId],
-    references: [users.id],
+  household: one(households, {
+    fields: [expiryConfig.householdId],
+    references: [households.id],
   }),
 }));
 
@@ -372,9 +361,9 @@ export const stockTargets = pgTable(
   'stock_targets',
   {
     id: uuid('id').primaryKey().defaultRandom(),
-    userId: text('user_id')
+    householdId: text('household_id')
       .notNull()
-      .references(() => users.id),
+      .references(() => households.id),
     productId: uuid('product_id')
       .notNull()
       .references(() => products.id),
@@ -389,17 +378,17 @@ export const stockTargets = pgTable(
     updatedAt: timestamp('updated_at').notNull().defaultNow(),
   },
   (table) => ({
-    stockTargetUserProductUniq: uniqueIndex('stock_targets_user_product_uniq').on(
-      table.userId,
+    stockTargetHouseholdProductUniq: uniqueIndex('stock_targets_household_product_uniq').on(
+      table.householdId,
       table.productId
     ),
   })
 );
 
 export const stockTargetsRelations = relations(stockTargets, ({ one }) => ({
-  user: one(users, {
-    fields: [stockTargets.userId],
-    references: [users.id],
+  household: one(households, {
+    fields: [stockTargets.householdId],
+    references: [households.id],
   }),
   product: one(products, {
     fields: [stockTargets.productId],
@@ -429,23 +418,20 @@ export const productStores = pgTable(
     storeId: uuid('store_id')
       .notNull()
       .references(() => stores.id, { onDelete: 'cascade' }),
-    userId: text('user_id')
+    householdId: text('household_id')
       .notNull()
-      .references(() => users.id),
-    priority: varchar('priority', { length: 16 })
-      .notNull()
-      .default('secondary')
-      .$type<'primary' | 'secondary'>(),
+      .references(() => households.id),
+    sortOrder: integer('sort_order').notNull().default(1),
     storeSku: varchar('store_sku', { length: 64 }),
     lastSeenPriceCt: integer('last_seen_price_ct'),
     lastSeenAt: date('last_seen_at'),
     notes: text('notes'),
   },
   (table) => ({
-    productStoreUserUniq: uniqueIndex('product_stores_product_store_user_uniq').on(
+    productStoreHouseholdUniq: uniqueIndex('product_stores_product_store_household_uniq').on(
       table.productId,
       table.storeId,
-      table.userId
+      table.householdId
     ),
   })
 );
@@ -459,9 +445,9 @@ export const productStoresRelations = relations(productStores, ({ one }) => ({
     fields: [productStores.storeId],
     references: [stores.id],
   }),
-  user: one(users, {
-    fields: [productStores.userId],
-    references: [users.id],
+  household: one(households, {
+    fields: [productStores.householdId],
+    references: [households.id],
   }),
 }));
 
@@ -471,9 +457,9 @@ export const productStoresRelations = relations(productStores, ({ one }) => ({
 
 export const shoppingListItems = pgTable('shopping_list_items', {
   id: uuid('id').primaryKey().defaultRandom(),
-  userId: text('user_id')
+  householdId: text('household_id')
     .notNull()
-    .references(() => users.id),
+    .references(() => households.id),
   productId: uuid('product_id').references(() => products.id),
   freeTextName: varchar('free_text_name', { length: 255 }),
   quantity: numeric('quantity', { precision: 10, scale: 3 }).notNull().default('1'),
@@ -494,9 +480,9 @@ export const shoppingListItems = pgTable('shopping_list_items', {
 });
 
 export const shoppingListItemsRelations = relations(shoppingListItems, ({ one }) => ({
-  user: one(users, {
-    fields: [shoppingListItems.userId],
-    references: [users.id],
+  household: one(households, {
+    fields: [shoppingListItems.householdId],
+    references: [households.id],
   }),
   product: one(products, {
     fields: [shoppingListItems.productId],
@@ -514,9 +500,9 @@ export const shoppingListItemsRelations = relations(shoppingListItems, ({ one })
 
 export const bringSync = pgTable('bring_sync_log', {
   id: uuid('id').primaryKey().defaultRandom(),
-  userId: text('user_id')
+  householdId: text('household_id')
     .notNull()
-    .references(() => users.id),
+    .references(() => households.id),
   direction: varchar('direction', { length: 8 })
     .notNull()
     .$type<'export' | 'import'>(),
@@ -531,9 +517,9 @@ export const bringSync = pgTable('bring_sync_log', {
 });
 
 export const bringSyncRelations = relations(bringSync, ({ one }) => ({
-  user: one(users, {
-    fields: [bringSync.userId],
-    references: [users.id],
+  household: one(households, {
+    fields: [bringSync.householdId],
+    references: [households.id],
   }),
   store: one(stores, {
     fields: [bringSync.storeId],
@@ -565,6 +551,112 @@ export const auditLogRelations = relations(auditLog, ({ one }) => ({
   user: one(users, {
     fields: [auditLog.userId],
     references: [users.id],
+  }),
+}));
+
+// ---------------------------------------------------------------------------
+// households
+// ---------------------------------------------------------------------------
+
+export const households = pgTable('households', {
+  id: text('id').primaryKey(),
+  name: varchar('name', { length: 128 }).notNull(),
+  createdBy: text('created_by').references(() => users.id),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+});
+
+export const householdsRelations = relations(households, ({ many }) => ({
+  locations: many(locations),
+  stores: many(stores),
+  inventoryItems: many(inventoryItems),
+  expiryConfig: many(expiryConfig),
+  stockTargets: many(stockTargets),
+  productStores: many(productStores),
+  shoppingListItems: many(shoppingListItems),
+  bringSync: many(bringSync),
+  householdMembers: many(householdMembers),
+  units: many(units),
+  invites: many(invites),
+}));
+
+// ---------------------------------------------------------------------------
+// household_members
+// ---------------------------------------------------------------------------
+
+export const householdMembers = pgTable(
+  'household_members',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    householdId: text('household_id')
+      .notNull()
+      .references(() => households.id, { onDelete: 'cascade' }),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    role: varchar('role', { length: 16 }).notNull().default('member'),
+    joinedAt: timestamp('joined_at').notNull().defaultNow(),
+  },
+  (table) => ({
+    householdMembersHouseholdUserUniq: uniqueIndex('household_members_household_user_uniq').on(
+      table.householdId,
+      table.userId
+    ),
+  })
+);
+
+export const householdMembersRelations = relations(householdMembers, ({ one }) => ({
+  household: one(households, {
+    fields: [householdMembers.householdId],
+    references: [households.id],
+  }),
+  user: one(users, {
+    fields: [householdMembers.userId],
+    references: [users.id],
+  }),
+}));
+
+// ---------------------------------------------------------------------------
+// invites
+// ---------------------------------------------------------------------------
+
+export const invites = pgTable('invites', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  householdId: text('household_id')
+    .notNull()
+    .references(() => households.id, { onDelete: 'cascade' }),
+  email: varchar('email', { length: 255 }).notNull(),
+  token: text('token').notNull().unique(),
+  createdBy: text('created_by')
+    .notNull()
+    .references(() => users.id),
+  expiresAt: timestamp('expires_at').notNull(),
+  usedAt: timestamp('used_at'),
+});
+
+export const invitesRelations = relations(invites, ({ one }) => ({
+  household: one(households, {
+    fields: [invites.householdId],
+    references: [households.id],
+  }),
+}));
+
+// ---------------------------------------------------------------------------
+// units
+// ---------------------------------------------------------------------------
+
+export const units = pgTable('units', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  householdId: text('household_id').references(() => households.id, { onDelete: 'cascade' }),
+  name: varchar('name', { length: 32 }).notNull(),
+  symbol: varchar('symbol', { length: 8 }).notNull(),
+  sortOrder: integer('sort_order').notNull().default(0),
+  isSystem: boolean('is_system').notNull().default(false),
+});
+
+export const unitsRelations = relations(units, ({ one }) => ({
+  household: one(households, {
+    fields: [units.householdId],
+    references: [households.id],
   }),
 }));
 

@@ -17,6 +17,12 @@
     valuePer100: string
   }
 
+  type ProductStore = {
+    id: string
+    store: { id: string; name: string }
+    sortOrder: number
+  }
+
   // ── Derived item state ────────────────────────────────────────────────────
 
   // svelte-ignore state_referenced_locally
@@ -236,13 +242,51 @@
 
   // ── Units ─────────────────────────────────────────────────────────────────
 
-  const unitOptions = [
-    { value: 'piece', label: 'Stück' },
-    { value: 'gram', label: 'Gramm (g)' },
-    { value: 'kg', label: 'Kilogramm (kg)' },
-    { value: 'ml', label: 'Milliliter (ml)' },
-    { value: 'liter', label: 'Liter (l)' },
-  ]
+  // svelte-ignore state_referenced_locally
+  let unitOptions = $state(data.units as { id: string; name: string; symbol: string }[])
+
+  // ── Stores (product-store priority) ──────────────────────────────────────
+
+  // svelte-ignore state_referenced_locally
+  let productStores = $state<ProductStore[]>(
+    [...(item.product.stores ?? [])].sort((a, b) => a.sortOrder - b.sortOrder)
+  )
+
+  async function moveStore(index: number, direction: -1 | 1) {
+    const targetIndex = index + direction
+    if (targetIndex < 0 || targetIndex >= productStores.length) return
+
+    const current = productStores[index]
+    const adjacent = productStores[targetIndex]
+
+    // Swap sortOrder values
+    const currentNewOrder = adjacent.sortOrder
+    const adjacentNewOrder = current.sortOrder
+
+    const [resA, resB] = await Promise.all([
+      fetch(`/api/product-stores/${current.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sortOrder: currentNewOrder }),
+      }),
+      fetch(`/api/product-stores/${adjacent.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sortOrder: adjacentNewOrder }),
+      }),
+    ])
+
+    if (resA.ok && resB.ok) {
+      // Optimistically update local state
+      const updated = [...productStores]
+      updated[index] = { ...current, sortOrder: currentNewOrder }
+      updated[targetIndex] = { ...adjacent, sortOrder: adjacentNewOrder }
+      productStores = updated.sort((a, b) => a.sortOrder - b.sortOrder)
+      showToast('Reihenfolge gespeichert')
+    } else {
+      showToast('Fehler beim Speichern der Reihenfolge', 'error')
+    }
+  }
 </script>
 
 <!-- ── Page ──────────────────────────────────────────────────────────────── -->
@@ -402,7 +446,7 @@
       <div class="field-edit-row">
         <select class="input select" bind:value={editUnit}>
           {#each unitOptions as opt}
-            <option value={opt.value}>{opt.label}</option>
+            <option value={opt.symbol}>{opt.name}</option>
           {/each}
         </select>
         <button class="btn-save" type="button" onclick={() => saveField('unit')}>Speichern</button>
@@ -551,6 +595,49 @@
         </tbody>
       </table>
     {/if}
+  </div>
+
+  <!-- ── Geschäfte card ────────────────────────────────────────────────── -->
+  <div class="card">
+    <h2 class="section-title" style="margin-bottom: var(--space-4)">Geschäfte</h2>
+
+    {#if productStores.length === 0}
+      <p class="stores-empty">Keine Geschäfte zugewiesen.</p>
+    {:else}
+      <ul class="stores-list">
+        {#each productStores as ps, i (ps.id)}
+          <li class="store-row">
+            <span class="store-name">{ps.store.name}</span>
+            <span class="store-order-badge">{ps.sortOrder}</span>
+            <div class="store-order-btns">
+              <button
+                class="btn-order"
+                type="button"
+                onclick={() => moveStore(i, -1)}
+                disabled={i === 0}
+                aria-label="Priorität erhöhen"
+                title="Nach oben"
+              >↑</button>
+              <button
+                class="btn-order"
+                type="button"
+                onclick={() => moveStore(i, 1)}
+                disabled={i === productStores.length - 1}
+                aria-label="Priorität verringern"
+                title="Nach unten"
+              >↓</button>
+            </div>
+          </li>
+        {/each}
+      </ul>
+    {/if}
+
+    <button class="btn-add-store" type="button" disabled>
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+        <path d="M7 2v10M2 7h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+      </svg>
+      Geschäft hinzufügen
+    </button>
   </div>
 
   <!-- ── Actions card ───────────────────────────────────────────────────── -->
@@ -1514,6 +1601,109 @@
   @keyframes toast-in {
     from { opacity: 0; transform: translateY(8px); }
     to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ── Stores list ──────────────────────────────────────────────────────── */
+
+  .stores-empty {
+    font-size: var(--text-sm);
+    color: var(--color-text-muted);
+    font-style: italic;
+    margin: 0 0 var(--space-4);
+  }
+
+  .stores-list {
+    list-style: none;
+    margin: 0 0 var(--space-4);
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .store-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-2) 0;
+    border-bottom: 1px solid var(--color-border-subtle);
+  }
+
+  .store-row:last-child {
+    border-bottom: none;
+  }
+
+  .store-name {
+    flex: 1;
+    font-size: var(--text-base);
+    color: var(--color-text-primary);
+    font-weight: 500;
+  }
+
+  .store-order-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 24px;
+    height: 20px;
+    padding: 0 var(--space-2);
+    border-radius: var(--radius-full);
+    background-color: var(--color-surface-sunken);
+    color: var(--color-text-muted);
+    font-size: var(--text-xs);
+    font-family: var(--font-mono);
+    font-weight: 600;
+    flex-shrink: 0;
+  }
+
+  .store-order-btns {
+    display: flex;
+    gap: var(--space-1);
+    flex-shrink: 0;
+  }
+
+  .btn-order {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--color-border);
+    background-color: var(--color-surface);
+    color: var(--color-text-secondary);
+    font-size: var(--text-sm);
+    cursor: pointer;
+    transition: border-color var(--transition-fast), background-color var(--transition-fast), color var(--transition-fast);
+    flex-shrink: 0;
+  }
+
+  .btn-order:hover:not(:disabled) {
+    border-color: var(--color-primary);
+    background-color: var(--color-primary-subtle);
+    color: var(--color-primary);
+  }
+
+  .btn-order:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+  }
+
+  .btn-add-store {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    height: 34px;
+    padding: 0 var(--space-3);
+    border-radius: var(--radius-md);
+    border: 1.5px dashed var(--color-border);
+    background-color: transparent;
+    color: var(--color-text-muted);
+    font-family: var(--font-body);
+    font-size: var(--text-sm);
+    font-weight: 500;
+    cursor: not-allowed;
+    opacity: 0.6;
   }
 
   /* ── Mobile ───────────────────────────────────────────────────────────── */

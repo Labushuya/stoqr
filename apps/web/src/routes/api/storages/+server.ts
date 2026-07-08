@@ -3,11 +3,14 @@ import type { RequestHandler } from './$types'
 import { db } from '$lib/server/db'
 import { storages, locations } from '@stoqr/db'
 import { eq } from 'drizzle-orm'
+import { requireHouseholdId } from '$lib/server/queries/households'
 
 export const POST: RequestHandler = async ({ locals, request }) => {
   if (!locals.user) {
     return json({ error: 'Unauthorized' }, { status: 401 })
   }
+
+  const householdId = await requireHouseholdId(locals.user.id)
 
   const body = await request.json()
   const { locationId, name, storageType, temperatureZone, icon, sortOrder } = body
@@ -16,13 +19,13 @@ export const POST: RequestHandler = async ({ locals, request }) => {
     return json({ error: 'locationId and name are required' }, { status: 400 })
   }
 
-  // Verify that the location belongs to the authenticated user
+  // Verify that the location belongs to the authenticated household
   const [location] = await db
     .select()
     .from(locations)
     .where(eq(locations.id, locationId))
 
-  if (!location || location.userId !== locals.user.id) {
+  if (!location || location.householdId !== householdId) {
     return json({ error: 'Location not found' }, { status: 404 })
   }
 

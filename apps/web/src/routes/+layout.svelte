@@ -1,7 +1,7 @@
 <script lang="ts">
   import '../app.css'
   import { page } from '$app/stores'
-  import { goto } from '$app/navigation'
+  import { goto, invalidateAll } from '$app/navigation'
   import Toast from '$lib/components/Toast.svelte'
 
   let { data, children } = $props()
@@ -31,6 +31,7 @@
 
   async function logout() {
     await fetch('/api/auth/sign-out', { method: 'POST' })
+    await invalidateAll()
     goto('/login')
   }
 </script>

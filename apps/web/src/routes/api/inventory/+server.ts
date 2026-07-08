@@ -7,6 +7,7 @@ import {
   createProduct,
   getOrCreateProductByGtin,
 } from '$lib/server/queries/products'
+import { requireHouseholdId } from '$lib/server/queries/households'
 import { db } from '$lib/server/db'
 import { places, storages, locations, nutrientTypes, productNutrients } from '@stoqr/db'
 import { eq, inArray } from 'drizzle-orm'
@@ -30,10 +31,11 @@ export const GET: RequestHandler = async ({ locals, url }) => {
     return json({ error: 'Unauthorized' }, { status: 401 })
   }
 
+  const householdId = await requireHouseholdId(locals.user.id)
   const placeId = url.searchParams.get('placeId') ?? undefined
   const status = url.searchParams.get('status') ?? undefined
 
-  const items = await getInventoryItems(locals.user.id, { placeId, status })
+  const items = await getInventoryItems(householdId, { placeId, status })
   return json(items)
 }
 
@@ -46,6 +48,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
     return json({ error: 'Unauthorized' }, { status: 401 })
   }
 
+  const householdId = await requireHouseholdId(locals.user.id)
   const body = await request.json()
   const {
     // Product resolution
@@ -172,13 +175,13 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 
   if (placeId) {
     const [placeRow] = await db
-      .select({ locationUserId: locations.userId })
+      .select({ locationHouseholdId: locations.householdId })
       .from(places)
       .innerJoin(storages, eq(places.storageId, storages.id))
       .innerJoin(locations, eq(storages.locationId, locations.id))
       .where(eq(places.id, placeId))
 
-    if (!placeRow || placeRow.locationUserId !== locals.user.id) {
+    if (!placeRow || placeRow.locationHouseholdId !== householdId) {
       return json({ error: 'Place not found' }, { status: 404 })
     }
   }
@@ -189,7 +192,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 
   const item = await createInventoryItem({
     productId: resolvedProductId as string,
-    userId: locals.user.id,
+    householdId,
     placeId: placeId ?? undefined,
     quantity,
     unit,
@@ -198,7 +201,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
   })
 
   // Return the full item with product info (mirrors GET /api/inventory/[id])
-  const fullItem = await getInventoryItem(item.id, locals.user.id)
+  const fullItem = await getInventoryItem(item.id, householdId)
 
   return json(fullItem ?? item, { status: 201 })
 }

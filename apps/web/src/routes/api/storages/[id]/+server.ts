@@ -3,15 +3,16 @@ import type { RequestHandler } from './$types'
 import { db } from '$lib/server/db'
 import { storages, locations } from '@stoqr/db'
 import { eq } from 'drizzle-orm'
+import { requireHouseholdId } from '$lib/server/queries/households'
 
-async function getStorageForUser(storageId: string, userId: string) {
+async function getStorageForHousehold(storageId: string, householdId: string) {
   const [row] = await db
-    .select({ storage: storages, locationUserId: locations.userId })
+    .select({ storage: storages, locationHouseholdId: locations.householdId })
     .from(storages)
     .innerJoin(locations, eq(storages.locationId, locations.id))
     .where(eq(storages.id, storageId))
 
-  if (!row || row.locationUserId !== userId) return null
+  if (!row || row.locationHouseholdId !== householdId) return null
   return row.storage
 }
 
@@ -20,7 +21,9 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
     return json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const existing = await getStorageForUser(params.id, locals.user.id)
+  const householdId = await requireHouseholdId(locals.user.id)
+
+  const existing = await getStorageForHousehold(params.id, householdId)
   if (!existing) {
     return json({ error: 'Not found' }, { status: 404 })
   }
@@ -53,7 +56,9 @@ export const DELETE: RequestHandler = async ({ locals, params }) => {
     return json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const existing = await getStorageForUser(params.id, locals.user.id)
+  const householdId = await requireHouseholdId(locals.user.id)
+
+  const existing = await getStorageForHousehold(params.id, householdId)
   if (!existing) {
     return json({ error: 'Not found' }, { status: 404 })
   }

@@ -5,13 +5,15 @@ import {
   updateInventoryItem,
   deleteInventoryItem,
 } from '$lib/server/queries/products'
+import { requireHouseholdId } from '$lib/server/queries/households'
 
 export const GET: RequestHandler = async ({ locals, params }) => {
   if (!locals.user) {
     return json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const item = await getInventoryItem(params.id, locals.user.id)
+  const householdId = await requireHouseholdId(locals.user.id)
+  const item = await getInventoryItem(params.id, householdId)
   if (!item) {
     return json({ error: 'Not found' }, { status: 404 })
   }
@@ -24,6 +26,7 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
     return json({ error: 'Unauthorized' }, { status: 401 })
   }
 
+  const householdId = await requireHouseholdId(locals.user.id)
   const body = await request.json()
   const {
     quantity,
@@ -62,7 +65,7 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
     return json({ error: 'No fields to update' }, { status: 400 })
   }
 
-  const updated = await updateInventoryItem(params.id, locals.user.id, patch)
+  const updated = await updateInventoryItem(params.id, householdId, patch)
   if (!updated) {
     return json({ error: 'Not found' }, { status: 404 })
   }
@@ -75,8 +78,9 @@ export const DELETE: RequestHandler = async ({ locals, params }) => {
     return json({ error: 'Unauthorized' }, { status: 401 })
   }
 
+  const householdId = await requireHouseholdId(locals.user.id)
   // Soft delete: sets status → 'discarded'
-  const discarded = await deleteInventoryItem(params.id, locals.user.id)
+  const discarded = await deleteInventoryItem(params.id, householdId)
   if (!discarded) {
     return json({ error: 'Not found' }, { status: 404 })
   }

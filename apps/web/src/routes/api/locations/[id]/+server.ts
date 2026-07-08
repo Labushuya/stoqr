@@ -3,16 +3,19 @@ import type { RequestHandler } from './$types'
 import { db } from '$lib/server/db'
 import { locations } from '@stoqr/db'
 import { eq, and } from 'drizzle-orm'
+import { requireHouseholdId } from '$lib/server/queries/households'
 
 export const GET: RequestHandler = async ({ locals, params }) => {
   if (!locals.user) {
     return json({ error: 'Unauthorized' }, { status: 401 })
   }
 
+  const householdId = await requireHouseholdId(locals.user.id)
+
   const [location] = await db
     .select()
     .from(locations)
-    .where(and(eq(locations.id, params.id), eq(locations.userId, locals.user.id)))
+    .where(and(eq(locations.id, params.id), eq(locations.householdId, householdId)))
 
   if (!location) {
     return json({ error: 'Not found' }, { status: 404 })
@@ -25,6 +28,8 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
   if (!locals.user) {
     return json({ error: 'Unauthorized' }, { status: 401 })
   }
+
+  const householdId = await requireHouseholdId(locals.user.id)
 
   const body = await request.json()
   const { name, icon, sortOrder } = body
@@ -41,7 +46,7 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
   const [updated] = await db
     .update(locations)
     .set(updates)
-    .where(and(eq(locations.id, params.id), eq(locations.userId, locals.user.id)))
+    .where(and(eq(locations.id, params.id), eq(locations.householdId, householdId)))
     .returning()
 
   if (!updated) {
@@ -56,9 +61,11 @@ export const DELETE: RequestHandler = async ({ locals, params }) => {
     return json({ error: 'Unauthorized' }, { status: 401 })
   }
 
+  const householdId = await requireHouseholdId(locals.user.id)
+
   const [deleted] = await db
     .delete(locations)
-    .where(and(eq(locations.id, params.id), eq(locations.userId, locals.user.id)))
+    .where(and(eq(locations.id, params.id), eq(locations.householdId, householdId)))
     .returning()
 
   if (!deleted) {

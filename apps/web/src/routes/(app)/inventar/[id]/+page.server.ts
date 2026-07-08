@@ -10,6 +10,7 @@ import {
 import { eq, and, asc } from 'drizzle-orm'
 import { error, fail, redirect } from '@sveltejs/kit'
 import type { PageServerLoad, Actions } from './$types'
+import { requireHouseholdId } from '$lib/server/queries/households'
 
 // ---------------------------------------------------------------------------
 // Load
@@ -17,11 +18,11 @@ import type { PageServerLoad, Actions } from './$types'
 
 export const load: PageServerLoad = async ({ params, locals }) => {
   if (!locals.user) redirect(302, '/login');
-  const userId = locals.user.id;
+  const householdId = await requireHouseholdId(locals.user.id);
 
   // Fetch inventory item with product join
   const item = await db.query.inventoryItems.findFirst({
-    where: and(eq(inventoryItems.id, params.id), eq(inventoryItems.userId, userId)),
+    where: and(eq(inventoryItems.id, params.id), eq(inventoryItems.householdId, householdId)),
     with: {
       product: {
         with: {
@@ -49,9 +50,9 @@ export const load: PageServerLoad = async ({ params, locals }) => {
     error(404, 'Artikel nicht gefunden');
   }
 
-  // Fetch user expiry config for badge calculation
+  // Fetch household expiry config for badge calculation
   const cfg = await db.query.expiryConfig.findFirst({
-    where: eq(expiryConfig.userId, userId),
+    where: eq(expiryConfig.householdId, householdId),
   });
 
   const expirySettings = {
@@ -82,7 +83,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 
   // Fetch all locations for the location-picker dialog
   const allLocations = await db.query.locations.findMany({
-    where: eq(locations.userId, userId),
+    where: eq(locations.householdId, householdId),
     orderBy: asc(locations.sortOrder),
     with: {
       storages: {
@@ -110,6 +111,7 @@ export const actions: Actions = {
   // ── Update quantity ──────────────────────────────────────────────────────
   updateQuantity: async ({ params, locals, request }) => {
     if (!locals.user) return fail(401, { error: 'Nicht authentifiziert' });
+    const householdId = await requireHouseholdId(locals.user.id);
 
     const data = await request.formData();
     const quantity = data.get('quantity');
@@ -122,7 +124,7 @@ export const actions: Actions = {
     const [updated] = await db
       .update(inventoryItems)
       .set({ quantity: String(parsed), updatedAt: new Date() })
-      .where(and(eq(inventoryItems.id, params.id), eq(inventoryItems.userId, locals.user.id)))
+      .where(and(eq(inventoryItems.id, params.id), eq(inventoryItems.householdId, householdId)))
       .returning();
 
     if (!updated) return fail(404, { error: 'Artikel nicht gefunden' });
@@ -132,11 +134,12 @@ export const actions: Actions = {
   // ── Mark as consumed ─────────────────────────────────────────────────────
   markConsumed: async ({ params, locals }) => {
     if (!locals.user) return fail(401, { error: 'Nicht authentifiziert' });
+    const householdId = await requireHouseholdId(locals.user.id);
 
     const [updated] = await db
       .update(inventoryItems)
       .set({ status: 'consumed', consumedAt: new Date(), updatedAt: new Date() })
-      .where(and(eq(inventoryItems.id, params.id), eq(inventoryItems.userId, locals.user.id)))
+      .where(and(eq(inventoryItems.id, params.id), eq(inventoryItems.householdId, householdId)))
       .returning();
 
     if (!updated) return fail(404, { error: 'Artikel nicht gefunden' });
@@ -146,6 +149,7 @@ export const actions: Actions = {
   // ── Update item fields (MHD, notes, lot, location) ────────────────────────
   updateItem: async ({ params, locals, request }) => {
     if (!locals.user) return fail(401, { error: 'Nicht authentifiziert' });
+    const householdId = await requireHouseholdId(locals.user.id);
 
     const data = await request.formData();
     const bestBeforeDate = data.get('bestBeforeDate') as string | null;
@@ -174,7 +178,7 @@ export const actions: Actions = {
     const [updated] = await db
       .update(inventoryItems)
       .set(patch)
-      .where(and(eq(inventoryItems.id, params.id), eq(inventoryItems.userId, locals.user.id)))
+      .where(and(eq(inventoryItems.id, params.id), eq(inventoryItems.householdId, householdId)))
       .returning();
 
     if (!updated) return fail(404, { error: 'Artikel nicht gefunden' });
@@ -184,10 +188,11 @@ export const actions: Actions = {
   // ── Delete item ───────────────────────────────────────────────────────────
   deleteItem: async ({ params, locals }) => {
     if (!locals.user) return fail(401, { error: 'Nicht authentifiziert' });
+    const householdId = await requireHouseholdId(locals.user.id);
 
     const [deleted] = await db
       .delete(inventoryItems)
-      .where(and(eq(inventoryItems.id, params.id), eq(inventoryItems.userId, locals.user.id)))
+      .where(and(eq(inventoryItems.id, params.id), eq(inventoryItems.householdId, householdId)))
       .returning();
 
     if (!deleted) return fail(404, { error: 'Artikel nicht gefunden' });

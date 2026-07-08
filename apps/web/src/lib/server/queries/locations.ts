@@ -6,9 +6,9 @@ import { eq, and, asc } from 'drizzle-orm';
 // Locations
 // ---------------------------------------------------------------------------
 
-export async function getLocations(userId: string) {
+export async function getLocations(householdId: string) {
 	return db.query.locations.findMany({
-		where: eq(locations.userId, userId),
+		where: eq(locations.householdId, householdId),
 		orderBy: asc(locations.sortOrder),
 		with: {
 			storages: {
@@ -23,9 +23,9 @@ export async function getLocations(userId: string) {
 	});
 }
 
-export async function getLocation(id: string, userId: string) {
+export async function getLocation(id: string, householdId: string) {
 	return db.query.locations.findFirst({
-		where: (l, { and }) => and(eq(l.id, id), eq(l.userId, userId)),
+		where: (l, { and }) => and(eq(l.id, id), eq(l.householdId, householdId)),
 		with: {
 			storages: {
 				orderBy: asc(storages.sortOrder),
@@ -40,14 +40,14 @@ export async function getLocation(id: string, userId: string) {
 }
 
 export async function createLocation(data: {
-	userId: string;
+	householdId: string;
 	name: string;
 	icon?: string;
 }) {
 	const [record] = await db
 		.insert(locations)
 		.values({
-			userId: data.userId,
+			householdId: data.householdId,
 			name: data.name,
 			icon: data.icon,
 		})
@@ -57,7 +57,7 @@ export async function createLocation(data: {
 
 export async function updateLocation(
 	id: string,
-	userId: string,
+	householdId: string,
 	data: { name?: string; icon?: string; sortOrder?: number }
 ) {
 	const [record] = await db
@@ -67,15 +67,15 @@ export async function updateLocation(
 			...(data.icon !== undefined && { icon: data.icon }),
 			...(data.sortOrder !== undefined && { sortOrder: data.sortOrder }),
 		})
-		.where(and(eq(locations.id, id), eq(locations.userId, userId)))
+		.where(and(eq(locations.id, id), eq(locations.householdId, householdId)))
 		.returning();
 	return record;
 }
 
-export async function deleteLocation(id: string, userId: string) {
+export async function deleteLocation(id: string, householdId: string) {
 	const [record] = await db
 		.delete(locations)
-		.where(and(eq(locations.id, id), eq(locations.userId, userId)))
+		.where(and(eq(locations.id, id), eq(locations.householdId, householdId)))
 		.returning();
 	return record;
 }

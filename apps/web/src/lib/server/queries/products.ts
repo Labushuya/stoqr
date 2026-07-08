@@ -7,13 +7,13 @@ import { eq, asc, desc, and, ilike } from 'drizzle-orm'
 // ---------------------------------------------------------------------------
 
 export async function getInventoryItems(
-	userId: string,
+	householdId: string,
 	filters?: { placeId?: string; status?: string }
 ) {
 	return db.query.inventoryItems.findMany({
 		where: (item, { and, eq }) =>
 			and(
-				eq(item.userId, userId),
+				eq(item.householdId, householdId),
 				eq(
 					item.status,
 					(filters?.status ?? 'available') as 'available' | 'consumed' | 'expired' | 'donated' | 'discarded'
@@ -75,9 +75,9 @@ export async function getInventoryItems(
 // Inventory — single item
 // ---------------------------------------------------------------------------
 
-export async function getInventoryItem(id: string, userId: string) {
+export async function getInventoryItem(id: string, householdId: string) {
 	return db.query.inventoryItems.findFirst({
-		where: (item, { and, eq }) => and(eq(item.id, id), eq(item.userId, userId)),
+		where: (item, { and, eq }) => and(eq(item.id, id), eq(item.householdId, householdId)),
 		with: {
 			product: {
 				with: {
@@ -110,7 +110,7 @@ export async function getInventoryItem(id: string, userId: string) {
 export async function createInventoryItem(data: {
 	productId: string;
 	placeId?: string;
-	userId: string;
+	householdId: string;
 	quantity?: number | string;
 	unit?: string;
 	bestBeforeDate?: string;
@@ -123,7 +123,7 @@ export async function createInventoryItem(data: {
 		.values({
 			productId: data.productId,
 			placeId: data.placeId,
-			userId: data.userId,
+			householdId: data.householdId,
 			quantity: data.quantity?.toString() ?? '1',
 			unit: data.unit ?? 'piece',
 			bestBeforeDate: data.bestBeforeDate,
@@ -141,7 +141,7 @@ export async function createInventoryItem(data: {
 
 export async function updateInventoryItem(
 	id: string,
-	userId: string,
+	householdId: string,
 	data: Partial<{
 		productId: string;
 		placeId: string | null;
@@ -182,7 +182,7 @@ export async function updateInventoryItem(
 	const [record] = await db
 		.update(inventoryItems)
 		.set(patch as Record<string, unknown>)
-		.where(and(eq(inventoryItems.id, id), eq(inventoryItems.userId, userId)))
+		.where(and(eq(inventoryItems.id, id), eq(inventoryItems.householdId, householdId)))
 		.returning();
 	return record;
 }
@@ -191,11 +191,11 @@ export async function updateInventoryItem(
 // Inventory — soft-delete (discard)
 // ---------------------------------------------------------------------------
 
-export async function deleteInventoryItem(id: string, userId: string) {
+export async function deleteInventoryItem(id: string, householdId: string) {
 	const [record] = await db
 		.update(inventoryItems)
 		.set({ status: 'discarded', updatedAt: new Date() })
-		.where(and(eq(inventoryItems.id, id), eq(inventoryItems.userId, userId)))
+		.where(and(eq(inventoryItems.id, id), eq(inventoryItems.householdId, householdId)))
 		.returning();
 	return record;
 }
@@ -204,9 +204,9 @@ export async function deleteInventoryItem(id: string, userId: string) {
 // Inventory — consume (reduce quantity or mark consumed)
 // ---------------------------------------------------------------------------
 
-export async function consumeInventoryItem(id: string, userId: string, amount: number) {
+export async function consumeInventoryItem(id: string, householdId: string, amount: number) {
 	const item = await db.query.inventoryItems.findFirst({
-		where: (i, { and, eq }) => and(eq(i.id, id), eq(i.userId, userId)),
+		where: (i, { and, eq }) => and(eq(i.id, id), eq(i.householdId, householdId)),
 		columns: { quantity: true },
 	});
 
@@ -223,7 +223,7 @@ export async function consumeInventoryItem(id: string, userId: string, amount: n
 				consumedAt: new Date(),
 				updatedAt: new Date(),
 			})
-			.where(and(eq(inventoryItems.id, id), eq(inventoryItems.userId, userId)))
+			.where(and(eq(inventoryItems.id, id), eq(inventoryItems.householdId, householdId)))
 			.returning();
 		return record;
 	}
@@ -231,7 +231,7 @@ export async function consumeInventoryItem(id: string, userId: string, amount: n
 	const [record] = await db
 		.update(inventoryItems)
 		.set({ quantity: remaining.toString(), updatedAt: new Date() })
-		.where(and(eq(inventoryItems.id, id), eq(inventoryItems.userId, userId)))
+		.where(and(eq(inventoryItems.id, id), eq(inventoryItems.householdId, householdId)))
 		.returning();
 	return record;
 }
