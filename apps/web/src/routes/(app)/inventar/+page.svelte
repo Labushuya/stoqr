@@ -79,6 +79,8 @@
 
   // Menu open state: itemId → boolean
   let openMenuId = $state<string | null>(null)
+  // Portal position for the floating context menu
+  let menuPosition = $state<{ x: number; y: number } | null>(null)
 
   // Toast
   type Toast = { id: number; message: string; type: 'success' | 'error' }
@@ -428,7 +430,7 @@
   // ── Consume item ───────────────────────────────────────────────────────────
 
   async function consumeItem(item: InventoryItem) {
-    openMenuId = null
+    closeMenu()
     try {
       const res = await fetch(`/api/inventory/${item.id}`, {
         method: 'PATCH',
@@ -446,7 +448,7 @@
   // ── Delete item ────────────────────────────────────────────────────────────
 
   async function deleteItem(item: InventoryItem) {
-    openMenuId = null
+    closeMenu()
     if (!window.confirm(`Bestandseintrag für "${item.product.name}" entfernen?\n\nEntfernt diesen Bestandseintrag. Das Produkt bleibt im Katalog.`)) return
     try {
       const res = await fetch(`/api/inventory/${item.id}`, { method: 'DELETE' })
@@ -460,13 +462,17 @@
 
   // ── Menu toggle ────────────────────────────────────────────────────────────
 
-  function toggleMenu(id: string, e: MouseEvent) {
-    e.stopPropagation()
-    openMenuId = openMenuId === id ? null : id
+  function openMenu(itemId: string, event: MouseEvent) {
+    const btn = event.currentTarget as HTMLElement
+    const rect = btn.getBoundingClientRect()
+    menuPosition = { x: rect.right - 180, y: rect.bottom + 4 }
+    openMenuId = itemId
+    event.stopPropagation()
   }
 
   function closeMenu() {
     openMenuId = null
+    menuPosition = null
   }
 
   // ── Barcode scanner ────────────────────────────────────────────────────────
@@ -572,8 +578,8 @@
   }
 </script>
 
-<!-- Click outside to close menus -->
-<svelte:window onclick={closeMenu} />
+<!-- Click outside / scroll to close menus -->
+<svelte:window onclick={closeMenu} onscroll={closeMenu} />
 
 <!-- ── Page ──────────────────────────────────────────────────────────────── -->
 
@@ -687,7 +693,7 @@
                   type="button"
                   aria-label="Optionen"
                   aria-expanded={openMenuId === item.id}
-                  onclick={(e) => toggleMenu(item.id, e)}
+                  onclick={(e) => openMenu(item.id, e)}
                 >
                   <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
                     <circle cx="8" cy="3" r="1.2" fill="currentColor"/>
@@ -695,75 +701,6 @@
                     <circle cx="8" cy="13" r="1.2" fill="currentColor"/>
                   </svg>
                 </button>
-                {#if openMenuId === item.id}
-                  <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-                  <ul class="dropdown" role="menu" onclick={(e) => e.stopPropagation()} onkeydown={(e) => e.stopPropagation()}>
-                    <li role="menuitem">
-                      <button
-                        class="dropdown-item"
-                        type="button"
-                        onclick={() => { closeMenu(); openEditSheet(item) }}
-                      >
-                        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-                          <path d="M9.5 2.5L11.5 4.5L5 11H3V9L9.5 2.5Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>
-                        </svg>
-                        Bearbeiten
-                      </button>
-                    </li>
-                    <li role="menuitem">
-                      <a
-                        class="dropdown-item"
-                        href="/inventar/easy-add?productId={item.product.id}&productName={encodeURIComponent(item.product.name)}"
-                        onclick={() => closeMenu()}
-                      >
-                        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-                          <rect x="1" y="1" width="12" height="12" rx="2.5" stroke="currentColor" stroke-width="1.4" fill="none"/>
-                          <path d="M7 4v6M4 7h6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
-                        </svg>
-                        Bestand hinzufügen
-                      </a>
-                    </li>
-                    <li role="menuitem">
-                      <a
-                        class="dropdown-item"
-                        href="/inventar/{item.id}#bezugsquellen"
-                        onclick={() => closeMenu()}
-                      >
-                        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-                          <path d="M2 7.5L7 3l5 4.5V12H9V9H5v3H2V7.5Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" fill="none"/>
-                        </svg>
-                        Bezugsquellen bearbeiten
-                      </a>
-                    </li>
-                    {#if item.status === 'available'}
-                      <li role="menuitem">
-                        <button
-                          class="dropdown-item"
-                          type="button"
-                          onclick={() => consumeItem(item)}
-                        >
-                          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-                            <path d="M2 7l3.5 3.5L12 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-                          </svg>
-                          Verbraucht
-                        </button>
-                      </li>
-                    {/if}
-                    <li role="menuitem">
-                      <button
-                        class="dropdown-item dropdown-item--danger"
-                        type="button"
-                        onclick={() => deleteItem(item)}
-                        title="Entfernt diesen Bestandseintrag. Das Produkt bleibt im Katalog."
-                      >
-                        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-                          <path d="M2 3.5h10M5.5 3.5V2.5h3V3.5M5 3.5V11h4V3.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
-                        </svg>
-                        Aus Inventar entfernen
-                      </button>
-                    </li>
-                  </ul>
-                {/if}
               </div>
             </div>
 
@@ -803,6 +740,89 @@
   {/if}
 </div>
 
+<!-- ── Floating context menu portal ──────────────────────────────────────── -->
+
+{#if openMenuId && menuPosition}
+  {@const portalItem = items.find((i) => i.id === openMenuId)}
+  {#if portalItem}
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
+    <div
+      class="context-menu-portal"
+      style="top: {menuPosition.y}px; left: {menuPosition.x}px"
+      onclick={(e) => e.stopPropagation()}
+      onkeydown={(e) => e.stopPropagation()}
+    >
+      <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+      <ul role="menu" style="list-style:none;margin:0;padding:var(--space-1)">
+        <li role="menuitem">
+          <button
+            class="dropdown-item"
+            type="button"
+            onclick={() => { closeMenu(); openEditSheet(portalItem) }}
+          >
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+              <path d="M9.5 2.5L11.5 4.5L5 11H3V9L9.5 2.5Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>
+            </svg>
+            Bearbeiten
+          </button>
+        </li>
+        <li role="menuitem">
+          <a
+            class="dropdown-item"
+            href="/inventar/easy-add?productId={portalItem.product.id}&productName={encodeURIComponent(portalItem.product.name)}"
+            onclick={() => closeMenu()}
+          >
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+              <rect x="1" y="1" width="12" height="12" rx="2.5" stroke="currentColor" stroke-width="1.4" fill="none"/>
+              <path d="M7 4v6M4 7h6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+            </svg>
+            Bestand hinzufügen
+          </a>
+        </li>
+        <li role="menuitem">
+          <a
+            class="dropdown-item"
+            href="/inventar/{portalItem.id}#bezugsquellen"
+            onclick={() => closeMenu()}
+          >
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+              <path d="M2 7.5L7 3l5 4.5V12H9V9H5v3H2V7.5Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" fill="none"/>
+            </svg>
+            Bezugsquellen bearbeiten
+          </a>
+        </li>
+        {#if portalItem.status === 'available'}
+          <li role="menuitem">
+            <button
+              class="dropdown-item"
+              type="button"
+              onclick={() => consumeItem(portalItem)}
+            >
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                <path d="M2 7l3.5 3.5L12 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              Verbraucht
+            </button>
+          </li>
+        {/if}
+        <li role="menuitem">
+          <button
+            class="dropdown-item dropdown-item--danger"
+            type="button"
+            onclick={() => deleteItem(portalItem)}
+            title="Entfernt diesen Bestandseintrag. Das Produkt bleibt im Katalog."
+          >
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+              <path d="M2 3.5h10M5.5 3.5V2.5h3V3.5M5 3.5V11h4V3.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            Aus Inventar entfernen
+          </button>
+        </li>
+      </ul>
+    </div>
+  {/if}
+{/if}
+
 <!-- ── FAB group ──────────────────────────────────────────────────────────── -->
 
 <div class="fab-group">
@@ -814,9 +834,10 @@
     <span>Bestand hinzufügen</span>
   </a>
   <button class="fab" type="button" aria-label="Neuer Artikel" onclick={openAddSheet}>
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
       <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
     </svg>
+    <span class="fab-label">Neuer Artikel</span>
   </button>
 </div>
 
@@ -852,155 +873,170 @@
     </div>
 
     <div class="sheet-body">
-      <!-- Product name -->
-      <div class="field">
-        <label class="label" for="f-name">Produktname <span class="required">*</span></label>
-        <input
-          id="f-name"
-          class="input"
-          type="text"
-          placeholder="z.B. Vollmilch"
-          bind:value={formProductName}
-          required
-        />
-      </div>
+      <!-- ── Section: Artikel (Produktkatalog) ───────────────────────────── -->
+      <div class="form-section">
+        <span class="section-label">Artikel</span>
 
-      <!-- Barcode (only on add) -->
-      {#if sheetMode === 'add'}
+        <!-- Product name -->
         <div class="field">
-          <label class="label" for="f-barcode">Barcode <span class="optional">(optional)</span></label>
-          <div class="input-addon">
-            <input
-              id="f-barcode"
-              class="input"
-              type="text"
-              placeholder="EAN / GTIN"
-              bind:value={formBarcode}
-            />
-            <button
-              class="addon-btn addon-btn--active"
-              type="button"
-              title="Barcode scannen"
-              onclick={openScanner}
-              disabled={scannerLoading}
-            >
-              {#if scannerLoading}
-                <span class="spinner spinner--dark" aria-hidden="true"></span>
-              {:else}
-                <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
-                  <rect x="2" y="4" width="2" height="10" fill="currentColor"/>
-                  <rect x="5" y="4" width="1" height="10" fill="currentColor"/>
-                  <rect x="7" y="4" width="2" height="10" fill="currentColor"/>
-                  <rect x="10.5" y="4" width="1" height="10" fill="currentColor"/>
-                  <rect x="12.5" y="4" width="3" height="10" fill="currentColor"/>
-                  <path d="M1 2h3M14 2h3M1 16h3M14 16h3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
-                </svg>
-              {/if}
-            </button>
-          </div>
-          {#if scannerNotFound}
-            <p class="barcode-hint barcode-hint--warn">Produkt nicht gefunden — bitte manuell eingeben.</p>
-          {/if}
-        </div>
-      {/if}
-
-      <!-- Category -->
-      <div class="field">
-        <label class="label" for="f-cat">Kategorie</label>
-        <select id="f-cat" class="input" bind:value={formCategoryId}>
-          <option value="">Keine Kategorie</option>
-          {#each categories as cat (cat.id)}
-            <option value={cat.id}>{cat.icon ? cat.icon + ' ' : ''}{cat.name}</option>
-          {/each}
-        </select>
-      </div>
-
-      <!-- Location cascade -->
-      <div class="field-group">
-        <div class="field">
-          <label class="label" for="f-loc">Ort</label>
-          <select
-            id="f-loc"
-            class="input"
-            bind:value={formLocationId}
-            onchange={onLocationChange}
-          >
-            <option value="">Kein Ort</option>
-            {#each locationTree as loc (loc.id)}
-              <option value={loc.id}>{loc.icon ? loc.icon + ' ' : ''}{loc.name}</option>
-            {/each}
-          </select>
-        </div>
-
-        {#if formLocationId && formStorages().length > 0}
-          <div class="field">
-            <label class="label" for="f-storage">Lagerort</label>
-            <select
-              id="f-storage"
-              class="input"
-              bind:value={formStorageId}
-              onchange={onStorageChange}
-            >
-              <option value="">Kein Lagerort</option>
-              {#each formStorages() as st (st.id)}
-                <option value={st.id}>{st.name}</option>
-              {/each}
-            </select>
-          </div>
-        {/if}
-
-        {#if formStorageId && formPlaces().length > 0}
-          <div class="field">
-            <label class="label" for="f-place">Fach</label>
-            <select id="f-place" class="input" bind:value={formPlaceId}>
-              <option value="">Kein Fach</option>
-              {#each formPlaces() as pl (pl.id)}
-                <option value={pl.id}>{pl.name}</option>
-              {/each}
-            </select>
-          </div>
-        {/if}
-      </div>
-
-      <!-- MHD -->
-      <div class="field">
-        <label class="label" for="f-mhd">MHD</label>
-        <input id="f-mhd" class="input" type="date" bind:value={formMhd} />
-      </div>
-
-      <!-- Quantity + Unit -->
-      <div class="field-row">
-        <div class="field field--qty">
-          <label class="label" for="f-qty">Menge</label>
+          <label class="label" for="f-name">Produktname <span class="required">*</span></label>
           <input
-            id="f-qty"
+            id="f-name"
             class="input"
-            type="number"
-            min="0"
-            step="0.01"
-            bind:value={formQuantity}
+            type="text"
+            placeholder="z.B. Vollmilch"
+            bind:value={formProductName}
+            required
           />
         </div>
-        <div class="field field--unit">
-          <label class="label" for="f-unit">Einheit</label>
-          <select id="f-unit" class="input" bind:value={formUnit}>
-            {#each unitOptions as u (u.id)}
-              <option value={u.symbol}>{u.name}</option>
+
+        <!-- Barcode (only on add) -->
+        {#if sheetMode === 'add'}
+          <div class="field">
+            <label class="label" for="f-barcode">Barcode <span class="optional">(optional)</span></label>
+            <div class="input-addon">
+              <input
+                id="f-barcode"
+                class="input"
+                type="text"
+                placeholder="EAN / GTIN"
+                bind:value={formBarcode}
+              />
+              <button
+                class="addon-btn addon-btn--active"
+                type="button"
+                title="Barcode scannen"
+                onclick={openScanner}
+                disabled={scannerLoading}
+              >
+                {#if scannerLoading}
+                  <span class="spinner spinner--dark" aria-hidden="true"></span>
+                {:else}
+                  <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+                    <rect x="2" y="4" width="2" height="10" fill="currentColor"/>
+                    <rect x="5" y="4" width="1" height="10" fill="currentColor"/>
+                    <rect x="7" y="4" width="2" height="10" fill="currentColor"/>
+                    <rect x="10.5" y="4" width="1" height="10" fill="currentColor"/>
+                    <rect x="12.5" y="4" width="3" height="10" fill="currentColor"/>
+                    <path d="M1 2h3M14 2h3M1 16h3M14 16h3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+                  </svg>
+                {/if}
+              </button>
+            </div>
+            {#if scannerNotFound}
+              <p class="barcode-hint barcode-hint--warn">Produkt nicht gefunden — bitte manuell eingeben.</p>
+            {/if}
+          </div>
+        {/if}
+
+        <!-- Category -->
+        <div class="field">
+          <label class="label" for="f-cat">Kategorie</label>
+          <select id="f-cat" class="input" bind:value={formCategoryId}>
+            <option value="">Keine Kategorie</option>
+            {#each categories as cat (cat.id)}
+              <option value={cat.id}>{cat.icon ? cat.icon + ' ' : ''}{cat.name}</option>
             {/each}
           </select>
         </div>
       </div>
 
-      <!-- Notes -->
-      <div class="field">
-        <label class="label" for="f-notes">Notizen <span class="optional">(optional)</span></label>
-        <textarea
-          id="f-notes"
-          class="input textarea"
-          placeholder="z.B. Bereits geöffnet"
-          rows="2"
-          bind:value={formNotes}
-        ></textarea>
+      <!-- ── Section divider ──────────────────────────────────────────────── -->
+      <div class="section-divider" aria-hidden="true"></div>
+
+      <!-- ── Section: Bestand (dieser Eintrag) ──────────────────────────── -->
+      <div class="form-section">
+        <span class="section-label">Bestand</span>
+
+        <!-- Quantity + Unit -->
+        <div class="field-row">
+          <div class="field field--qty">
+            <label class="label" for="f-qty">Menge</label>
+            <input
+              id="f-qty"
+              class="input"
+              type="number"
+              min="0"
+              step="0.01"
+              bind:value={formQuantity}
+            />
+          </div>
+          <div class="field field--unit">
+            <label class="label" for="f-unit">Einheit</label>
+            <select id="f-unit" class="input" bind:value={formUnit}>
+              {#each unitOptions as u (u.id)}
+                <option value={u.symbol}>{u.name}</option>
+              {/each}
+            </select>
+          </div>
+        </div>
+
+        <!-- MHD — optional, belongs to this inventory entry -->
+        <div class="field">
+          <label class="label" for="f-mhd">
+            MHD <span class="optional">(optional) Mindesthaltbarkeitsdatum</span>
+          </label>
+          <input id="f-mhd" class="input" type="date" bind:value={formMhd} />
+        </div>
+
+        <!-- Location cascade -->
+        <div class="field-group">
+          <div class="field">
+            <label class="label" for="f-loc">Ort</label>
+            <select
+              id="f-loc"
+              class="input"
+              bind:value={formLocationId}
+              onchange={onLocationChange}
+            >
+              <option value="">Kein Ort</option>
+              {#each locationTree as loc (loc.id)}
+                <option value={loc.id}>{loc.icon ? loc.icon + ' ' : ''}{loc.name}</option>
+              {/each}
+            </select>
+          </div>
+
+          {#if formLocationId && formStorages().length > 0}
+            <div class="field">
+              <label class="label" for="f-storage">Lagerort</label>
+              <select
+                id="f-storage"
+                class="input"
+                bind:value={formStorageId}
+                onchange={onStorageChange}
+              >
+                <option value="">Kein Lagerort</option>
+                {#each formStorages() as st (st.id)}
+                  <option value={st.id}>{st.name}</option>
+                {/each}
+              </select>
+            </div>
+          {/if}
+
+          {#if formStorageId && formPlaces().length > 0}
+            <div class="field">
+              <label class="label" for="f-place">Fach</label>
+              <select id="f-place" class="input" bind:value={formPlaceId}>
+                <option value="">Kein Fach</option>
+                {#each formPlaces() as pl (pl.id)}
+                  <option value={pl.id}>{pl.name}</option>
+                {/each}
+              </select>
+            </div>
+          {/if}
+        </div>
+
+        <!-- Notes -->
+        <div class="field">
+          <label class="label" for="f-notes">Notizen <span class="optional">(optional)</span></label>
+          <textarea
+            id="f-notes"
+            class="input textarea"
+            placeholder="z.B. Bereits geöffnet"
+            rows="2"
+            bind:value={formNotes}
+          ></textarea>
+        </div>
       </div>
     </div>
 
@@ -1470,6 +1506,19 @@
     overflow: hidden;
   }
 
+  /* ── Context menu portal (position:fixed, escapes card stacking context) ── */
+
+  .context-menu-portal {
+    position: fixed;
+    z-index: var(--z-modal, 400);
+    background: var(--color-surface-raised);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-lg);
+    min-width: 180px;
+    overflow: hidden;
+  }
+
   .dropdown-item {
     display: flex;
     align-items: center;
@@ -1640,25 +1689,32 @@
   /* ── FAB ──────────────────────────────────────────────────────────────── */
 
   .fab {
-    width: 56px;
-    height: 56px;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    height: 48px;
+    padding: 0 var(--space-5);
     border-radius: var(--radius-full);
     border: none;
     background-color: var(--color-primary);
     color: var(--color-text-inverse);
-    display: flex;
-    align-items: center;
-    justify-content: center;
     cursor: pointer;
     box-shadow: var(--shadow-lg);
     transition: background-color var(--transition-fast), box-shadow var(--transition-fast), transform var(--transition-fast);
     flex-shrink: 0;
+    white-space: nowrap;
+  }
+
+  .fab-label {
+    font-family: var(--font-body);
+    font-size: var(--text-sm);
+    font-weight: 600;
   }
 
   .fab:hover {
     background-color: var(--color-primary-hover);
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
-    transform: scale(1.05);
+    transform: scale(1.03);
   }
 
   .fab:active {
@@ -1987,6 +2043,17 @@
       justify-content: center;
     }
 
+    .fab-label {
+      display: none;
+    }
+
+    .fab {
+      width: 56px;
+      height: 56px;
+      padding: 0;
+      justify-content: center;
+    }
+
     .toast-container {
       bottom: calc(var(--space-4) + 64px);
       left: var(--space-4);
@@ -2131,6 +2198,28 @@
   .spinner--dark {
     border-color: rgba(0, 0, 0, 0.2);
     border-top-color: var(--color-primary);
+  }
+
+  /* ── Form sections ────────────────────────────────────────────────────── */
+
+  .form-section {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+  }
+
+  .section-label {
+    font-size: var(--text-xs);
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--color-text-muted);
+  }
+
+  .section-divider {
+    height: 1px;
+    background-color: var(--color-border-subtle);
+    margin: calc(var(--space-1) * -1) 0;
   }
 
 </style>

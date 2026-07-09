@@ -86,8 +86,9 @@ export const POST: RequestHandler = async ({ locals, request }) => {
     notes?: string
   }
 
-  if (!quantity || !unit) {
-    return json({ error: 'quantity and unit are required' }, { status: 400 })
+  const qty = Number(quantity)
+  if (isNaN(qty) || qty < 0 || !unit) {
+    return json({ error: 'Menge muss eine gültige Zahl >= 0 sein und Einheit ist erforderlich' }, { status: 400 })
   }
 
   // ---------------------------------------------------------------------------
@@ -207,7 +208,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
     productId: resolvedProductId as string,
     householdId,
     placeId: placeId ?? undefined,
-    quantity,
+    quantity: qty,
     unit,
     bestBeforeDate: bestBeforeDate ?? undefined,
     notes: notes ?? undefined,

@@ -92,9 +92,9 @@ export const DELETE: RequestHandler = async ({ locals, params }) => {
   }
 
   const householdId = await requireHouseholdId(locals.user.id)
-  // Soft delete: sets status → 'discarded'
-  const discarded = await deleteInventoryItem(params.id, householdId)
-  if (!discarded) {
+  // Hard delete: removes the inventory row permanently
+  const deleted = await deleteInventoryItem(params.id, householdId)
+  if (!deleted) {
     return json({ error: 'Not found' }, { status: 404 })
   }
 

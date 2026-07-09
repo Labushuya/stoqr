@@ -12,6 +12,8 @@
 
   // svelte-ignore state_referenced_locally
   let storeRows = $state<Store[]>(data.stores as Store[])
+  // svelte-ignore state_referenced_locally
+  let pageLoadError = $state<string | null>(data.loadError ?? null)
 
   // ── Add form state ─────────────────────────────────────────────────────────
 
@@ -207,6 +209,18 @@
       Verwalte deine Einkaufsmärkte. Diese können Artikeln als Bezugsquellen zugeordnet werden.
     </p>
   </header>
+
+  <!-- ── Load error banner ─────────────────────────────────────────────────── -->
+
+  {#if pageLoadError}
+    <div class="alert alert--error" role="alert" style="margin-bottom: var(--space-6);">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+        <circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.5"/>
+        <path d="M8 5v3.5M8 11v.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+      </svg>
+      {pageLoadError}
+    </div>
+  {/if}
 
   <!-- ── Store list ──────────────────────────────────────────────────────────── -->
 

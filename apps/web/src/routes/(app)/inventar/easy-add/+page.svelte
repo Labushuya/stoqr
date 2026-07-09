@@ -185,6 +185,20 @@
 
   async function saveAll() {
     if (!selectedProduct || saving) return
+
+    // Client-side validation: every row must have a valid quantity > 0
+    const invalidRows = mhdRows.filter((r) => {
+      const qty = parseFloat(r.quantity)
+      return isNaN(qty) || qty <= 0
+    })
+    if (invalidRows.length > 0) {
+      showToast(
+        `Bitte gültige Menge (> 0) für alle ${invalidRows.length > 1 ? invalidRows.length + ' Zeilen' : 'Zeile'} eingeben`,
+        'error'
+      )
+      return
+    }
+
     saving = true
 
     try {
@@ -196,7 +210,7 @@
             body: JSON.stringify({
               productId: selectedProduct!.id,
               placeId: formPlaceId || undefined,
-              quantity: parseFloat(row.quantity) || 1,
+              quantity: parseFloat(row.quantity),
               unit: formUnit,
               bestBeforeDate: row.mhd || undefined,
             }),
@@ -214,9 +228,10 @@
         showToast(`${succeeded} Eintrag${succeeded !== 1 ? 'e' : ''} hinzugefügt`)
         setTimeout(() => goto('/inventar'), 800)
       } else if (succeeded > 0) {
-        showToast(`${succeeded} gespeichert, ${failed} fehlgeschlagen`, 'error')
+        showToast(`Fehler beim Speichern: ${failed}/${results.length} fehlgeschlagen`, 'error')
+        // partial success — stay on page so user can retry failed rows
       } else {
-        showToast('Fehler beim Speichern', 'error')
+        showToast(`Fehler beim Speichern: ${failed}/${results.length} fehlgeschlagen`, 'error')
       }
     } catch {
       showToast('Netzwerkfehler', 'error')
@@ -1151,6 +1166,7 @@
     opacity: 0.45;
     cursor: not-allowed;
     box-shadow: none;
+    background-color: var(--color-text-muted, #9ca3af);
   }
 
   /* ── Spinner ──────────────────────────────────────────────────────────── */

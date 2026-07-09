@@ -754,6 +754,31 @@
           Aus Inventar entfernen
         </button>
       </form>
+
+      <form
+        method="POST"
+        action="?/deleteProduct"
+        use:enhance={(e) => {
+          if (!window.confirm(`Produkt "${item.product.name}" dauerhaft aus dem Katalog entfernen?\n\nDas Produkt und dieser Bestandseintrag werden vollständig gelöscht und erscheinen nicht mehr in der Suche.`)) {
+            e.cancel()
+          }
+          return async ({ result, update }) => {
+            if (result.type === 'redirect') {
+              goto(result.location)
+            } else {
+              await update()
+            }
+          }
+        }}
+      >
+        <button class="btn-delete-product" type="submit">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.4"/>
+            <path d="M5 8h6M8 5v6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+          </svg>
+          Produkt aus Katalog entfernen
+        </button>
+      </form>
     </div>
   {/if}
 </div>
@@ -1377,6 +1402,30 @@
   }
 
   .btn-delete:hover {
+    border-color: var(--color-danger);
+    background-color: var(--color-danger-subtle);
+    color: var(--color-danger);
+  }
+
+  .btn-delete-product {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
+    width: 100%;
+    height: 40px;
+    border-radius: var(--radius-md);
+    border: 1.5px solid var(--color-border);
+    background-color: transparent;
+    color: var(--color-text-muted);
+    font-family: var(--font-body);
+    font-size: var(--text-sm);
+    font-weight: 500;
+    cursor: pointer;
+    transition: border-color var(--transition-fast), background-color var(--transition-fast), color var(--transition-fast);
+  }
+
+  .btn-delete-product:hover {
     border-color: var(--color-danger);
     background-color: var(--color-danger-subtle);
     color: var(--color-danger);

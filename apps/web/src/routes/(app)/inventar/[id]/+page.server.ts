@@ -13,6 +13,7 @@ import { eq, and, asc } from 'drizzle-orm'
 import { error, fail, redirect } from '@sveltejs/kit'
 import type { PageServerLoad, Actions } from './$types'
 import { requireHouseholdId } from '$lib/server/queries/households'
+import { deleteProduct } from '$lib/server/queries/products'
 
 // ---------------------------------------------------------------------------
 // Load
@@ -213,6 +214,40 @@ export const actions: Actions = {
       .returning();
 
     if (!deleted) return fail(404, { error: 'Artikel nicht gefunden' });
+    redirect(302, '/inventar');
+  },
+
+  // ── Delete product from catalog ───────────────────────────────────────────
+  deleteProduct: async ({ params, locals }) => {
+    if (!locals.user) return fail(401, { error: 'Nicht authentifiziert' });
+    const householdId = await requireHouseholdId(locals.user.id);
+
+    // Load the inventory item to find the productId
+    const item = await db.query.inventoryItems.findFirst({
+      where: and(eq(inventoryItems.id, params.id), eq(inventoryItems.householdId, householdId)),
+      columns: { productId: true },
+    });
+
+    if (!item) return fail(404, { error: 'Artikel nicht gefunden' });
+
+    // Guard: no remaining inventory items for this product in this household
+    const remaining = await db.query.inventoryItems.findFirst({
+      where: and(
+        eq(inventoryItems.productId, item.productId),
+        eq(inventoryItems.householdId, householdId)
+      ),
+      columns: { id: true },
+    });
+
+    if (remaining) {
+      return fail(409, {
+        error: 'Das Produkt hat noch weitere Bestandseinträge. Bitte zuerst alle entfernen.',
+      });
+    }
+
+    const deleted = await deleteProduct(item.productId);
+    if (!deleted) return fail(404, { error: 'Produkt nicht gefunden' });
+
     redirect(302, '/inventar');
   },
 };

@@ -10,19 +10,25 @@ export const load: PageServerLoad = async ({ locals }) => {
 
   const householdId = await requireHouseholdId(locals.user.id)
 
-  const storeRows = await db.query.stores.findMany({
-    where: (s, { eq }) => eq(s.householdId, householdId),
-    orderBy: [asc(stores.name)],
-    columns: {
-      id: true,
-      name: true,
-      chain: true,
-      address: true,
-      city: true,
-    },
-  })
+  try {
+    const storeRows = await db.query.stores.findMany({
+      where: (s, { eq }) => eq(s.householdId, householdId),
+      orderBy: [asc(stores.name)],
+      columns: {
+        id: true,
+        name: true,
+        chain: true,
+        address: true,
+        city: true,
+      },
+    })
 
-  return { stores: storeRows }
+    return { stores: storeRows, loadError: null }
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err)
+    console.error('[maerkte] load error:', msg)
+    return { stores: [], loadError: 'Märkte konnten nicht geladen werden. Bitte Seite neu laden.' }
+  }
 }
 
 export const actions: Actions = {

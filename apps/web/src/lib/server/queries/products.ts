@@ -192,16 +192,27 @@ export async function updateInventoryItem(
 }
 
 // ---------------------------------------------------------------------------
-// Inventory — soft-delete (discard)
+// Inventory — hard delete
 // ---------------------------------------------------------------------------
 
 export async function deleteInventoryItem(id: string, householdId: string) {
 	const [record] = await db
-		.update(inventoryItems)
-		.set({ status: 'discarded', updatedAt: new Date() })
+		.delete(inventoryItems)
 		.where(and(eq(inventoryItems.id, id), eq(inventoryItems.householdId, householdId)))
 		.returning();
 	return record;
+}
+
+// ---------------------------------------------------------------------------
+// Products — delete (hard delete, only if no active inventory items remain)
+// ---------------------------------------------------------------------------
+
+export async function deleteProduct(id: string) {
+	const [record] = await db
+		.delete(products)
+		.where(eq(products.id, id))
+		.returning({ id: products.id });
+	return record ?? null;
 }
 
 // ---------------------------------------------------------------------------
