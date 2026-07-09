@@ -1,4 +1,5 @@
 <script lang="ts">
+  import ConfirmModal from '$lib/components/ConfirmModal.svelte'
   import type { PageData } from './$types'
   import {
     getExpiryStatus,
@@ -76,6 +77,17 @@
   let showSheet = $state(false)
   let sheetMode = $state<'add' | 'edit'>('add')
   let editingItem = $state<InventoryItem | null>(null)
+
+  // Confirm modal state
+  let confirmModal = $state<{ open: boolean; title: string; message: string; onConfirm: () => void } | null>(null)
+
+  function showConfirm(title: string, message: string, onConfirm: () => void) {
+    confirmModal = { open: true, title, message, onConfirm }
+  }
+
+  function closeConfirm() {
+    confirmModal = null
+  }
 
   // Menu open state: itemId → boolean
   let openMenuId = $state<string | null>(null)
@@ -449,18 +461,25 @@
 
   async function deleteItem(item: InventoryItem) {
     closeMenu()
-    if (!window.confirm(`Bestandseintrag für "${item.product.name}" entfernen?\n\nEntfernt diesen Bestandseintrag. Das Produkt bleibt im Katalog.`)) return
-    try {
-      const res = await fetch(`/api/inventory/${item.id}`, { method: 'DELETE' })
-      if (!res.ok) throw new Error(await res.text())
-      items = items.filter((i) => i.id !== item.id)
-      showToast(`"${item.product.name}" aus Inventar entfernt`)
-    } catch {
-      showToast('Fehler beim Entfernen', 'error')
-    }
+    showConfirm(
+      'Bestandseintrag entfernen?',
+      `"${item.product.name}" wird aus dem Inventar entfernt.
+Das Produkt bleibt im Katalog.`,
+      async () => {
+        closeConfirm()
+        try {
+          const res = await fetch(`/api/inventory/${item.id}`, { method: 'DELETE' })
+          if (!res.ok) throw new Error(await res.text())
+          items = items.filter((i) => i.id !== item.id)
+          showToast(`"${item.product.name}" aus Inventar entfernt`)
+        } catch {
+          showToast('Fehler beim Entfernen', 'error')
+        }
+      }
+    )
   }
 
-  // ── Menu toggle ────────────────────────────────────────────────────────────
+    // ── Menu toggle ────────────────────────────────────────────────────────────
 
   function openMenu(itemId: string, event: MouseEvent) {
     const btn = event.currentTarget as HTMLElement
@@ -941,7 +960,8 @@
         </div>
       </div>
 
-      <!-- ── Section divider ──────────────────────────────────────────────── -->
+      <!-- ── Section: Bestand only shown when editing existing item ─────── -->
+      {#if sheetMode === 'edit'}
       <div class="section-divider" aria-hidden="true"></div>
 
       <!-- ── Section: Bestand (dieser Eintrag) ──────────────────────────── -->
@@ -1038,6 +1058,7 @@
           ></textarea>
         </div>
       </div>
+      {/if}
     </div>
 
     <div class="sheet-footer">
@@ -1086,6 +1107,19 @@
       <p class="scanner-hint">Barcode in den Rahmen halten</p>
     </div>
   </div>
+{/if}
+
+<!-- ── Confirm Modal ────────────────────────────────────────────────────── -->
+{#if confirmModal}
+  <ConfirmModal
+    open={confirmModal.open}
+    title={confirmModal.title}
+    message={confirmModal.message}
+    confirmLabel="Entfernen"
+    destructive={true}
+    onConfirm={confirmModal.onConfirm}
+    onCancel={closeConfirm}
+  />
 {/if}
 
 <!-- ── Toast container ───────────────────────────────────────────────────── -->
