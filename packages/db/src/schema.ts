@@ -258,6 +258,7 @@ export const stores = pgTable('stores', {
   name: varchar('name', { length: 128 }).notNull(),
   chain: varchar('chain', { length: 64 }),
   address: text('address'),
+  city: varchar('city', { length: 128 }),
   latitude: numeric('latitude', { precision: 9, scale: 6 }),
   longitude: numeric('longitude', { precision: 9, scale: 6 }),
   bringListUuid: varchar('bring_list_uuid', { length: 128 }),

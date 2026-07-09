@@ -965,6 +965,7 @@
 
   .table-wrap {
     overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
     border-radius: var(--radius-lg);
     border: 1px solid var(--color-border);
   }
@@ -1335,6 +1336,21 @@
 
     .action-row {
       gap: var(--space-1);
+    }
+
+    /* Increase inline button touch targets for mobile */
+    .btn-edit-inline,
+    .btn-save-inline,
+    .btn-cancel-inline {
+      height: 44px;
+      padding: 0 var(--space-4);
+    }
+
+    /* Unit edit/delete icon buttons — increase tap area */
+    .unit-edit,
+    .unit-delete {
+      width: 36px;
+      height: 36px;
     }
   }
 

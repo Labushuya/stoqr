@@ -17,6 +17,8 @@ export const load: PageServerLoad = async ({ locals }) => {
       id: true,
       name: true,
       chain: true,
+      address: true,
+      city: true,
     },
   })
 
@@ -32,6 +34,8 @@ export const actions: Actions = {
 
     const name = String(data.get('name') ?? '').trim()
     const chain = String(data.get('chain') ?? '').trim() || null
+    const address = String(data.get('address') ?? '').trim() || null
+    const city = String(data.get('city') ?? '').trim() || null
 
     if (!name) {
       return fail(400, { action: 'addStore', error: 'Name ist erforderlich.' })
@@ -39,8 +43,8 @@ export const actions: Actions = {
 
     const [created] = await db
       .insert(stores)
-      .values({ householdId, name, chain })
-      .returning({ id: stores.id, name: stores.name, chain: stores.chain })
+      .values({ householdId, name, chain, address, city })
+      .returning({ id: stores.id, name: stores.name, chain: stores.chain, address: stores.address, city: stores.city })
 
     return { action: 'addStore', success: true, store: created }
   },
@@ -54,6 +58,8 @@ export const actions: Actions = {
     const id = String(data.get('id') ?? '').trim()
     const name = String(data.get('name') ?? '').trim()
     const chain = String(data.get('chain') ?? '').trim() || null
+    const address = String(data.get('address') ?? '').trim() || null
+    const city = String(data.get('city') ?? '').trim() || null
 
     if (!id || !name) {
       return fail(400, { action: 'editStore', error: 'ID und Name sind erforderlich.' })
@@ -61,9 +67,9 @@ export const actions: Actions = {
 
     const [updated] = await db
       .update(stores)
-      .set({ name, chain })
+      .set({ name, chain, address, city })
       .where(eq(stores.id, id))
-      .returning({ id: stores.id, name: stores.name, chain: stores.chain })
+      .returning({ id: stores.id, name: stores.name, chain: stores.chain, address: stores.address, city: stores.city })
 
     if (!updated) {
       return fail(404, { action: 'editStore', error: 'Markt nicht gefunden.' })

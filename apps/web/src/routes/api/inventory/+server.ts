@@ -95,6 +95,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
   // ---------------------------------------------------------------------------
 
   let resolvedProductId: string | undefined = productId
+  let existingProductReused = false
 
   if (!resolvedProductId) {
     if (!productName) {
@@ -106,6 +107,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
       const existing = await getOrCreateProductByGtin(gtin)
       if (existing) {
         resolvedProductId = existing.id
+        existingProductReused = true
       }
     }
 
@@ -122,11 +124,14 @@ export const POST: RequestHandler = async ({ locals, request }) => {
         createdBy: locals.user.id,
       })
     }
+  } else {
+    // productId was supplied directly — treat as reusing an existing product
+    existingProductReused = true
   }
 
-  // Apply categoryId to the product whenever it's provided (works for all cases:
-  // new product, existing product by GTIN, or directly-supplied productId)
-  if (categoryId && resolvedProductId) {
+  // Only update categoryId on the product if it was newly created (not reused).
+  // Reused products keep their existing category to avoid silent overwrites.
+  if (categoryId && resolvedProductId && !existingProductReused) {
     await db.update(products)
       .set({ categoryId })
       .where(eq(products.id, resolvedProductId))

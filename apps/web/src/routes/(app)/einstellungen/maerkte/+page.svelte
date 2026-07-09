@@ -8,7 +8,7 @@
 
   // ── Store list state ────────────────────────────────────────────────────────
 
-  type Store = { id: string; name: string; chain: string | null }
+  type Store = { id: string; name: string; chain: string | null; address: string | null; city: string | null }
 
   // svelte-ignore state_referenced_locally
   let storeRows = $state<Store[]>(data.stores as Store[])
@@ -17,6 +17,8 @@
 
   let newName = $state('')
   let newChain = $state('')
+  let newAddress = $state('')
+  let newCity = $state('')
   let adding = $state(false)
   let addError = $state<string | null>(null)
 
@@ -25,6 +27,8 @@
   let editingId = $state<string | null>(null)
   let editingName = $state('')
   let editingChain = $state('')
+  let editingAddress = $state('')
+  let editingCity = $state('')
   let editSaving = $state(false)
   let editError = $state<string | null>(null)
 
@@ -38,6 +42,8 @@
     editingId = store.id
     editingName = store.name
     editingChain = store.chain ?? ''
+    editingAddress = store.address ?? ''
+    editingCity = store.city ?? ''
     editError = null
   }
 
@@ -62,6 +68,8 @@
     formData.set('id', id)
     formData.set('name', name)
     if (chain) formData.set('chain', chain)
+    if (editingAddress.trim()) formData.set('address', editingAddress.trim())
+    if (editingCity.trim()) formData.set('city', editingCity.trim())
 
     try {
       const res = await fetch('?/editStore', {
@@ -85,7 +93,9 @@
         storeRows = storeRows.map((s) => (s.id === id ? updated : s))
       } else {
         storeRows = storeRows.map((s) =>
-          s.id === id ? { ...s, name, chain } : s
+          s.id === id
+            ? { ...s, name, chain, address: editingAddress.trim() || null, city: editingCity.trim() || null }
+            : s
         )
       }
       editingId = null
@@ -136,6 +146,8 @@
   async function addStore() {
     const name = newName.trim()
     const chain = newChain.trim() || null
+    const address = newAddress.trim() || null
+    const city = newCity.trim() || null
 
     if (!name) {
       addError = 'Name ist erforderlich.'
@@ -145,30 +157,26 @@
     adding = true
     addError = null
 
-    const formData = new FormData()
-    formData.set('name', name)
-    if (chain) formData.set('chain', chain)
-
     try {
-      const res = await fetch('?/addStore', {
+      const res = await fetch('/api/stores', {
         method: 'POST',
-        body: formData,
-        headers: { 'x-sveltekit-action': 'true' },
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, chain, address, city }),
       })
-      const body = await res.json().catch(() => ({}))
+      const created: Store | { error?: string } = await res.json().catch(() => ({}))
 
-      if (!res.ok || body?.status === 'error') {
-        const msg = body?.data?.error ?? body?.error ?? `Fehler ${res.status}`
+      if (!res.ok) {
+        const msg = (created as { error?: string }).error ?? `Fehler ${res.status}`
         addError = String(msg)
         return
       }
 
-      const created: Store | undefined = body?.data?.store
-      if (created) {
-        storeRows = [...storeRows, created].sort((a, b) => a.name.localeCompare(b.name))
-      }
+      storeRows = [...storeRows, created as Store].sort((a, b) => a.name.localeCompare(b.name))
       newName = ''
       newChain = ''
+      newAddress = ''
+      newCity = ''
+      toast.success('Markt hinzugefügt')
     } catch {
       addError = 'Netzwerkfehler.'
     } finally {
@@ -249,6 +257,32 @@
                     }}
                   />
                 </div>
+                <div class="edit-fields edit-fields--address">
+                  <input
+                    class="input input--address"
+                    type="text"
+                    bind:value={editingAddress}
+                    placeholder="Adresse (optional)"
+                    maxlength="255"
+                    aria-label="Adresse"
+                    onkeydown={(e) => {
+                      if (e.key === 'Enter') saveEdit(store.id)
+                      if (e.key === 'Escape') cancelEdit()
+                    }}
+                  />
+                  <input
+                    class="input input--city"
+                    type="text"
+                    bind:value={editingCity}
+                    placeholder="Ort/Stadt (optional)"
+                    maxlength="128"
+                    aria-label="Ort/Stadt"
+                    onkeydown={(e) => {
+                      if (e.key === 'Enter') saveEdit(store.id)
+                      if (e.key === 'Escape') cancelEdit()
+                    }}
+                  />
+                </div>
                 {#if editError}
                   <p class="field-error">{editError}</p>
                 {/if}
@@ -282,9 +316,16 @@
             {:else}
               <!-- Display row -->
               <div class="store-info">
-                <span class="store-name">{store.name}</span>
-                {#if store.chain}
-                  <span class="chain-badge">{store.chain}</span>
+                <div class="store-info-main">
+                  <span class="store-name">{store.name}</span>
+                  {#if store.chain}
+                    <span class="chain-badge">{store.chain}</span>
+                  {/if}
+                </div>
+                {#if store.address || store.city}
+                  <span class="store-address">
+                    {[store.address, store.city].filter(Boolean).join(', ')}
+                  </span>
                 {/if}
               </div>
               <div class="store-actions">
@@ -366,6 +407,26 @@
           placeholder="Kette (optional) — z.B. Penny, Edeka, Globus, Lidl, Rewe"
           maxlength="64"
           aria-label="Kette des neuen Markts"
+          onkeydown={(e) => { if (e.key === 'Enter') addStore() }}
+        />
+      </div>
+      <div class="add-fields add-fields--address">
+        <input
+          class="input input--address"
+          type="text"
+          bind:value={newAddress}
+          placeholder="Adresse (optional)"
+          maxlength="255"
+          aria-label="Adresse des neuen Markts"
+          onkeydown={(e) => { if (e.key === 'Enter') addStore() }}
+        />
+        <input
+          class="input input--city"
+          type="text"
+          bind:value={newCity}
+          placeholder="Ort/Stadt (optional)"
+          maxlength="128"
+          aria-label="Ort/Stadt des neuen Markts"
           onkeydown={(e) => { if (e.key === 'Enter') addStore() }}
         />
       </div>
@@ -533,10 +594,25 @@
 
   .store-info {
     display: flex;
-    align-items: center;
-    gap: var(--space-2);
+    flex-direction: column;
+    gap: var(--space-1);
     flex: 1;
     min-width: 0;
+  }
+
+  .store-info-main {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    flex-wrap: wrap;
+  }
+
+  .store-address {
+    font-size: var(--text-xs);
+    color: var(--color-text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .store-name {
@@ -645,6 +721,21 @@
 
   .input--chain {
     flex: 1 1 200px;
+  }
+
+  .input--address {
+    flex: 2 1 220px;
+  }
+
+  .input--city {
+    flex: 1 1 140px;
+  }
+
+  .edit-fields--address,
+  .add-fields--address {
+    display: flex;
+    gap: var(--space-3);
+    flex-wrap: wrap;
   }
 
   /* ── Alerts ───────────────────────────────────────────────────────────── */

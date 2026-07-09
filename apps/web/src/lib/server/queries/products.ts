@@ -294,6 +294,25 @@ export async function getOrCreateProductByGtin(gtin: string) {
 }
 
 // ---------------------------------------------------------------------------
+// Products — find by id
+// ---------------------------------------------------------------------------
+
+export async function getProductById(id: string) {
+	const product = await db.query.products.findFirst({
+		where: eq(products.id, id),
+		with: { category: true },
+		columns: {
+			id: true,
+			name: true,
+			brand: true,
+			imageUrl: true,
+			categoryId: true,
+		},
+	});
+	return product ?? null;
+}
+
+// ---------------------------------------------------------------------------
 // Products — search by name / brand
 // ---------------------------------------------------------------------------
 

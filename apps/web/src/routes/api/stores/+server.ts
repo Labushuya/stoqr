@@ -36,7 +36,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 
   const householdId = await requireHouseholdId(locals.user.id)
   const body = await request.json()
-  const { name, chain } = body as { name?: string; chain?: string }
+  const { name, chain, address, city } = body as { name?: string; chain?: string; address?: string; city?: string }
 
   if (!name) {
     return json({ error: 'name is required' }, { status: 400 })
@@ -48,6 +48,8 @@ export const POST: RequestHandler = async ({ locals, request }) => {
       householdId,
       name,
       chain: chain ?? null,
+      address: address ?? null,
+      city: city ?? null,
     })
     .returning()
 

@@ -589,55 +589,8 @@
     </div>
   </div>
 
-  <!-- ── Nährwerte card ─────────────────────────────────────────────────── -->
-  <div class="card">
-    <h2 class="section-title" style="margin-bottom: var(--space-4)">Nährwerte <span class="section-subtitle">pro 100 g / 100 ml</span></h2>
-
-    {#if (item.product.nutrients?.length ?? 0) === 0}
-      <p class="nutrients-empty">Keine Nährwertangaben vorhanden.</p>
-    {:else}
-      <table class="nutrients-table">
-        <thead>
-          <tr>
-            <th class="nt-col-name">Nährstoff</th>
-            <th class="nt-col-val">Menge</th>
-          </tr>
-        </thead>
-        <tbody>
-          {#each knownNutrients as row (row.slug)}
-            <tr class="nt-row">
-              <td class="nt-name" class:nt-name--indent={row.slug === 'saturated-fat' || row.slug === 'sugars'}>
-                {row.label}
-              </td>
-              <td class="nt-val">
-                {#if nutrients().has(row.slug)}
-                  {getNutrientValue(row.slug)}
-                  <span class="nt-unit">{nutrients().get(row.slug)?.nutrientType.unit ?? row.unit}</span>
-                {:else}
-                  <span class="nt-none">Keine Angabe</span>
-                {/if}
-              </td>
-            </tr>
-          {/each}
-          <!-- Any extra nutrients not in knownNutrients -->
-          {#each item.product.nutrients ?? [] as n (n.id)}
-            {#if !knownNutrients.find((k) => k.slug === n.nutrientType.slug)}
-              <tr class="nt-row">
-                <td class="nt-name">{n.nutrientType.name}</td>
-                <td class="nt-val">
-                  {Number(n.valuePer100).toLocaleString('de-DE', { maximumFractionDigits: 2 })}
-                  <span class="nt-unit">{n.nutrientType.unit}</span>
-                </td>
-              </tr>
-            {/if}
-          {/each}
-        </tbody>
-      </table>
-    {/if}
-  </div>
-
   <!-- ── Bezugsquellen card ───────────────────────────────────────────── -->
-  <div class="card">
+  <div class="card" id="bezugsquellen">
     <div class="section-header">
       <h2 class="section-title">Bezugsquellen</h2>
     </div>
@@ -706,6 +659,53 @@
     {/if}
   </div>
 
+  <!-- ── Nährwerte card ─────────────────────────────────────────────────── -->
+  <div class="card">
+    <h2 class="section-title" style="margin-bottom: var(--space-4)">Nährwerte <span class="section-subtitle">pro 100 g / 100 ml</span></h2>
+
+    {#if (item.product.nutrients?.length ?? 0) === 0}
+      <p class="nutrients-empty">Keine Nährwertangaben vorhanden.</p>
+    {:else}
+      <table class="nutrients-table">
+        <thead>
+          <tr>
+            <th class="nt-col-name">Nährstoff</th>
+            <th class="nt-col-val">Menge</th>
+          </tr>
+        </thead>
+        <tbody>
+          {#each knownNutrients as row (row.slug)}
+            <tr class="nt-row">
+              <td class="nt-name" class:nt-name--indent={row.slug === 'saturated-fat' || row.slug === 'sugars'}>
+                {row.label}
+              </td>
+              <td class="nt-val">
+                {#if nutrients().has(row.slug)}
+                  {getNutrientValue(row.slug)}
+                  <span class="nt-unit">{nutrients().get(row.slug)?.nutrientType.unit ?? row.unit}</span>
+                {:else}
+                  <span class="nt-none">Keine Angabe</span>
+                {/if}
+              </td>
+            </tr>
+          {/each}
+          <!-- Any extra nutrients not in knownNutrients -->
+          {#each item.product.nutrients ?? [] as n (n.id)}
+            {#if !knownNutrients.find((k) => k.slug === n.nutrientType.slug)}
+              <tr class="nt-row">
+                <td class="nt-name">{n.nutrientType.name}</td>
+                <td class="nt-val">
+                  {Number(n.valuePer100).toLocaleString('de-DE', { maximumFractionDigits: 2 })}
+                  <span class="nt-unit">{n.nutrientType.unit}</span>
+                </td>
+              </tr>
+            {/if}
+          {/each}
+        </tbody>
+      </table>
+    {/if}
+  </div>
+
   <!-- ── Actions card ───────────────────────────────────────────────────── -->
   {#if item.status === 'available'}
     <div class="card actions-card">
@@ -735,7 +735,7 @@
         method="POST"
         action="?/deleteItem"
         use:enhance={(e) => {
-          if (!window.confirm('Artikel wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.')) {
+          if (!window.confirm('Bestandseintrag aus dem Inventar entfernen?\n\nDieser Bestandseintrag wird aus dem Inventar entfernt. Das Produkt bleibt im Katalog.')) {
             e.cancel()
           }
           return async ({ result, update }) => {
@@ -751,7 +751,7 @@
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
             <path d="M2 4h12M6 4V2.5h4V4M5.5 4v8h5V4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
-          Artikel löschen
+          Aus Inventar entfernen
         </button>
       </form>
     </div>

@@ -447,14 +447,14 @@
 
   async function deleteItem(item: InventoryItem) {
     openMenuId = null
-    if (!window.confirm(`"${item.product.name}" wirklich löschen?`)) return
+    if (!window.confirm(`Bestandseintrag für "${item.product.name}" entfernen?\n\nEntfernt diesen Bestandseintrag. Das Produkt bleibt im Katalog.`)) return
     try {
       const res = await fetch(`/api/inventory/${item.id}`, { method: 'DELETE' })
       if (!res.ok) throw new Error(await res.text())
       items = items.filter((i) => i.id !== item.id)
-      showToast(`"${item.product.name}" gelöscht`)
+      showToast(`"${item.product.name}" aus Inventar entfernt`)
     } catch {
-      showToast('Fehler beim Löschen', 'error')
+      showToast('Fehler beim Entfernen', 'error')
     }
   }
 
@@ -710,6 +710,31 @@
                         Bearbeiten
                       </button>
                     </li>
+                    <li role="menuitem">
+                      <a
+                        class="dropdown-item"
+                        href="/inventar/easy-add?productId={item.product.id}&productName={encodeURIComponent(item.product.name)}"
+                        onclick={() => closeMenu()}
+                      >
+                        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                          <rect x="1" y="1" width="12" height="12" rx="2.5" stroke="currentColor" stroke-width="1.4" fill="none"/>
+                          <path d="M7 4v6M4 7h6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+                        </svg>
+                        Bestand hinzufügen
+                      </a>
+                    </li>
+                    <li role="menuitem">
+                      <a
+                        class="dropdown-item"
+                        href="/inventar/{item.id}#bezugsquellen"
+                        onclick={() => closeMenu()}
+                      >
+                        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                          <path d="M2 7.5L7 3l5 4.5V12H9V9H5v3H2V7.5Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" fill="none"/>
+                        </svg>
+                        Bezugsquellen bearbeiten
+                      </a>
+                    </li>
                     {#if item.status === 'available'}
                       <li role="menuitem">
                         <button
@@ -729,11 +754,12 @@
                         class="dropdown-item dropdown-item--danger"
                         type="button"
                         onclick={() => deleteItem(item)}
+                        title="Entfernt diesen Bestandseintrag. Das Produkt bleibt im Katalog."
                       >
                         <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
                           <path d="M2 3.5h10M5.5 3.5V2.5h3V3.5M5 3.5V11h4V3.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
                         </svg>
-                        Löschen
+                        Aus Inventar entfernen
                       </button>
                     </li>
                   </ul>
@@ -787,7 +813,7 @@
     </svg>
     <span>Bestand hinzufügen</span>
   </a>
-  <button class="fab" type="button" aria-label="Produkt hinzufügen" onclick={openAddSheet}>
+  <button class="fab" type="button" aria-label="Neuer Artikel" onclick={openAddSheet}>
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
       <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
     </svg>
@@ -1411,8 +1437,8 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 26px;
-    height: 26px;
+    width: 44px;
+    height: 44px;
     border-radius: var(--radius-md);
     border: none;
     background-color: transparent;
@@ -1971,6 +1997,12 @@
     .toast {
       width: 100%;
       justify-content: center;
+    }
+  }
+
+  @media (max-width: 360px) {
+    .item-grid {
+      grid-template-columns: 1fr;
     }
   }
   .addon-btn--active {

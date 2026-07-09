@@ -49,10 +49,16 @@
   let unitOptions = $state(data.units as { id: string; name: string; symbol: string }[])
 
   // Step 1 — Product search
-  let searchQuery = $state('')
+  // svelte-ignore state_referenced_locally
+  let searchQuery = $state(
+    (data.preselectedProduct as ProductResult | null)?.name ?? ''
+  )
   let searchResults = $state<ProductResult[]>([])
   let searchLoading = $state(false)
-  let selectedProduct = $state<ProductResult | null>(null)
+  // svelte-ignore state_referenced_locally
+  let selectedProduct = $state<ProductResult | null>(
+    (data.preselectedProduct as ProductResult | null) ?? null
+  )
   let searchDebounceTimer = $state<ReturnType<typeof setTimeout> | null>(null)
 
   // Step 2 — Location

@@ -144,9 +144,30 @@
           </ul>
           <div class="mobile-user">
             <span class="username">{data.user.name || data.user.email}</span>
-            <button class="btn-logout" onclick={logout} type="button">
-              Abmelden
-            </button>
+            <div class="mobile-user-actions">
+              <button
+                class="btn-theme"
+                class:btn-theme--dark={darkMode}
+                onclick={toggleDarkMode}
+                type="button"
+                title={darkMode ? 'Light Mode aktivieren' : 'Dark Mode aktivieren'}
+                aria-label={darkMode ? 'Light Mode aktivieren' : 'Dark Mode aktivieren'}
+              >
+                {#if darkMode}
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                    <path d="M13.5 9.5A6 6 0 0 1 6.5 2.5a6.5 6.5 0 1 0 7 7z" fill="currentColor"/>
+                  </svg>
+                {:else}
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                    <circle cx="8" cy="8" r="3.5" stroke="currentColor" stroke-width="1.5"/>
+                    <path d="M8 1v2M8 13v2M1 8h2M13 8h2M3.22 3.22l1.42 1.42M11.36 11.36l1.42 1.42M11.36 4.64l-1.42 1.42M4.64 11.36l-1.42 1.42" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                  </svg>
+                {/if}
+              </button>
+              <button class="btn-logout" onclick={logout} type="button">
+                Abmelden
+              </button>
+            </div>
           </div>
         </div>
       {/if}
@@ -392,6 +413,12 @@
     justify-content: space-between;
     padding-top: var(--space-3);
     border-top: 1px solid var(--color-border-subtle);
+  }
+
+  .mobile-user-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
   }
 
   /* ── Main content ───────────────────────────────── */
