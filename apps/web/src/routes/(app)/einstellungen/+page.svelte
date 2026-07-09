@@ -195,6 +195,23 @@
     </div>
   </section>
 
+  <!-- ── Märkte ─────────────────────────────────────────────────────────────── -->
+
+  <section class="settings-section">
+    <div class="section-header">
+      <h2 class="section-title">Märkte</h2>
+      <span class="section-desc">Einkaufsmärkte verwalten und Artikeln zuordnen</span>
+    </div>
+    <div class="section-body">
+      <a href="/einstellungen/maerkte" class="members-link">
+        <span>Märkte verwalten</span>
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+          <path d="M6 3l5 5-5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </a>
+    </div>
+  </section>
+
   <section class="settings-section">
     <div class="section-header">
       <h2 class="section-title">

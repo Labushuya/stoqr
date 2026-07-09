@@ -34,17 +34,12 @@
   // ── Emoji picker constant ─────────────────────────────────────────────────
 
   // Curated household emojis — grouped by theme
-  const LOCATION_EMOJIS = [
-    // Räume
-    '🏠','🍳','🛋️','🛏️','🛁','🚿','🚪','🪟','🧺','🪑',
-    // Kühlen & Lagern
-    '🧊','❄️','🥶','🥫','🫙','📦','🗄️','🪣',
-    // Lebensmittel
-    '🥛','🧀','🍞','🥚','🥩','🐟','🍎','🍋','🥕','🥦','🍫','🍰','🥤','☕','🍵','🧂','🫒','🍾','🍷',
-    // Haushalt & Reinigung
-    '🧴','🧼','🧽','🧻','🧹','🪥','🪒','🧲',
-    // Sonstiges
-    '🌿','🪴','🚗','🏪','🛒','📋','🔑','⚡',
+  const EMOJI_GROUPS = [
+    { label: 'Räume', emojis: ['🏠','🍳','🛋️','🛏️','🛁','🚿','🚪','🪟','🧺','🪑','🪞','🚽','🛗','🧹','🪣','🧲','🔑'] },
+    { label: 'Kühlen', emojis: ['🧊','❄️','🥶','🌡️','🥫','🫙','🫕','🫗'] },
+    { label: 'Lebensmittel', emojis: ['🥛','🧀','🍞','🥐','🥚','🥩','🍗','🐟','🍎','🍋','🫐','🍇','🥕','🥦','🧄','🧅','🍫','🍰','🧁','🥤','☕','🍵','🧃','🍶','🧂','🫒','🍾','🍷','🍺'] },
+    { label: 'Reinigung', emojis: ['🧴','🧼','🧽','🧻','🪥','🪒','💊','🩺','🩹','🧪'] },
+    { label: 'Sonstiges', emojis: ['📦','🗄️','📋','⚡','🔋','💡','🪜','🧰','🔧','🪛','🎮','📺','💻','📱'] },
   ]
 
   // ── State ─────────────────────────────────────────────────────────────────
@@ -79,6 +74,18 @@
   let showEditLocationPicker = $state(false)
   let showStoragePicker = $state(false)
   let showEditStoragePicker = $state(false)
+
+  // Shared emoji picker tab + search state
+  let emojiTab = $state(0)
+  let emojiSearch = $state('')
+
+  function filteredEmojis(): string[] {
+    const q = emojiSearch.trim().toLowerCase()
+    if (!q) return EMOJI_GROUPS[emojiTab]?.emojis ?? []
+    return EMOJI_GROUPS.flatMap((g) =>
+      g.emojis.filter((e) => e.includes(q) || g.label.toLowerCase().includes(q))
+    )
+  }
 
   // Toast
   type Toast = { id: number; message: string; type: 'success' | 'error' }
@@ -206,6 +213,7 @@
       adding = null
       addName = ''
       addIcon = ''
+      emojiSearch = ''
       showLocationPicker = false
       showStoragePicker = false
     }
@@ -215,6 +223,7 @@
     adding = null
     addName = ''
     addIcon = ''
+    emojiSearch = ''
     showLocationPicker = false
     showStoragePicker = false
   }
@@ -282,6 +291,7 @@
       showToast('Fehler beim Speichern', 'error')
     } finally {
       editing = null
+      emojiSearch = ''
       showEditLocationPicker = false
       showEditStoragePicker = false
     }
@@ -289,6 +299,7 @@
 
   function cancelEdit() {
     editing = null
+    emojiSearch = ''
     showEditLocationPicker = false
     showEditStoragePicker = false
   }
@@ -385,15 +396,33 @@
           >{addIcon || '📍'}</button>
           {#if showLocationPicker}
             <div class="emoji-grid" role="listbox" aria-label="Emoji auswählen">
-              {#each LOCATION_EMOJIS as e}
-                <button
-                  type="button"
-                  class="emoji-opt"
-                  role="option"
-                  aria-selected={addIcon === e}
-                  onclick={() => { addIcon = e; showLocationPicker = false }}
-                >{e}</button>
-              {/each}
+              <input
+                class="emoji-search"
+                type="text"
+                placeholder="Suchen…"
+                bind:value={emojiSearch}
+              />
+              <div class="emoji-tabs">
+                {#each EMOJI_GROUPS as g, i}
+                  <button
+                    type="button"
+                    class="emoji-tab"
+                    class:active={emojiTab === i}
+                    onclick={() => { emojiTab = i; emojiSearch = '' }}
+                  >{g.label}</button>
+                {/each}
+              </div>
+              <div class="emoji-opts">
+                {#each filteredEmojis() as e}
+                  <button
+                    type="button"
+                    class="emoji-opt"
+                    role="option"
+                    aria-selected={addIcon === e}
+                    onclick={() => { addIcon = e; showLocationPicker = false; emojiSearch = '' }}
+                  >{e}</button>
+                {/each}
+              </div>
             </div>
           {/if}
         </div>
@@ -481,15 +510,33 @@
                   >{editing.icon || '📍'}</button>
                   {#if showEditLocationPicker}
                     <div class="emoji-grid" role="listbox" aria-label="Emoji auswählen">
-                      {#each LOCATION_EMOJIS as e}
-                        <button
-                          type="button"
-                          class="emoji-opt"
-                          role="option"
-                          aria-selected={editing.icon === e}
-                          onclick={() => { if (editing && editing.kind === 'location') { editing = { ...editing, icon: e }; showEditLocationPicker = false } }}
-                        >{e}</button>
-                      {/each}
+                      <input
+                        class="emoji-search"
+                        type="text"
+                        placeholder="Suchen…"
+                        bind:value={emojiSearch}
+                      />
+                      <div class="emoji-tabs">
+                        {#each EMOJI_GROUPS as g, i}
+                          <button
+                            type="button"
+                            class="emoji-tab"
+                            class:active={emojiTab === i}
+                            onclick={() => { emojiTab = i; emojiSearch = '' }}
+                          >{g.label}</button>
+                        {/each}
+                      </div>
+                      <div class="emoji-opts">
+                        {#each filteredEmojis() as e}
+                          <button
+                            type="button"
+                            class="emoji-opt"
+                            role="option"
+                            aria-selected={editing.icon === e}
+                            onclick={() => { if (editing && editing.kind === 'location') { editing = { ...editing, icon: e }; showEditLocationPicker = false; emojiSearch = '' } }}
+                          >{e}</button>
+                        {/each}
+                      </div>
                     </div>
                   {/if}
                 </div>
@@ -575,15 +622,33 @@
                             >{editing.icon || '📦'}</button>
                             {#if showEditStoragePicker}
                               <div class="emoji-grid" role="listbox" aria-label="Emoji auswählen">
-                                {#each LOCATION_EMOJIS as e}
-                                  <button
-                                    type="button"
-                                    class="emoji-opt"
-                                    role="option"
-                                    aria-selected={editing.icon === e}
-                                    onclick={() => { if (editing && editing.kind === 'storage') { editing = { ...editing, icon: e }; showEditStoragePicker = false } }}
-                                  >{e}</button>
-                                {/each}
+                                <input
+                                  class="emoji-search"
+                                  type="text"
+                                  placeholder="Suchen…"
+                                  bind:value={emojiSearch}
+                                />
+                                <div class="emoji-tabs">
+                                  {#each EMOJI_GROUPS as g, i}
+                                    <button
+                                      type="button"
+                                      class="emoji-tab"
+                                      class:active={emojiTab === i}
+                                      onclick={() => { emojiTab = i; emojiSearch = '' }}
+                                    >{g.label}</button>
+                                  {/each}
+                                </div>
+                                <div class="emoji-opts">
+                                  {#each filteredEmojis() as e}
+                                    <button
+                                      type="button"
+                                      class="emoji-opt"
+                                      role="option"
+                                      aria-selected={editing.icon === e}
+                                      onclick={() => { if (editing && editing.kind === 'storage') { editing = { ...editing, icon: e }; showEditStoragePicker = false; emojiSearch = '' } }}
+                                    >{e}</button>
+                                  {/each}
+                                </div>
                               </div>
                             {/if}
                           </div>
@@ -727,15 +792,33 @@
                       >{addIcon || '📦'}</button>
                       {#if showStoragePicker}
                         <div class="emoji-grid" role="listbox" aria-label="Emoji auswählen">
-                          {#each LOCATION_EMOJIS as e}
-                            <button
-                              type="button"
-                              class="emoji-opt"
-                              role="option"
-                              aria-selected={addIcon === e}
-                              onclick={() => { addIcon = e; showStoragePicker = false }}
-                            >{e}</button>
-                          {/each}
+                          <input
+                            class="emoji-search"
+                            type="text"
+                            placeholder="Suchen…"
+                            bind:value={emojiSearch}
+                          />
+                          <div class="emoji-tabs">
+                            {#each EMOJI_GROUPS as g, i}
+                              <button
+                                type="button"
+                                class="emoji-tab"
+                                class:active={emojiTab === i}
+                                onclick={() => { emojiTab = i; emojiSearch = '' }}
+                              >{g.label}</button>
+                            {/each}
+                          </div>
+                          <div class="emoji-opts">
+                            {#each filteredEmojis() as e}
+                              <button
+                                type="button"
+                                class="emoji-opt"
+                                role="option"
+                                aria-selected={addIcon === e}
+                                onclick={() => { addIcon = e; showStoragePicker = false; emojiSearch = '' }}
+                              >{e}</button>
+                            {/each}
+                          </div>
                         </div>
                       {/if}
                     </div>
@@ -1084,9 +1167,6 @@
   }
 
   .emoji-grid {
-    display: grid;
-    grid-template-columns: repeat(6, 1fr);
-    gap: 4px;
     padding: 8px;
     background: var(--color-surface-raised);
     border: 1px solid var(--color-border);
@@ -1096,7 +1176,59 @@
     left: 0;
     z-index: var(--z-dropdown, 100);
     box-shadow: var(--shadow-lg);
-    min-width: 220px;
+    min-width: 260px;
+    max-width: 320px;
+  }
+
+  .emoji-search {
+    width: 100%;
+    padding: 4px 8px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    font-size: var(--text-sm);
+    background: var(--color-surface);
+    color: var(--color-text-primary);
+    margin-bottom: 6px;
+    box-sizing: border-box;
+    outline: none;
+    transition: border-color var(--transition-fast);
+  }
+
+  .emoji-search:focus {
+    border-color: var(--color-border-focus);
+  }
+
+  .emoji-tabs {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 6px;
+    flex-wrap: wrap;
+  }
+
+  .emoji-tab {
+    font-size: var(--text-xs);
+    padding: 2px 8px;
+    border-radius: var(--radius-full);
+    border: 1px solid var(--color-border);
+    background: var(--color-surface);
+    cursor: pointer;
+    transition: background-color var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast);
+  }
+
+  .emoji-tab.active {
+    background: var(--color-primary);
+    color: white;
+    border-color: var(--color-primary);
+  }
+
+  .emoji-tab:not(.active):hover {
+    background: var(--color-surface-sunken);
+  }
+
+  .emoji-opts {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 4px;
   }
 
   .emoji-opt {

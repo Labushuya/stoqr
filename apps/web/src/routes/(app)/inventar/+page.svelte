@@ -777,13 +777,22 @@
   {/if}
 </div>
 
-<!-- ── FAB ────────────────────────────────────────────────────────────────── -->
+<!-- ── FAB group ──────────────────────────────────────────────────────────── -->
 
-<button class="fab" type="button" aria-label="Produkt hinzufügen" onclick={openAddSheet}>
-  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-    <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
-  </svg>
-</button>
+<div class="fab-group">
+  <a class="fab-secondary" href="/inventar/easy-add" aria-label="Bestand hinzufügen">
+    <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+      <rect x="2" y="2" width="14" height="14" rx="3" stroke="currentColor" stroke-width="1.6"/>
+      <path d="M9 6v6M6 9h6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+    <span>Bestand hinzufügen</span>
+  </a>
+  <button class="fab" type="button" aria-label="Produkt hinzufügen" onclick={openAddSheet}>
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+    </svg>
+  </button>
+</div>
 
 <!-- ── AddItemSheet ───────────────────────────────────────────────────────── -->
 
@@ -1557,13 +1566,54 @@
     color: var(--color-text-primary);
   }
 
-  /* ── FAB ──────────────────────────────────────────────────────────────── */
+  /* ── FAB group ────────────────────────────────────────────────────────── */
 
-  .fab {
+  .fab-group {
     position: fixed;
     bottom: calc(var(--space-6) + env(safe-area-inset-bottom, 0px));
     right: var(--space-6);
     z-index: var(--z-fab, 100);
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+  }
+
+  .fab-secondary {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    height: 44px;
+    padding: 0 var(--space-4);
+    border-radius: var(--radius-full);
+    border: none;
+    background-color: var(--color-surface-raised);
+    color: var(--color-text-primary);
+    font-family: var(--font-body);
+    font-size: var(--text-sm);
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: none;
+    box-shadow: var(--shadow-lg);
+    border: 1px solid var(--color-border);
+    white-space: nowrap;
+    transition: background-color var(--transition-fast), box-shadow var(--transition-fast), transform var(--transition-fast);
+  }
+
+  .fab-secondary:hover {
+    background-color: var(--color-primary-subtle);
+    color: var(--color-primary);
+    border-color: var(--color-primary);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+    transform: translateY(-1px);
+  }
+
+  .fab-secondary:active {
+    transform: scale(0.97);
+  }
+
+  /* ── FAB ──────────────────────────────────────────────────────────────── */
+
+  .fab {
     width: 56px;
     height: 56px;
     border-radius: var(--radius-full);
@@ -1576,6 +1626,7 @@
     cursor: pointer;
     box-shadow: var(--shadow-lg);
     transition: background-color var(--transition-fast), box-shadow var(--transition-fast), transform var(--transition-fast);
+    flex-shrink: 0;
   }
 
   .fab:hover {
@@ -1893,6 +1944,21 @@
     .filter-select {
       min-width: 0;
       flex: 1;
+    }
+
+    .fab-group {
+      right: var(--space-4);
+      bottom: calc(var(--space-4) + env(safe-area-inset-bottom, 0px));
+    }
+
+    .fab-secondary span {
+      display: none;
+    }
+
+    .fab-secondary {
+      width: 44px;
+      padding: 0;
+      justify-content: center;
     }
 
     .toast-container {
