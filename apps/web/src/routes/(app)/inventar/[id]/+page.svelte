@@ -61,10 +61,10 @@
   })
 
   // ── Confirm Modal ────────────────────────────────────────────────────────────
-  let confirmModal = $state<{ open: boolean; title: string; message: string; onConfirm: () => void } | null>(null)
+  let confirmModal = $state<{ open: boolean; title: string; message: string; confirmLabel: string; onConfirm: () => void } | null>(null)
 
-  function showConfirm(title: string, message: string, onConfirm: () => void) {
-    confirmModal = { open: true, title, message, onConfirm }
+  function showConfirm(title: string, message: string, onConfirm: () => void, confirmLabel = 'Entfernen') {
+    confirmModal = { open: true, title, message, confirmLabel, onConfirm }
   }
 
   function closeConfirm() { confirmModal = null }
@@ -773,6 +773,24 @@
         Produkt aus Katalog entfernen
       </button>
       <form id="frm-del-product" method="POST" action="?/deleteProduct" style="display:none" use:enhance={() => async ({ result, update }) => { if (result.type === 'redirect') goto(result.location); else await update() }}></form>
+
+      <button
+        class="btn-delete-all"
+        type="button"
+        onclick={() => showConfirm(
+          'Artikel vollständig löschen?',
+          'Produkt, alle Bestandseinträge und alle Bezugsquellen werden dauerhaft gelöscht. Diese Aktion kann nicht rückgängig gemacht werden.',
+          () => { closeConfirm(); (document.getElementById('frm-del-all') as HTMLFormElement)?.submit() },
+          'Alles löschen'
+        )}
+      >
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+          <path d="M2 4h12M6 4V2.5h4V4M5.5 4v8h5V4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M3 4l1 9.5h8L13 4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        Alles löschen (inkl. Bestand)
+      </button>
+      <form id="frm-del-all" method="POST" action="?/deleteAll" style="display:none" use:enhance={() => async ({ result, update }) => { if (result.type === 'redirect') goto(result.location); else await update() }}></form>
     </div>
   {/if}
 </div>
@@ -860,7 +878,7 @@
     open={confirmModal.open}
     title={confirmModal.title}
     message={confirmModal.message}
-    confirmLabel="Entfernen"
+    confirmLabel={confirmModal.confirmLabel}
     destructive={true}
     onConfirm={confirmModal.onConfirm}
     onCancel={closeConfirm}
@@ -1435,6 +1453,29 @@
     border-color: var(--color-danger);
     background-color: var(--color-danger-subtle);
     color: var(--color-danger);
+  }
+
+  .btn-delete-all {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
+    width: 100%;
+    height: 40px;
+    border-radius: var(--radius-md);
+    border: 1.5px solid var(--color-danger);
+    background-color: var(--color-danger-subtle);
+    color: var(--color-danger);
+    font-family: var(--font-body);
+    font-size: var(--text-sm);
+    font-weight: 600;
+    cursor: pointer;
+    transition: border-color var(--transition-fast), background-color var(--transition-fast), color var(--transition-fast);
+  }
+
+  .btn-delete-all:hover {
+    background-color: var(--color-danger);
+    color: #fff;
   }
 
   /* ── Nutrients table ──────────────────────────────────────────────────── */

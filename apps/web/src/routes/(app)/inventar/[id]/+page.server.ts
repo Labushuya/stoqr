@@ -8,6 +8,7 @@ import {
   expiryConfig,
   stores,
   productStores,
+  products,
 } from '@stoqr/db'
 import { eq, and, asc } from 'drizzle-orm'
 import { error, fail, redirect } from '@sveltejs/kit'
@@ -247,6 +248,51 @@ export const actions: Actions = {
 
     const deleted = await deleteProduct(item.productId);
     if (!deleted) return fail(404, { error: 'Produkt nicht gefunden' });
+
+    redirect(302, '/inventar');
+  },
+
+  // ── Delete all (product + all inventory items + product_stores) ───────────
+  deleteAll: async ({ params, locals }) => {
+    if (!locals.user) return fail(401, { error: 'Nicht authentifiziert' });
+    const householdId = await requireHouseholdId(locals.user.id);
+
+    // Load the inventory item to find the productId
+    const item = await db.query.inventoryItems.findFirst({
+      where: and(eq(inventoryItems.id, params.id), eq(inventoryItems.householdId, householdId)),
+      columns: { productId: true },
+    });
+
+    if (!item) return fail(404, { error: 'Artikel nicht gefunden' });
+
+    const productId = item.productId;
+
+    try {
+      await db.transaction(async (tx) => {
+        await tx
+          .delete(inventoryItems)
+          .where(
+            and(
+              eq(inventoryItems.productId, productId),
+              eq(inventoryItems.householdId, householdId)
+            )
+          );
+
+        await tx
+          .delete(productStores)
+          .where(
+            and(
+              eq(productStores.productId, productId),
+              eq(productStores.householdId, householdId)
+            )
+          );
+
+        await tx.delete(products).where(eq(products.id, productId));
+      });
+    } catch (err) {
+      console.error('deleteAll failed:', err);
+      return fail(500, { error: 'Fehler beim vollständigen Löschen' });
+    }
 
     redirect(302, '/inventar');
   },

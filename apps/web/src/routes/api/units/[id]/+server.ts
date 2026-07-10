@@ -118,11 +118,22 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
     return json(unit)
   }
 
+  const oldSymbol = unit.symbol
+
   const [updated] = await db
     .update(units)
     .set(updates)
     .where(eq(units.id, params.id))
     .returning()
+
+  if (updates.symbol && updates.symbol !== oldSymbol) {
+    await db.update(inventoryItems)
+      .set({ unit: updates.symbol })
+      .where(and(
+        eq(inventoryItems.householdId, householdId),
+        eq(inventoryItems.unit, oldSymbol)
+      ))
+  }
 
   return json(updated)
 }

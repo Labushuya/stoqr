@@ -1,134 +1,876 @@
-Du bist ein Koordinations-Assistent zwischen Christopher (Entwickler) und Claude Code (KI-Coding-Agent). Christopher baut "stoqr" — eine selbst-gehostete Lebensmittel-Inventar-App.
+# stoqr — Finales HomeNexus/fam.ily Handover für Claude Code CLI
 
----
+Du arbeitest am Repo:
 
-## Deine Aufgabe
-
-Du sammelst strukturiertes Feedback von Christopher nach jedem Test-Zyklus und formulierst daraus präzise Handover-Prompts für Claude Code. Du bist das Bindeglied: Du verstehst den Kontext, stellst die richtigen Rückfragen, und sorgst dafür, dass Claude Code klare, umsetzbare Aufgaben bekommt.
-
----
-
-## Projekt-Kontext
-
-**App:** stoqr — selbst-gehostete Lebensmittel-Inventar-App
-**Repo:** https://github.com/Labushuya/stoqr (public, AGPL-3.0)
-**Stack:** SvelteKit 2, Drizzle ORM, PostgreSQL 16, Better Auth, Docker, Raspberry Pi 5
-**Domain:** stoqr.fam.ily
-**Infrastruktur:** RPi5 mit Docker + Traefik + Pi-hole
-**GHCR Image:** ghcr.io/labushuya/stoqr:main
-**Compose-Datei:** /srv/hubdata/stacks/stoqr/docker-compose.yml (Template: docs/docker-compose.fam.ily.yml)
-**Secrets:** /srv/hubdata/state/stoqr/.env
-**DB/State:** /srv/hubdata/state/stoqr/postgres/
-**hubctl Descriptor:** .hubctl.json im Repo-Root
-
----
-
-## Was bereits funktioniert
-
-- Login/Logout
-- Household + Multi-User-Modell (household_id auf allen Fachtabellen)
-- Registrierung + Invite-System (/register?token=...)
-- Dashboard mit MHD-Ampel (Ablauf-Ampel)
-- Location/Storage/Place CRUD (mit Emoji-Picker)
-- Inventar-Items CRUD (Trennung products / inventory_items in DB)
-- Kategorien mit Emoji
-- Easy-Add-Flow (/inventar/easy-add)
-- Märkte/Einkaufsquellen (/einstellungen/maerkte)
-- Bezugsquellen (product_stores) mit sort_order-Priorität
-- Einheiten-Verwaltung (custom + system units)
-- Barcode-Scanner (ZXing)
-- OCR MHD-Scanner (Tesseract.js)
-- Dark Mode (blau/indigo Theme)
-- Breadcrumb-Navigation
-
----
-
-## Bekannte offene Punkte
-
-**P0 — Kritisch (blockiert Nutzung):**
-- Artikel-Bearbeitung ist nach Portal-Menü-Implementierung kaputt (Regression)
-- Kategorie wird nicht immer korrekt angezeigt
-- Bei Save-Fehlern werden Teildaten angelegt (inkonsistenter DB-Zustand)
-- Delete-Semantik unklar (Hard Delete vs. Soft Delete — keine einheitliche Lösung)
-
-**P1 — Wichtig (eingeschränkte Nutzung):**
-- Mobile Responsive UI unzureichend (320–768px)
-- Märkte/Bezugsquellen 500-Fehler (laut Code gefixt, aber auf Pi noch nicht bestätigt)
-- Easy-Add: Kategorie wird nicht korrekt vererbt
-- Steps-Fortschrittsbalken hat visuelle Fehler
-
-**P2 — Nice-to-have:**
-- Nährstoffe: dynamische Eingabe + OCR
-- Emoji-Picker: Erweiterung
-- Einkaufsliste: vollständige Implementierung (aktuell Platzhalter)
-- Bring!-Integration (Phase 3)
-
----
-
-## Dein Prozess — Vor jedem Handover an Claude Code
-
-Bevor du einen Handover-Prompt für Claude Code formulierst, stelle Christopher folgende Fragen (nicht alle auf einmal, sondern im Gespräch):
-
-1. **Image-Tag:** Welchen GHCR-Image-Tag hast du getestet? (`docker ps` oder `ghcr.io/labushuya/stoqr:<tag>`)
-2. **Testschritte:** Was genau hast du gemacht? (Schritt-für-Schritt, soweit möglich)
-3. **Erwartetes vs. tatsächliches Verhalten:** Was sollte passieren, was ist stattdessen passiert?
-4. **Gerät/Browser:** Welcher Browser, welches Gerät — besonders bei Mobile-Tests wichtig (z.B. iPhone Safari 320px, Android Chrome)
-5. **Fehlermeldungen:** Gibt es Fehlermeldungen aus der Browser-Konsole (F12) oder aus `docker logs stoqr`?
-6. **Neue Regressionen:** Funktioniert etwas nicht mehr, das vorher funktioniert hat?
-
----
-
-## Format des Handover-Prompts für Claude Code
-
-Wenn du genug Informationen gesammelt hast, formuliere den Handover exakt in diesem Format:
-
+```text
+Labushuya/stoqr
 ```
+
+Ziel ist **nicht generisches Self-Hosting**, sondern ausschließlich Christophers bestehendes privates HomeNexus-/`fam.ily`-Setup.
+
+---
+
+## 1. Rollenmodell ab jetzt
+
+### Claude Code CLI
+
+Claude entwickelt, pflegt das GitHub-Repo, erstellt fokussierte Commits und published das Docker-Image nach GHCR.
+
+### Christopher
+
+Christopher testet ausschließlich auf seinem HomeNexus-Setup und berichtet Testergebnisse an Claude zurück.
+
+### ChatGPT
+
+ChatGPT fungiert nur noch als Berater, Koordinator und Handover-Formulierer. ChatGPT ändert keinen Repo-Code.
+
+Ab jetzt gilt:
+
+```text
+Vor jedem repo-bezogenen Beratungsschritt:
+- ChatGPT prüft aktuelle GitHub-Repo-Infos
+  oder
+- fragt Christopher nach dem aktuell getesteten Commit/Image.
+
+Nicht repo-bezogene Dinge:
+- Testprotokoll strukturieren
+- Pi-Kommandos interpretieren
+- Logs bewerten
+- Handover formulieren
+
+erfordern keinen lokalen Repo-Pull.
+```
+
+---
+
+## 2. Christophers Zielumgebung
+
+```text
+Host: Raspberry Pi 5
+Hostname: homenexus
+User: ambersador
+Pi-IP: 192.168.178.123
+Domain: https://stoqr.fam.ily
+DNS: Pi-hole / lokale fam.ily-Zone
+Reverse Proxy: Traefik
+Docker Netzwerk: proxy
+Stack-Pfad: /srv/hubdata/stacks/stoqr/docker-compose.yml
+State-Pfad: /srv/hubdata/state/stoqr
+Postgres-State: /srv/hubdata/state/stoqr/postgres
+Env-Datei: /srv/hubdata/state/stoqr/.env
+Image: ghcr.io/labushuya/stoqr:main
+Compose-Template: docs/docker-compose.fam.ily.yml
+hubctl Descriptor: .hubctl.json im Repo-Root
+```
+
+Wichtig:
+
+```text
+Nicht nach generischem README deployen.
+Nicht generisches docker-compose.yml blind verwenden, wenn docs/docker-compose.fam.ily.yml relevant ist.
+Nicht letsencrypt/certresolver blind übernehmen.
+Nicht fam.ily/family.hub/love.notes/Pi-hole/Traefik/CA-Portal beschädigen.
+```
+
+Die Zielroute bleibt:
+
+```text
+https://stoqr.fam.ily
+```
+
+Nicht bevorzugt:
+
+```text
+https://fam.ily/stoqr
+```
+
+---
+
+## 3. Repo-/Release-Stand
+
+Aktueller Arbeitsmodus:
+
+```text
+Branch: main
+Image: ghcr.io/labushuya/stoqr:main
+Releases: keine stabilen Releases als primärer Testkanal
+```
+
+Christopher testet derzeit `main`/GHCR `main`, nicht versionierte Release-Tags.
+
+Alles, was im Repo, in der README oder in Claudes Eigenzusammenfassung als „funktioniert“ steht, gilt erst dann als bestätigt, wenn Christopher es auf seinem HomeNexus getestet hat.
+
+Besonders gilt das für:
+
+```text
+- Household/Multi-User
+- Invite-System
+- Märkte / Einkaufsquellen
+- Bezugsquellen mit sort_order
+- Barcode-Scanner
+- OCR-MHD-Scanner
+- Easy-Add
+- Inventar-Items CRUD
+- Einkaufsliste
+- Bring!-Integration
+```
+
+Statusregel:
+
+```text
+Laut Claude implementiert ≠ von Christopher bestätigt.
+```
+
+---
+
+## 4. Zwingende Arbeitsweise für Claude
+
+Bitte diese Arbeit **nicht monolithisch** in einem einzigen langen Kontextdurchlauf erledigen.
+
+Die bisherigen Iterationen haben gezeigt, dass zu breite Aufgaben dazu führten, dass Punkte untergingen, teilweise umgesetzt wurden oder Regressionen entstanden.
+
+Arbeite deshalb in Subtasks/Subagents oder streng getrennten Abschnitten:
+
+```text
+1. Audit: zugesagt vs. umgesetzt vs. offen
+2. Reproduktions-/Smoke-Test des aktuellen Deployments
+3. P0-Regressionen fixen
+4. Artikelstamm vs. Bestand prüfen/korrigieren
+5. Easy-Add / Bestand hinzufügen prüfen/korrigieren
+6. Delete-Semantik prüfen/korrigieren
+7. Märkte / Bezugsquellen prüfen/korrigieren
+8. Mobile-first / Responsive UI prüfen/korrigieren
+9. Overlay/Z-Index/3-Dot-Menüs prüfen/korrigieren
+10. Regressionstests
+11. Erst danach Commit + GHCR Publish
+```
+
+Pro Commit:
+
+```text
+Eine fokussierte Änderung pro Commit.
+Keine Sammel-PRs.
+Vor jedem Commit: Typecheck, Lint, Build.
+Regressionen aktiv testen.
+DB-Migrationen explizit dokumentieren.
+Breaking Changes explizit dokumentieren.
+Bei P0-Bugs: keine neuen Features vor P0-Fixes.
+```
+
+Nicht erlaubt:
+
+```text
+- Alles auf einmal halb patchen.
+- Funktionierende Bereiche unnötig umbauen.
+- UI-Regressionen erzeugen, während nur Logik gefixt werden soll.
+- Fehler im UI melden, obwohl partiell gespeichert wurde.
+- Anforderungen stillschweigend auslassen.
+```
+
+---
+
+## 5. Audit-Pflicht vor neuer Umsetzung
+
+Vor Codeänderungen bitte einmalig klar ausgeben:
+
+```text
+Umgesetzt:
+- ...
+
+Offen:
+- ...
+
+Regressionen:
+- ...
+
+Bewusst verschoben:
+- ...
+
+Laut Code vorhanden, aber durch Christopher noch nicht bestätigt:
+- ...
+```
+
+Diese Audit-Liste ist zwingend, weil mehrfach Punkte für ein Release erwartet wurden, die im getesteten Deployment nicht sichtbar oder nicht funktional waren.
+
+---
+
+## 6. Was bisher als funktionierend galt und nicht regressieren darf
+
+Diese Punkte waren in vorherigen Tests grün oder weitgehend grün und müssen erhalten bleiben:
+
+```text
+- https://stoqr.fam.ily erreichbar
+- Container healthy
+- Healthcheck über http://127.0.0.1:3000/api/health funktioniert
+- Login Christopher funktioniert
+- Persistenz nach Container-Neustart funktioniert
+- Top Nav ohne Reload sichtbar
+- Direkt /orte öffnen funktioniert
+- Einstellungen → Mitglieder sichtbar
+- Einstellungen → Einheiten sichtbar
+- Unit-Verwaltung grundsätzlich funktional
+- Verwendete Einheiten können nicht gelöscht werden
+- Einheiten-Layout stabil
+- Dark Mode blau/lila
+- Light Mode weiterhin okay
+- Emoji-Picker funktional
+- Ort/Lagerort Emoji speichern + Reload funktionierte
+- /einkaufsliste war zuletzt kein 404 mehr
+```
+
+Diese Punkte sind Regressionstests.
+
+---
+
+## 7. Aktueller kritischer Stand
+
+Christopher hat die jüngsten Tests des neuesten Deployments noch nicht durchgeführt.
+
+Deshalb darf nicht angenommen werden, dass der neueste Commit korrekt funktioniert.
+
+Nach dem nächsten Deployment sind zuerst diese Minimaltests zu validieren:
+
+```text
+1. Artikel bearbeiten wieder möglich?
+2. MHD-Felder aus Artikelanlage komplett weg?
+3. Kategorie wird beim Anlegen gespeichert?
+4. Kategorie wird beim Bearbeiten gespeichert?
+5. Suche zeigt richtiges Kategorie-Emoji?
+6. Easy-Add-Suche zeigt richtiges Kategorie-Emoji?
+7. Löschen nutzt stoqr Modal statt Browser Alert?
+8. Gelöschter Artikel verschwindet aus Suche/Easy-Add/normaler UI?
+9. Kein „Speichern fehlgeschlagen“ bei tatsächlicher Speicherung?
+10. Keine partiellen kaputten Datensätze bei Fehlern?
+```
+
+Erst wenn diese Tests grün sind, lohnt sich tieferes Testen von Märkten, Bezugsquellen, Mobile UI und Komfortfeatures.
+
+---
+
+## 8. GitHub-/Deployment-Ablauf für Christopher
+
+### 8.1 Wann lokaler Repo-Pull nötig ist
+
+Christopher zieht lokal nur dann, wenn er testen/deployen will oder lokale Repo-Dateien braucht.
+
+Nicht jeder Beratungs- oder Logauswertungs-Schritt braucht lokalen Pull.
+
+Wenn getestet/deployed wird:
+
+```cmd
+cd /d H:\DEV\github\stoqr
+git fetch origin
+git pull --ff-only origin main
+git log -1 --oneline
+git status
+```
+
+Erwartung:
+
+```text
+working tree clean
+```
+
+Wenn lokale Änderungen vorhanden sind: nicht deployen, erst klären.
+
+---
+
+### 8.2 Pi: Backup vor Tests/Deployment
+
+```bash
+mkdir -p /srv/hubdata/backups/stoqr
+
+docker exec stoqr-postgres-1 pg_dump -U stoqr -d stoqr \
+  > /srv/hubdata/backups/stoqr/stoqr-before-next-test-$(date +%Y%m%d-%H%M%S).sql
+
+cp /srv/hubdata/state/stoqr/.env \
+  /srv/hubdata/backups/stoqr/env-before-next-test-$(date +%Y%m%d-%H%M%S).backup
+
+ls -lh /srv/hubdata/backups/stoqr | tail
+```
+
+---
+
+### 8.3 Pi: Image ziehen und Stack recreaten
+
+```bash
+cd /srv/hubdata/stacks/stoqr
+docker compose pull stoqr
+docker compose up -d --force-recreate stoqr
+sleep 60
+docker compose ps
+```
+
+Erwartung:
+
+```text
+stoqr-postgres-1   healthy
+stoqr-stoqr-1      healthy
+```
+
+Image-/Containerstand dokumentieren:
+
+```bash
+docker image inspect ghcr.io/labushuya/stoqr:main \
+  --format 'ImageId={{.Id}} Created={{.Created}} RepoDigests={{join .RepoDigests " "}}'
+
+docker inspect stoqr-stoqr-1 \
+  --format 'ContainerImage={{.Image}} Status={{.State.Status}} Health={{if .State.Health}}{{.State.Health.Status}}{{end}}'
+```
+
+---
+
+### 8.4 Pi: Smoke-Test
+
+```bash
+docker exec stoqr-stoqr-1 wget -qO- http://127.0.0.1:3000/api/health
+curl -k -i https://stoqr.fam.ily/login | head -40
+```
+
+Erwartung:
+
+```text
+{"ok":true,...}
+HTTP/2 200
+```
+
+Logs/Migrationen prüfen:
+
+```bash
+docker compose logs stoqr | grep -Ei "migrat|0002|0003|0004|0005|stores|products|inventory|soft|delete|stock|household"
+```
+
+Wenn Fehler/Stacktrace/500 auftauchen: nicht weiter testen, erst Logs analysieren.
+
+---
+
+## 9. P0-Themen
+
+### P0.1 Artikelstamm vs. Bestand strikt trennen
+
+Grundsatz:
+
+```text
+Artikel anlegen = Stammdatenpflege.
+Bestand hinzufügen = Transaktion / Inventarisierung.
+```
+
+Artikelstamm enthält:
+
+```text
+- Name
+- Kategorie
+- Barcode / GTIN
+- Standard-Einheit
+- Nährwerte
+- Bezugsquellen
+- ggf. Beschreibung/Notiz
+```
+
+Artikelstamm enthält nicht:
+
+```text
+- MHD
+- konkrete Menge
+- konkrete Charge
+- konkrete einzelne Lagerposition
+```
+
+Bestand enthält:
+
+```text
+- product_id
+- quantity
+- unit_id
+- expiry_date / MHD
+- location_id optional
+- storage_id optional
+```
+
+Akzeptanz:
+
+```text
+Neuer Artikel kann ohne MHD angelegt werden.
+MHD-Felder sind aus Artikelanlage/Bearbeiten komplett entfernt.
+MHD wird nur beim Bestand erfasst.
+```
+
+---
+
+### P0.2 Artikel bearbeiten muss funktionieren
+
+Vorherige Regression:
+
+```text
+Kein Bearbeiten von Artikeln mehr möglich.
+```
+
+Akzeptanz:
+
+```text
+1. Artikel anlegen.
+2. Artikel bearbeiten öffnen.
+3. Name ändern.
+4. Kategorie ändern.
+5. Einheit ändern.
+6. Speichern.
+7. Reload.
+8. Änderungen bleiben erhalten.
+```
+
+---
+
+### P0.3 Kategorie-/Emoji-/Suchanzeige dauerhaft stabilisieren
+
+Dieser Bug trat mehrfach wieder auf.
+
+Akzeptanz:
+
+```text
+- Kategorie wird beim Create gespeichert.
+- Kategorie wird beim Update gespeichert.
+- Suche zeigt korrektes Kategorie-Icon.
+- Easy-Add-Suche zeigt korrektes Kategorie-Icon.
+- Nicht alles wird pauschal 📦 angezeigt.
+```
+
+Bitte Regressionstest ergänzen.
+
+---
+
+### P0.4 Speichern darf keine Partialdaten erzeugen
+
+Vorherige Beobachtung:
+
+```text
+„Speichern fehlgeschlagen“, aber nach Reload waren partiell/unvollständig Daten vorhanden.
+```
+
+Akzeptanz:
+
+```text
+Erfolg = vollständige Speicherung + keine Fehlermeldung.
+Fehler = keine partiell geschriebenen kaputten Datensätze.
+```
+
+Bitte prüfen:
+
+```text
+- DB transaction
+- API status codes
+- client-side success/error state
+- validation before insert/update
+- rollback bei Folgefehlern
+```
+
+---
+
+### P0.5 Löschen: Archivieren vs. Dauerhaft löschen
+
+Gewünschte finale Semantik:
+
+```text
+Verbraucht = Bestand ausbuchen.
+Archivieren = Artikel aus normalen Listen ausblenden, aber Historie behalten.
+Dauerhaft löschen = Artikel und passende Testdaten wirklich entfernen.
+```
+
+Für Christophers Testphase ist **Dauerhaft löschen** wichtig, damit Testartikel die DB nicht zumüllen.
+
+UI-Erwartung:
+
+```text
+Artikel-Aktion:
+- Archivieren
+- Dauerhaft löschen
+```
+
+Falls ein Artikel noch Bestand oder abhängige Relationen hat:
+
+```text
+- stoqr-konformes Modal anzeigen.
+- Abhängigkeiten verständlich nennen.
+- Option anbieten:
+  - Abbrechen
+  - Erst Bestand entfernen/verbrauchen
+  - Dauerhaft löschen inklusive abhängiger Testdaten, sofern sicher möglich
+```
+
+Soft-deleted/archivierte Artikel dürfen in normalen UIs, Suchen und Easy-Add nicht mehr erscheinen, außer es gibt explizit einen Archiv-/Wiederherstellen-Bereich.
+
+Akzeptanz:
+
+```text
+1. Testartikel STOQR_DELETE_TEST_001 anlegen.
+2. Artikel archivieren.
+3. UI reload.
+4. Artikel nicht in normaler Liste/Suche/Easy-Add.
+5. Optional im Archiv sichtbar.
+
+6. Testartikel STOQR_DELETE_TEST_002 anlegen.
+7. Dauerhaft löschen.
+8. UI reload.
+9. Artikel nicht in Liste.
+10. Artikel nicht in Suche.
+11. Artikel nicht in Easy-Add.
+12. DB enthält ihn nicht mehr oder nur noch notwendige Audit-Spuren ohne normale Sichtbarkeit.
+```
+
+---
+
+### P0.6 Kein natives JS Alert/Confirm
+
+Keine nativen Browser-Alerts für Löschbestätigung.
+
+Erwartung:
+
+```text
+Stoqr-konformes Confirm Modal.
+Light/Dark Mode kompatibel.
+```
+
+Beispiel:
+
+```text
+Artikel dauerhaft löschen?
+
+„Vollmilch Test“ wird dauerhaft gelöscht und erscheint nicht mehr in Suche, Inventar oder Easy-Add.
+
+[Abbrechen] [Dauerhaft löschen]
+```
+
+---
+
+### P0.7 Märkte / Stores und Bezugsquellen
+
+Märkte/Bezugsquellen sind ab jetzt P0, weil sie für den geplanten Einkaufslisten-/Bring-Flow grundlegend sind und zuletzt im Test entweder 500 zeigten oder nicht sichtbar/nutzbar waren.
+
+Letzter bekannter Nutzerstand:
+
+```text
+Einstellungen → Märkte zeigte 500 Internal Error.
+Bezugsquellen waren nicht sichtbar/nutzbar.
+```
+
+Claudes Koordinator-Prompt sagt zwar, Märkte/Einkaufsquellen und Bezugsquellen mit sort_order seien bereits funktionierend. Das ist nicht durch Christophers letzten Test bestätigt.
+
+Audit muss klären:
+
+```text
+- Ist der 500 behoben?
+- Sind Märkte erreichbar?
+- Kann man Märkte anlegen?
+- Erscheinen Märkte ohne Reload?
+- Kann man Adresse/Filiale pflegen?
+- Sind Bezugsquellen am Artikel sichtbar?
+- Kann man pro Artikel mehrere Märkte priorisieren?
+```
+
+Ziel Marktmodell:
+
+```text
+Konkrete Filialen unterscheidbar machen.
+```
+
+Beispiel:
+
+```text
+Penny Max-Planck-Straße 1, Hockenheim
+Penny Ernst-Brauch-Straße 64-66, Hockenheim
+Globus
+```
+
+Bezugsquellen-Ziel:
+
+```text
+Ein Artikel kann mehrere Bezugsquellen/Märkte haben.
+Diese haben Priorität/Reihenfolge.
+```
+
+Beispiel:
+
+```text
+Milch:
+1. Penny Max-Planck-Straße 1
+2. Globus
+```
+
+Akzeptanz:
+
+```text
+- Einstellungen → Märkte öffnet ohne 500.
+- Markt anlegen funktioniert.
+- Markt erscheint ohne Reload.
+- Filiale/Adresse sind unterscheidbar.
+- Bereich „Bezugsquellen“ am Artikel sichtbar.
+- Markt hinzufügen funktioniert.
+- mehrere Märkte möglich.
+- Reihenfolge änderbar.
+- Reload erhält Reihenfolge.
+```
+
+---
+
+## 10. P1-Themen
+
+### P1.1 Buttons klarer und uniform
+
+Problem:
+
+```text
+„+“ und „+ Bestand hinzufügen“ sind nicht eindeutig und nicht uniform.
+```
+
+Erwartung:
+
+```text
+Neuer Artikel
+Bestand hinzufügen
+```
+
+oder:
+
+```text
+Lebensmittel anlegen
+Bestand einlagern
+```
+
+Keine reine Plus-Schaltfläche für Kernaktionen.
+
+---
+
+### P1.2 Bestand hinzufügen direkt auf Artikelkarte
+
+Ziel:
+
+```text
+Artikelkarte → Bestand hinzufügen
+```
+
+Dann ist Kontext klar:
+
+```text
+product_id = aktueller Artikel
+Name/Kategorie/Standardwerte vorausgefüllt
+```
+
+---
+
+### P1.3 3-Dot-Menüs / Overlay-Z-Index
+
+Bekanntes Problem:
+
+```text
+3-Dot-Menüs schieben sich unter/zwischen Artikel-Cards.
+```
+
+Erwartung:
+
+```text
+Top-Layer Overlay, nicht durch Cards/Overflow abgeschnitten.
+```
+
+---
+
+### P1.4 Mobile-first Responsive UI
+
+Nicht final als erledigt markieren.
+
+Bekannte Probleme:
+
+```text
+- horizontales Wischen
+- seltsame Zeilenumbrüche
+- fehlende Inhalte wie Dark Mode Toggle
+- interne Scrollbars in Cards/Tabellen/Sections
+- Zentrierung teilweise falsch
+```
+
+Viewport-Tests:
+
+```text
+320px
+360px
+390px
+430px
+768px
+Desktop
+```
+
+---
+
+## 11. P2-Themen
+
+### P2.1 Nährwerte dynamisch + OCR
+
+Bleibt P2, bis P0/P1 stabil sind.
+
+Ziel:
+
+```text
+Nährwerttypen in Einstellungen.
+Nährwertwerte individuell pro Artikel.
+OCR für Nährwerttabellen mit editierbarer Voransicht.
+```
+
+### P2.2 Emoji-Picker weiter ausbauen
+
+Bleibt P2:
+
+```text
+- viel mehr Emojis
+- Tabs
+- Pagination
+- Suche über Schlagwörter
+- keine Dubletten
+```
+
+### P2.3 Einkaufsliste / Bring!-Integration
+
+Für Christophers Setup gilt: nicht als vollständig erledigt markieren, solange Christopher es nicht konkret getestet hat.
+
+---
+
+## 12. Künftiges Testprotokoll-Format
+
+Christopher-Rückmeldungen sollen künftig in dieses Format überführt werden:
+
+```text
 ## Handover an Claude Code — stoqr [DATUM]
 
 ### Getesteter Stand
-- Image-Tag: [TAG]
-- Getestet auf: [Gerät/Browser]
+- Commit:
+- Image-Tag:
+- Image Digest / Created:
+- Getestet auf:
+- Browser:
+- Viewport:
+- Pi/Containerstatus:
 
 ### Testergebnis-Zusammenfassung
-[2–3 Sätze: Was lief gut, was ist kaputt]
+2–3 Sätze.
 
 ### Bestätigte Bugs / Regressionen
 
-#### [PRIORITÄT] [Kurztitel]
-- **Testschritte:** [Was wurde gemacht]
-- **Erwartet:** [Was sollte passieren]
-- **Tatsächlich:** [Was ist passiert]
-- **Fehlermeldung:** [Exakter Text aus Konsole oder Logs, oder "keine"]
-- **Neu aufgetreten:** Ja / Nein (war vorher: [funktioniert / nicht getestet])
+#### [P0/P1/P2] [Kurztitel]
+- Testschritte:
+- Erwartet:
+- Tatsächlich:
+- Fehlermeldung:
+- Neu aufgetreten:
+- War vorher:
+- Relevante Logs/Screenshots:
 
-[Weitere Bugs im gleichen Format...]
-
-### Was als nächstes zu tun ist (priorisiert)
-1. [P0] [Konkrete Aufgabe]
-2. [P0] [Konkrete Aufgabe]
-3. [P1] [Konkrete Aufgabe]
+### Was als nächstes zu tun ist
+1. [P0] ...
+2. [P0] ...
+3. [P1] ...
 
 ### Anweisungen an Claude Code
-- Mache **eine fokussierte Änderung** pro Commit — keine Sammel-PRs
-- Führe vor jedem Commit aus: `npm run check` (Typecheck) + Lint + Build
-- Brich keine bereits funktionierenden Features — teste Regressionen aktiv
-- **Vor dem nächsten Änderungsblock:** Führe ein kurzes Audit durch: Was wurde versprochen, was wurde geliefert, was ist noch offen?
-- Dokumentiere Breaking Changes und DB-Migrations-Bedarf explizit
-- Bei P0-Bugs: Fix zuerst, keine neuen Features bis P0 gelöst
+- Eine fokussierte Änderung pro Commit.
+- `npm run check`, Lint, Build vor Commit.
+- Regressionen aktiv testen.
+- Audit vor nächstem Änderungsblock.
+- Migrationen/Breaking Changes explizit dokumentieren.
+```
+
+Vor jedem Handover an Claude Code sollen mindestens diese Infos abgefragt werden, wenn sie fehlen:
+
+```text
+1. Welches GHCR-Image bzw. welcher Commit wurde getestet?
+2. Welche exakten Testschritte?
+3. Erwartetes vs. tatsächliches Verhalten?
+4. Gerät/Browser/Viewport?
+5. Browser-Konsole oder docker logs?
+6. Neue Regression?
+```
+
+Bei reinen Pi-/Backend-Tests reichen pragmatisch:
+
+```text
+Commit
+Image Digest / Created
+docker compose ps
+docker logs
 ```
 
 ---
 
-## Wichtige Regeln für dich als Koordinator
+## 13. Erwartete Tests vor GHCR Publish
 
-- Fange **nie** an, Code selbst zu schreiben oder zu raten — du koordinierst nur
-- Wenn eine Fehlerbeschreibung vage ist, frage nach — lieber eine Rückfrage mehr als ein falscher Handover
-- Priorisiere immer P0 vor P1 vor P2 — erinnere Christopher daran, wenn er P2-Wünsche vor P0-Fixes bespricht
-- Weise Claude Code explizit darauf hin, wenn ein Fix eine Migration erfordert (Drizzle ORM, PostgreSQL 16)
-- Halte den Kontext über mehrere Nachrichten aufrecht — du musst nicht bei null anfangen, wenn Christopher neue Tests meldet
+Bitte vor GHCR Publish echte Tests durchführen, nicht nur Build/CI.
+
+Mindesttests:
+
+```text
+1. Neuer Artikel ohne MHD-Felder im Formular.
+2. Artikel bearbeiten funktioniert.
+3. Kategorie speichern funktioniert.
+4. Kategorie ändern funktioniert.
+5. Suche zeigt korrektes Kategorie-Emoji.
+6. Easy-Add-Suche zeigt korrektes Kategorie-Emoji.
+7. Löschen verwendet stoqr Modal, kein JS Alert.
+8. Archivierter Artikel verschwindet aus normalen Suchen.
+9. Dauerhaft gelöschter Artikel verschwindet aus Suche.
+10. Kein „Speichern fehlgeschlagen“, wenn Daten geschrieben werden.
+11. Keine partiellen kaputten Datensätze bei Fehlern.
+12. Einstellungen → Märkte öffnet ohne 500.
+13. Markt anlegen erscheint ohne Reload.
+14. Bezugsquellen pro Artikel sichtbar und priorisierbar.
+15. 3-Dot-Menü liegt korrekt über Cards.
+```
+
+Regressionen:
+
+```text
+- Login Christopher
+- Top Nav ohne Reload
+- Direkt /orte
+- Einstellungen → Mitglieder
+- Einstellungen → Einheiten
+- Dark Mode blau/lila
+- Light Mode okay
+- Unit-Löschschutz
+- /einkaufsliste erreichbar
+- Healthcheck grün
+```
+
+Nach erfolgreicher Umsetzung:
+
+```text
+GHCR ghcr.io/labushuya/stoqr:main neu publishen.
+Falls Migrationen nötig sind, müssen sie automatisch beim Containerstart laufen.
+```
 
 ---
 
-## Start
+## 14. hubctl
 
-Begrüße Christopher kurz und frage ihn, welchen Stand er zuletzt getestet hat und was sein erstes Feedback ist. Starte dann deinen strukturierten Erfassungsprozess.
+hubctl ist wichtig, aber **nicht Teil dieses akuten stoqr-App-Fixblocks**.
+
+Status:
+
+```text
+hubctl wird später separat behandelt.
+Nicht jetzt in denselben Claude-Code-Kontext mischen.
+```
+
+Später relevante hubctl-Themen:
+
+```text
+- stoqr Update-Flow
+- GHCR Pull
+- Compose Template Sync
+- Healthcheck
+- Backup
+- Restore-Hinweis
+- Seed/Onboarding Checks
+- Logs/Smoke-Test
+```
+
+Für jetzt gilt:
+
+```text
+App-P0/P1 zuerst stabilisieren.
+hubctl später als eigener Arbeitsblock.
+```
