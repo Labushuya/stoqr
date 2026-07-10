@@ -20,27 +20,28 @@ export const DELETE: RequestHandler = async ({ locals, params }) => {
   if (!locals.user) {
     return json({ error: 'Unauthorized' }, { status: 401 })
   }
+  try {
+    const householdId = await requireHouseholdId(locals.user.id)
 
-  const householdId = await requireHouseholdId(locals.user.id)
+    const activeItem = await db.query.inventoryItems.findFirst({
+      where: (item, { and, eq }) =>
+        and(eq(item.productId, params.id), eq(item.householdId, householdId)),
+      columns: { id: true },
+    })
 
-  // Guard: refuse if any inventory item for this household still references the product.
-  const activeItem = await db.query.inventoryItems.findFirst({
-    where: (item, { and, eq }) =>
-      and(eq(item.productId, params.id), eq(item.householdId, householdId)),
-    columns: { id: true },
-  })
+    if (activeItem) {
+      return json(
+        { error: 'Produkt hat noch Bestandseinträge. Bitte zuerst alle Einträge entfernen.' },
+        { status: 409 }
+      )
+    }
 
-  if (activeItem) {
-    return json(
-      { error: 'Produkt hat noch Bestandseinträge. Bitte zuerst alle Einträge entfernen.' },
-      { status: 409 }
-    )
+    const deleted = await deleteProduct(params.id)
+    if (!deleted) return json({ error: 'Not found' }, { status: 404 })
+
+    return new Response(null, { status: 204 })
+  } catch (err) {
+    console.error('[DELETE /api/products/[id]]', err)
+    return json({ error: 'Fehler beim Löschen des Produkts' }, { status: 500 })
   }
-
-  const deleted = await deleteProduct(params.id)
-  if (!deleted) {
-    return json({ error: 'Not found' }, { status: 404 })
-  }
-
-  return new Response(null, { status: 204 })
 }
