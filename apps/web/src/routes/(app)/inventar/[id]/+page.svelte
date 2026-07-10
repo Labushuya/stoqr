@@ -1,6 +1,7 @@
 <script lang="ts">
   import { enhance } from '$app/forms'
   import { goto } from '$app/navigation'
+  import ConfirmModal from '$lib/components/ConfirmModal.svelte'
   import type { PageData } from './$types'
   import { formatDate, unitLabel } from '$lib/utils/format'
   import { getExpiryStatus, getDaysRemaining, getExpiryLabel, EXPIRY_CLASS } from '$lib/utils/expiry'
@@ -58,6 +59,15 @@
     const st = expiryStatus()
     return st ? EXPIRY_CLASS[st] : ''
   })
+
+  // ── Confirm Modal ────────────────────────────────────────────────────────────
+  let confirmModal = $state<{ open: boolean; title: string; message: string; onConfirm: () => void } | null>(null)
+
+  function showConfirm(title: string, message: string, onConfirm: () => void) {
+    confirmModal = { open: true, title, message, onConfirm }
+  }
+
+  function closeConfirm() { confirmModal = null }
 
   // ── Edit-in-place state ───────────────────────────────────────────────────
 
@@ -731,54 +741,38 @@
         </button>
       </form>
 
-      <form
-        method="POST"
-        action="?/deleteItem"
-        use:enhance={(e) => {
-          if (!window.confirm('Bestandseintrag aus dem Inventar entfernen?\n\nDieser Bestandseintrag wird aus dem Inventar entfernt. Das Produkt bleibt im Katalog.')) {
-            e.cancel()
-          }
-          return async ({ result, update }) => {
-            if (result.type === 'redirect') {
-              goto(result.location)
-            } else {
-              update()
-            }
-          }
-        }}
+      <button
+        class="btn-delete"
+        type="button"
+        onclick={() => showConfirm(
+          'Bestandseintrag entfernen?',
+          'Dieser Bestandseintrag wird aus dem Inventar entfernt. Das Produkt bleibt im Katalog.',
+          () => { closeConfirm(); (document.getElementById('frm-del-item') as HTMLFormElement)?.submit() }
+        )}
       >
-        <button class="btn-delete" type="submit">
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-            <path d="M2 4h12M6 4V2.5h4V4M5.5 4v8h5V4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-          Aus Inventar entfernen
-        </button>
-      </form>
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+          <path d="M2 4h12M6 4V2.5h4V4M5.5 4v8h5V4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        Aus Inventar entfernen
+      </button>
+      <form id="frm-del-item" method="POST" action="?/deleteItem" style="display:none" use:enhance={() => async ({ result, update }) => { if (result.type === 'redirect') goto(result.location); else await update() }}></form>
 
-      <form
-        method="POST"
-        action="?/deleteProduct"
-        use:enhance={(e) => {
-          if (!window.confirm(`Produkt "${item.product.name}" dauerhaft aus dem Katalog entfernen?\n\nDas Produkt und dieser Bestandseintrag werden vollständig gelöscht und erscheinen nicht mehr in der Suche.`)) {
-            e.cancel()
-          }
-          return async ({ result, update }) => {
-            if (result.type === 'redirect') {
-              goto(result.location)
-            } else {
-              await update()
-            }
-          }
-        }}
+      <button
+        class="btn-delete-product"
+        type="button"
+        onclick={() => showConfirm(
+          'Produkt dauerhaft löschen?',
+          `"${item.product.name}" wird dauerhaft aus dem Katalog entfernt und erscheint nicht mehr in Suche, Inventar oder Easy-Add.`,
+          () => { closeConfirm(); (document.getElementById('frm-del-product') as HTMLFormElement)?.submit() }
+        )}
       >
-        <button class="btn-delete-product" type="submit">
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-            <circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.4"/>
-            <path d="M5 8h6M8 5v6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
-          </svg>
-          Produkt aus Katalog entfernen
-        </button>
-      </form>
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+          <circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.4"/>
+          <path d="M5 8h6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+        </svg>
+        Produkt aus Katalog entfernen
+      </button>
+      <form id="frm-del-product" method="POST" action="?/deleteProduct" style="display:none" use:enhance={() => async ({ result, update }) => { if (result.type === 'redirect') goto(result.location); else await update() }}></form>
     </div>
   {/if}
 </div>
@@ -859,6 +853,18 @@
       </div>
     {/each}
   </div>
+{/if}
+
+{#if confirmModal}
+  <ConfirmModal
+    open={confirmModal.open}
+    title={confirmModal.title}
+    message={confirmModal.message}
+    confirmLabel="Entfernen"
+    destructive={true}
+    onConfirm={confirmModal.onConfirm}
+    onCancel={closeConfirm}
+  />
 {/if}
 
 <style>
