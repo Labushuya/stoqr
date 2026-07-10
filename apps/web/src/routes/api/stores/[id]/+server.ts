@@ -39,11 +39,13 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 
   const householdId = await requireHouseholdId(locals.user.id)
   const body = await request.json()
-  const { name, chain } = body as { name?: string; chain?: string }
+  const { name, chain, address, city } = body as { name?: string; chain?: string; address?: string; city?: string }
 
   const patch: Partial<typeof stores.$inferInsert> = {}
   if (name !== undefined) patch.name = name
   if (chain !== undefined) patch.chain = chain ?? null
+  if (address !== undefined) patch.address = address ?? null
+  if (city !== undefined) patch.city = city ?? null
 
   if (Object.keys(patch).length === 0) {
     return json({ error: 'No fields to update' }, { status: 400 })
