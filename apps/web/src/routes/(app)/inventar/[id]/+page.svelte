@@ -774,6 +774,12 @@
       </button>
       <form id="frm-del-product" method="POST" action="?/deleteProduct" style="display:none" use:enhance={() => async ({ result, update }) => { if (result.type === 'redirect') goto(result.location); else await update() }}></form>
 
+    </div>
+  {/if}
+</div>
+
+  <!-- "Alles löschen" — always visible regardless of item status -->
+  <div class="card actions-card actions-card--danger">
       <button
         class="btn-delete-all"
         type="button"
@@ -791,9 +797,7 @@
         Alles löschen (inkl. Bestand)
       </button>
       <form id="frm-del-all" method="POST" action="?/deleteAll" style="display:none" use:enhance={() => async ({ result, update }) => { if (result.type === 'redirect') goto(result.location); else await update() }}></form>
-    </div>
-  {/if}
-</div>
+  </div>
 
 <!-- ── Location picker dialog ────────────────────────────────────────────── -->
 {#if showLocationPicker}

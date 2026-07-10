@@ -340,6 +340,10 @@ export async function searchProducts(query: string) {
 			imageUrl: true,
 			defaultUnit: true,
 			defaultQuantity: true,
+			categoryId: true,
+		},
+		with: {
+			category: true,
 		},
 	});
 }
