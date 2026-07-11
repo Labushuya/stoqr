@@ -66,6 +66,20 @@
   let formStorageId = $state('')
   let formPlaceId = $state('')
   let formUnit = $state(unitOptions[0]?.symbol ?? 'Stück')
+  let formStoreId = $state('')
+  let formNotes = $state('')
+
+  // svelte-ignore state_referenced_locally
+  let storeOptions = $state(data.stores as { id: string; name: string; chain: string | null }[])
+
+  // EAN / barcode scanner (this stock entry's EAN)
+  let scannedGtin = $state('')
+  let showScanner = $state(false)
+  let scannerLoading = $state(false)
+  let scannerNotFound = $state(false)
+  let scannerVideoEl = $state<HTMLVideoElement | null>(null)
+  let scannerStream = $state<MediaStream | null>(null)
+  let scannerAnimFrame = $state<number | null>(null)
 
   // Step 3 — MHD rows
   let rowCounter = $state(0)
@@ -153,6 +167,110 @@
     selectedProduct = null
     searchQuery = ''
     searchResults = []
+    scannedGtin = ''
+    scannerNotFound = false
+  }
+
+  // ── EAN / barcode scanner (this stock entry's EAN) ─────────────────────────
+
+  async function openScanner() {
+    scannerNotFound = false
+    scannerLoading = false
+    showScanner = true
+    // Give the DOM time to mount the video element
+    await new Promise((r) => setTimeout(r, 80))
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment' },
+      })
+      scannerStream = stream
+      if (scannerVideoEl) {
+        scannerVideoEl.srcObject = stream
+        await scannerVideoEl.play()
+        startBarcodeDetection()
+      }
+    } catch {
+      showToast('Kamerazugriff verweigert', 'error')
+      closeScanner()
+    }
+  }
+
+  function closeScanner() {
+    if (scannerAnimFrame !== null) {
+      cancelAnimationFrame(scannerAnimFrame)
+      scannerAnimFrame = null
+    }
+    if (scannerStream) {
+      scannerStream.getTracks().forEach((t) => t.stop())
+      scannerStream = null
+    }
+    showScanner = false
+  }
+
+  function startBarcodeDetection() {
+    if (!('BarcodeDetector' in window)) {
+      showToast('Barcode-Scanner nicht verfügbar — EAN bitte manuell eingeben', 'error')
+      closeScanner()
+      return
+    }
+    // @ts-expect-error BarcodeDetector is not yet in all TS libs
+    const detector = new BarcodeDetector({ formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128', 'code_39', 'qr_code'] })
+
+    async function detect() {
+      if (!scannerVideoEl || !showScanner) return
+      try {
+        const codes = await detector.detect(scannerVideoEl)
+        if (codes.length > 0) {
+          const rawValue: string = codes[0].rawValue
+          await onBarcodeDetected(rawValue)
+          return
+        }
+      } catch {
+        // detection frame failed, retry
+      }
+      scannerAnimFrame = requestAnimationFrame(detect)
+    }
+
+    scannerAnimFrame = requestAnimationFrame(detect)
+  }
+
+  async function onBarcodeDetected(gtin: string) {
+    closeScanner()
+    scannedGtin = gtin
+    scannerLoading = true
+    scannerNotFound = false
+    try {
+      const res = await fetch(`/api/barcode/${encodeURIComponent(gtin)}`)
+      if (res.ok) {
+        const product = await res.json()
+        if (product && product.found !== false && product.name) {
+          // OFF-Lookup fand/legte einen Artikel an — als Suchtreffer anbieten
+          if (product.id) {
+            selectProduct({
+              id: product.id,
+              name: product.name,
+              brand: product.brand ?? null,
+              imageUrl: product.imageUrl ?? null,
+              categoryId: product.categoryId ?? null,
+              category: null,
+            })
+          } else {
+            searchQuery = product.name
+            onSearchInput()
+          }
+        } else {
+          scannerNotFound = true
+        }
+      } else if (res.status === 404) {
+        scannerNotFound = true
+      } else {
+        showToast('Fehler beim Abrufen des Produkts', 'error')
+      }
+    } catch {
+      showToast('Netzwerkfehler beim Barcode-Lookup', 'error')
+    } finally {
+      scannerLoading = false
+    }
   }
 
   // ── Step 2: Location ───────────────────────────────────────────────────────
@@ -213,6 +331,9 @@
               quantity: parseFloat(row.quantity),
               unit: formUnit,
               bestBeforeDate: row.mhd || undefined,
+              storeId: formStoreId || undefined,
+              gtin: scannedGtin || undefined,
+              notes: formNotes.trim() || undefined,
             }),
           }).then((res) => {
             if (!res.ok) throw new Error(`HTTP ${res.status}`)
@@ -325,6 +446,9 @@
           {#if selectedProduct.brand}
             <span class="selected-brand">{selectedProduct.brand}</span>
           {/if}
+          {#if scannedGtin}
+            <span class="selected-brand">EAN {scannedGtin}</span>
+          {/if}
         </div>
         <button class="selected-clear" type="button" aria-label="Produkt entfernen" onclick={clearProduct}>
           <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
@@ -354,6 +478,27 @@
         {/if}
       </div>
 
+      <!-- Barcode scan -->
+      <button class="btn-scan" type="button" onclick={openScanner} disabled={scannerLoading}>
+        {#if scannerLoading}
+          <span class="search-spinner search-spinner--dark" aria-hidden="true"></span>
+          EAN wird gesucht…
+        {:else}
+          <svg width="16" height="16" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+            <rect x="2" y="4" width="2" height="10" fill="currentColor"/>
+            <rect x="5" y="4" width="1" height="10" fill="currentColor"/>
+            <rect x="7" y="4" width="2" height="10" fill="currentColor"/>
+            <rect x="10.5" y="4" width="1" height="10" fill="currentColor"/>
+            <rect x="12.5" y="4" width="3" height="10" fill="currentColor"/>
+            <path d="M1 2h3M14 2h3M1 16h3M14 16h3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+          </svg>
+          EAN scannen
+        {/if}
+      </button>
+      {#if scannerNotFound}
+        <p class="scan-hint scan-hint--warn">Kein Produkt zur EAN gefunden — bitte Namen suchen oder Artikel anlegen.</p>
+      {/if}
+
       <!-- Results -->
       {#if searchResults.length > 0}
         <ul class="results-list" role="listbox" aria-label="Suchergebnisse">
@@ -377,11 +522,11 @@
       {:else if searchQuery.trim().length >= 2 && !searchLoading}
         <div class="no-results">
           <p class="no-results-text">Kein Treffer für <strong>„{searchQuery}"</strong></p>
-          <a class="link-new-product" href="/inventar?new=1">
+          <a class="link-new-product" href="/inventar">
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
               <path d="M7 2v10M2 7h10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
             </svg>
-            Neues Produkt anlegen
+            Neuen Artikel anlegen
           </a>
         </div>
       {/if}
@@ -467,6 +612,36 @@
           <option value={u.symbol}>{u.name}</option>
         {/each}
       </select>
+    </div>
+
+    <!-- Markt (Bezugsquelle dieses Bestands) -->
+    <div class="field">
+      <label class="label" for="ea-store">Markt <span class="optional">(optional)</span></label>
+      <select
+        id="ea-store"
+        class="input"
+        bind:value={formStoreId}
+        disabled={selectedProduct === null}
+      >
+        <option value="">Kein Markt</option>
+        {#each storeOptions as s (s.id)}
+          <option value={s.id}>{s.name}{s.chain ? ` (${s.chain})` : ''}</option>
+        {/each}
+      </select>
+    </div>
+
+    <!-- Notiz -->
+    <div class="field">
+      <label class="label" for="ea-notes">Notiz <span class="optional">(optional)</span></label>
+      <input
+        id="ea-notes"
+        class="input"
+        type="text"
+        placeholder="z.B. Angebot, für Party"
+        bind:value={formNotes}
+        maxlength="500"
+        disabled={selectedProduct === null}
+      />
     </div>
   </section>
 
@@ -569,6 +744,28 @@
   </div>
 
 </div>
+
+<!-- ── Barcode scanner overlay ────────────────────────────────────────────── -->
+
+{#if showScanner}
+  <div class="scanner-backdrop" role="presentation" onclick={closeScanner}></div>
+  <div class="scanner-panel" role="dialog" aria-modal="true" aria-label="EAN scannen">
+    <div class="scanner-header">
+      <span class="scanner-title">EAN scannen</span>
+      <button class="scanner-close" type="button" aria-label="Scanner schließen" onclick={closeScanner}>
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+          <path d="M4 4l12 12M16 4L4 16" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+        </svg>
+      </button>
+    </div>
+    <div class="scanner-viewport">
+      <!-- svelte-ignore a11y_media_has_caption -->
+      <video class="scanner-video" bind:this={scannerVideoEl} playsinline autoplay muted></video>
+      <div class="scanner-reticle" aria-hidden="true"></div>
+      <p class="scanner-hint">Barcode in den Rahmen halten</p>
+    </div>
+  </div>
+{/if}
 
 <!-- ── Toast container ────────────────────────────────────────────────────── -->
 
@@ -781,6 +978,169 @@
     border-top-color: var(--color-primary);
     border-radius: 50%;
     animation: spin 600ms linear infinite;
+  }
+
+  .search-spinner--dark {
+    position: static;
+    transform: none;
+  }
+
+  .optional {
+    font-weight: 400;
+    color: var(--color-text-muted);
+  }
+
+  /* ── Scan button ──────────────────────────────────────────────────────── */
+
+  .btn-scan {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
+    width: 100%;
+    height: 40px;
+    margin-top: var(--space-3);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--color-border);
+    background-color: var(--color-surface);
+    color: var(--color-primary);
+    font-family: var(--font-body);
+    font-size: var(--text-sm);
+    font-weight: 600;
+    cursor: pointer;
+    transition: border-color var(--transition-fast), background-color var(--transition-fast);
+  }
+
+  .btn-scan:hover:not(:disabled) {
+    border-color: var(--color-primary);
+    background-color: var(--color-primary-subtle);
+  }
+
+  .btn-scan:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  .scan-hint {
+    font-size: var(--text-xs);
+    margin: var(--space-2) 0 0;
+  }
+
+  .scan-hint--warn {
+    color: var(--color-danger, #dc2626);
+  }
+
+  /* ── Scanner overlay ──────────────────────────────────────────────────── */
+
+  .scanner-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 300;
+    background-color: rgba(0, 0, 0, 0.7);
+  }
+
+  .scanner-panel {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 400;
+    background-color: var(--color-surface);
+    border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+    box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.18);
+    display: flex;
+    flex-direction: column;
+    max-height: 80dvh;
+  }
+
+  @media (min-width: 640px) {
+    .scanner-panel {
+      left: 50%;
+      right: auto;
+      transform: translateX(-50%);
+      width: 480px;
+      border-radius: var(--radius-xl);
+      bottom: var(--space-8);
+    }
+  }
+
+  .scanner-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--space-4) var(--space-5);
+    border-bottom: 1px solid var(--color-border-subtle);
+    flex-shrink: 0;
+  }
+
+  .scanner-title {
+    font-family: var(--font-display);
+    font-size: var(--text-lg);
+    font-weight: 700;
+    color: var(--color-text-primary);
+  }
+
+  .scanner-close {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border: none;
+    background: transparent;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    border-radius: var(--radius-md);
+  }
+
+  .scanner-close:hover {
+    background-color: var(--color-surface-sunken);
+    color: var(--color-text-primary);
+  }
+
+  .scanner-viewport {
+    position: relative;
+    flex: 1;
+    overflow: hidden;
+    background-color: #000;
+    min-height: 280px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .scanner-video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  .scanner-reticle {
+    position: absolute;
+    inset: 0;
+    margin: auto;
+    width: 220px;
+    height: 120px;
+    border: 2px solid var(--color-primary);
+    border-radius: var(--radius-md);
+    box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.45);
+    pointer-events: none;
+  }
+
+  .scanner-hint {
+    position: absolute;
+    bottom: var(--space-4);
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: rgba(0, 0, 0, 0.55);
+    color: #fff;
+    font-size: var(--text-xs);
+    font-weight: 500;
+    padding: var(--space-1) var(--space-3);
+    border-radius: var(--radius-full);
+    white-space: nowrap;
+    pointer-events: none;
   }
 
   .search-input {

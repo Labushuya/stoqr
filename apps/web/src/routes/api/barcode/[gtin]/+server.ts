@@ -166,6 +166,7 @@ async function buildResponse(
 ) {
   return {
     found:            true,
+    id:               product.id,
     gtin:             product.gtin ?? '',
     name:             product.name,
     brand:            product.brand ?? null,
@@ -375,6 +376,7 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 
   return json({
     found:           true,
+    id:              productRow.id,
     gtin:            productRow.gtin ?? gtin,
     name:            productRow.name,
     brand:           productRow.brand ?? null,
