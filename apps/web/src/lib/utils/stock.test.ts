@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { buildUnitMetaMap, aggregateStock, compareToTarget, type UnitRow } from './stock'
+import { buildUnitMetaMap, aggregateStock, compareToTarget, planInventoryAdjustment, type UnitRow } from './stock'
 import { formatStockTotal } from './format'
 
 // Repräsentative System-Units (wie in Migration 0007 gebackfillt).
@@ -156,5 +156,45 @@ describe('compareToTarget', () => {
     const totals = aggregateStock([{ quantity: '3', unit: 'Packung', status: 'available' }], meta)
     const r = compareToTarget(totals, { targetQuantity: '2', unit: 'Packung' }, meta)
     expect(r.status).toBe('ok')
+  })
+})
+
+describe('planInventoryAdjustment', () => {
+  const items = [
+    { id: 'a', quantity: '500', unit: 'g', status: 'available', bestBeforeDate: '2026-01-01' },
+    { id: 'b', quantity: '1', unit: 'kg', status: 'available', bestBeforeDate: '2026-06-01' },
+  ]
+
+  it('reduziert FIFO (aelteste MHD zuerst)', () => {
+    // Ist = 1500 g, neuer Ist = 800 g -> 700 g entfernen: zuerst a (500 g) ganz, dann b um 200 g.
+    const plan = planInventoryAdjustment(items, 800, { dimension: 'mass' }, meta)
+    expect(plan.needsIncrease).toBe(false)
+    expect(plan.updates).toContainEqual({ id: 'a', newQuantity: 0 })
+    // b: 1000 g - 200 g = 800 g -> in kg = 0.8
+    const bUpd = plan.updates.find((u) => u.id === 'b')
+    expect(bUpd?.newQuantity).toBeCloseTo(0.8, 5)
+  })
+
+  it('leert alles bei neuem Ist 0', () => {
+    const plan = planInventoryAdjustment(items, 0, { dimension: 'mass' }, meta)
+    expect(plan.updates).toContainEqual({ id: 'a', newQuantity: 0 })
+    expect(plan.updates).toContainEqual({ id: 'b', newQuantity: 0 })
+  })
+
+  it('signalisiert needsIncrease wenn neuer Ist > aktueller Ist', () => {
+    const plan = planInventoryAdjustment(items, 2000, { dimension: 'mass' }, meta)
+    expect(plan.needsIncrease).toBe(true)
+    expect(plan.updates).toHaveLength(0)
+    expect(plan.shortfallInBase).toBeCloseTo(500, 5)
+  })
+
+  it('count symbolgenau: reduziert nur passende Einheit', () => {
+    const countItems = [
+      { id: 'p1', quantity: '3', unit: 'Packung', status: 'available', bestBeforeDate: null },
+      { id: 's1', quantity: '5', unit: 'piece', status: 'available', bestBeforeDate: null },
+    ]
+    const plan = planInventoryAdjustment(countItems, 1, { dimension: 'count', symbol: 'Packung' }, meta)
+    // nur Packung betroffen: 3 -> 1
+    expect(plan.updates).toEqual([{ id: 'p1', newQuantity: 1 }])
   })
 })

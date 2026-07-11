@@ -224,3 +224,97 @@ export function compareToTarget(
 
   return { status, targetInBase, currentInBase, minInBase, unit: meta.symbol, dimension: meta.dimension }
 }
+
+// ---------------------------------------------------------------------------
+// Inventur / Bestandskorrektur (Inkrement 2c)
+// ---------------------------------------------------------------------------
+
+export type AdjustItem = {
+  id: string
+  quantity: string | number
+  unit: string
+  status: string
+  bestBeforeDate?: string | null
+}
+
+export type AdjustmentPlan = {
+  // Zeilen, deren quantity neu gesetzt werden soll (absolute Werte in der jeweiligen Zeilen-Einheit).
+  updates: Array<{ id: string; newQuantity: number }>
+  // Rest, der nicht durch Reduktion abgebildet werden konnte (newTotal > Ist): > 0 = Aufstockung nötig.
+  shortfallInBase: number
+  // true, wenn newTotal den Ist übersteigt (Aufstocken erfordert manuelles Anlegen eines Bestands).
+  needsIncrease: boolean
+}
+
+/**
+ * Plant die Anpassung der Bestände einer Dimension/Einheit-Gruppe auf einen neuen
+ * Gesamt-Ist (in Basiseinheit). FIFO: älteste MHD (bzw. ohne MHD zuletzt) zuerst reduzieren.
+ *
+ * - Reduktion wird auf die passenden available-Zeilen verteilt (älteste zuerst).
+ * - Ist der neue Wert größer als der aktuelle Ist, wird needsIncrease=true gesetzt
+ *   (Aufstocken erfolgt bewusst NICHT automatisch — dafür einen Bestand anlegen).
+ *
+ * `groupKey`: bei count das Symbol, bei mass/volume die Dimension.
+ */
+export function planInventoryAdjustment(
+  items: AdjustItem[],
+  newTotalInBase: number,
+  match: { dimension: Dimension; symbol?: string },
+  metaMap: Map<string, UnitMeta>
+): AdjustmentPlan {
+  // Passende available-Zeilen dieser Gruppe.
+  const relevant = items.filter((i) => {
+    if (i.status !== 'available') return false
+    const meta =
+      metaMap.get(i.unit) ??
+      ({ symbol: i.unit, name: i.unit, dimension: 'count', toBaseFactor: 1 } as UnitMeta)
+    if (match.dimension === 'count') return meta.dimension === 'count' && meta.symbol === match.symbol
+    return meta.dimension === match.dimension
+  })
+
+  // FIFO-Sortierung: älteste MHD zuerst; ohne MHD ans Ende.
+  const sorted = [...relevant].sort((a, b) => {
+    const da = a.bestBeforeDate ?? '9999-12-31'
+    const db = b.bestBeforeDate ?? '9999-12-31'
+    return da < db ? -1 : da > db ? 1 : 0
+  })
+
+  const currentInBase = sorted.reduce((sum, i) => {
+    const meta = metaMap.get(i.unit)
+    const f = meta ? meta.toBaseFactor : 1
+    return sum + (parseFloat(String(i.quantity)) || 0) * f
+  }, 0)
+
+  const updates: Array<{ id: string; newQuantity: number }> = []
+
+  if (newTotalInBase >= currentInBase) {
+    // Aufstocken: nicht automatisch (konservativ). Keine Reduktion.
+    return {
+      updates: [],
+      shortfallInBase: newTotalInBase - currentInBase,
+      needsIncrease: newTotalInBase > currentInBase,
+    }
+  }
+
+  // Reduzieren: von den ältesten Zeilen abziehen, bis newTotalInBase erreicht ist.
+  let toRemoveInBase = currentInBase - newTotalInBase
+  for (const item of sorted) {
+    if (toRemoveInBase <= 0) break
+    const meta = metaMap.get(item.unit)
+    const f = meta ? meta.toBaseFactor : 1
+    const qty = parseFloat(String(item.quantity)) || 0
+    const itemInBase = qty * f
+    if (itemInBase <= toRemoveInBase) {
+      // Zeile komplett leeren.
+      updates.push({ id: item.id, newQuantity: 0 })
+      toRemoveInBase -= itemInBase
+    } else {
+      // Zeile teilweise reduzieren.
+      const remainingInBase = itemInBase - toRemoveInBase
+      updates.push({ id: item.id, newQuantity: remainingInBase / f })
+      toRemoveInBase = 0
+    }
+  }
+
+  return { updates, shortfallInBase: 0, needsIncrease: false }
+}
