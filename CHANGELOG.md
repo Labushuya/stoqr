@@ -5,6 +5,33 @@ Neueste Einträge oben. Jeder Eintrag nennt den Commit-Kontext, damit andere LLM
 
 ---
 
+## [Unreleased] — Inkrement 2a + FAB-Angleich (implementiert, Test auf Pi ausstehend)
+
+### FAB-Buttons angeglichen
+- „Neuer Artikel" + „Bestand hinzufügen" jetzt gleiche Größe (48px, gleiches Padding/Icon);
+  Farb-Hierarchie bleibt (primär gefüllt vs. hell/outline). Mobile: beide gleich große Icon-Buttons.
+
+### Gesamtbestand pro Artikel (2a) + Einheiten-Umrechnungsschicht
+- **units** um `dimension` (mass|volume|count) + `to_base_factor` erweitert (Migration 0007;
+  System-Units gebackfillt: g/kg → mass, ml/l → volume, Rest count).
+- **lib/utils/stock.ts** (neu, reine Funktionen + 10 vitest-Tests): normalisiert mass/volume auf
+  Basiseinheit und summiert, count-Einheiten (Stück/Packung/…) bleiben getrennt. Symbol-Kollision:
+  Custom-Units vor System.
+- `formatStockTotal` → „2 Packung + 1,5 kg". `getProductStockTotals` im Query-Layer.
+- Artikel-Detailseite zeigt den **Gesamtbestand** über alle Bestände (mit „aus N Beständen").
+- Erste vitest-Tests im Projekt.
+
+### Commits
+0efec01 (FAB-Angleich) · de024bf (units-Schema + Migration 0007) · 3594c0f (stock.ts + format) ·
+72669a9 (vitest-Tests) · 849b013 (getProductStockTotals + Detailseiten-Header)
+
+### Test-Steps (Pi)
+Migration 0007 läuft automatisch beim Container-Start. Artikel mit gemischten Einheiten anlegen
+(500 g + 1 kg + 2 Packung) → Detailseite zeigt „1,5 kg + 2 Packung"; consumed-Bestände zählen nicht mit.
+FAB-Buttons gleich groß prüfen.
+
+---
+
 ## [Unreleased] — Feedback-Runde 2: UI-Konsolidierung (implementiert, Test auf Pi ausstehend)
 
 Reaktion auf UI-Kohärenz-Findings nach Feedback-Runde 1.

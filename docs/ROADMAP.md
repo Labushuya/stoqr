@@ -3,7 +3,7 @@
 > Kanonisches Datenmodell und Entwicklungsplan. Diese Datei ist führend für Absicht,
 > Logik und Ziel von stoqr. Bei Widersprüchen zwischen Code und dieser Datei gilt diese Datei.
 
-Letzte Aktualisierung: 2026-07-11 (Feedback-Runde 2)
+Letzte Aktualisierung: 2026-07-12 (Inkrement 2a + FAB-Angleich)
 
 ---
 
@@ -82,11 +82,12 @@ Raum (location) > Lagerort (storage) > Fach (place)
 
 ---
 
-## Bring!-Export
+## Bring!-Integration (Inkrement 2d)
 
-Format: `Artikel: [Name]`, Beschreibung: `[Gesamtanzahl][Einheit] | [Notiz] | [Markt]`
-- Gesamtanzahl = Summe aller Bestände des Artikels
-- Markt = Primär-/häufigster Markt aus den Beständen
+Echte Bring!-API-Anbindung (User-Entscheidung): Login mit Bring-Zugangsdaten (verschlüsselt in DB,
+ENCRYPTION_KEY), Einkaufsliste per API synchronisieren. Schema ist vorbereitet
+(products.bringItemId, stores.bringListUuid, shoppingListItems.bringItemUuid, bring_sync_log).
+Kein Text-/Pipe-Export (existiert so in Bring! nicht).
 
 ---
 
@@ -105,10 +106,14 @@ Format: `Artikel: [Name]`, Beschreibung: `[Gesamtanzahl][Einheit] | [Notiz] | [M
 > Alle Inkrement-1-Punkte sind implementiert & gepusht, aber **noch nicht von Christopher
 > auf dem Pi getestet** — siehe „Offene Punkte / noch zu testen".
 
-### Inkrement 2 — Auswertung & Bring!
-- [ ] Gesamtbestand pro Artikel (Aggregation über alle Bestände)
-- [ ] Bring!-Export mit Pipe-Format
-- [ ] Bedarf/Soll-Erkennung → Einkaufsliste
+### Inkrement 2 — Auswertung & Bring! (aufgeteilt in 2a–2d)
+- **2a — Gesamtbestand pro Artikel** (abgeschlossen, Test ausstehend):
+  - [x] Einheiten-Umrechnungsschicht: units um dimension + to_base_factor (Migration 0007)
+  - [x] Aggregationslogik lib/utils/stock.ts (mass/volume normalisiert, count je Einheit getrennt) + Tests
+  - [x] Gesamtbestand-Anzeige auf der Artikel-Detailseite (z.B. „2 Packung + 1,5 kg")
+- **2b — Soll/Bedarf**: stock_targets-CRUD (Soll/Min je Artikel) + Soll-Ist-Vergleich
+- **2c — Einkaufsliste-UI**: auto (aus Bedarf) + manuell, abhaken
+- **2d — echte Bring!-API**: Login (verschlüsselte Credentials), Liste synchronisieren
 
 ### Inkrement 3 — Komfort
 - [ ] Dubletten-Vermeidung (Konzept offen — siehe Changelog)
@@ -119,6 +124,11 @@ Format: `Artikel: [Name]`, Beschreibung: `[Gesamtanzahl][Einheit] | [Notiz] | [M
 ---
 
 ## Offene Punkte / noch zu testen (nicht bestätigt)
+
+**Inkrement 2a + FAB-Angleich (Commits 0efec01, de024bf, 3594c0f, 72669a9, 849b013) — Test auf Pi ausstehend:**
+- Migration 0007 läuft sauber (units.dimension + to_base_factor gebackfillt)
+- FAB „Neuer Artikel" + „Bestand hinzufügen" gleich groß
+- Artikel-Detailseite zeigt Gesamtbestand (gemischte Einheiten z.B. „2 Packung + 1,5 kg"); consumed zählt nicht mit
 
 **Feedback-Runde 2 (Commits 7c81cf7, 6effef4, edccb4f, b62b64d, ec8acc7, f0e3a58) — Test auf Pi ausstehend:**
 - Einstellungen → Artikel: nur Name + Kategorie (add + edit + Anzeige)
