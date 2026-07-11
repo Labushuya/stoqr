@@ -15,7 +15,8 @@ import type { PageServerLoad, Actions } from './$types'
 import { requireHouseholdId, getUnits } from '$lib/server/queries/households'
 import { deleteProduct, listInventoryForProduct } from '$lib/server/queries/products'
 import { getNutrientTypes } from '$lib/server/queries/nutrients'
-import { buildUnitMetaMap, aggregateStock } from '$lib/utils/stock'
+import { getStockTargetForProduct } from '$lib/server/queries/stock-targets'
+import { buildUnitMetaMap, aggregateStock, compareToTarget } from '$lib/utils/stock'
 
 // ---------------------------------------------------------------------------
 // Location-Breadcrumb aus einem (geladenen) place-Objekt bauen
@@ -115,7 +116,22 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 
   // Gesamtbestand über alle Bestände dieses Artikels (Umrechnungsschicht).
   // In-Memory aus bereits geladenen siblings + units — kein Extra-DB-Roundtrip.
-  const stockTotals = aggregateStock(siblings, buildUnitMetaMap(units));
+  const unitMetaMap = buildUnitMetaMap(units);
+  const stockTotals = aggregateStock(siblings, unitMetaMap);
+
+  // Soll-/Mindestbestand + Soll-Ist-Vergleich (Inkrement 2b).
+  const stockTarget = await getStockTargetForProduct(item.productId, householdId);
+  const targetStatus = stockTarget
+    ? compareToTarget(
+        stockTotals,
+        {
+          targetQuantity: stockTarget.targetQuantity,
+          unit: stockTarget.unit,
+          minQuantity: stockTarget.minQuantity,
+        },
+        unitMetaMap
+      )
+    : null;
 
   return {
     item,
@@ -127,6 +143,8 @@ export const load: PageServerLoad = async ({ params, locals }) => {
     allLocations,
     expirySettings,
     stockTotals,
+    stockTarget,
+    targetStatus,
   };
 };
 

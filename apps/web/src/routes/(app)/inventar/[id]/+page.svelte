@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { goto } from '$app/navigation'
+  import { goto, invalidateAll } from '$app/navigation'
   import ConfirmModal from '$lib/components/ConfirmModal.svelte'
   import Modal from '$lib/components/Modal.svelte'
   import type { PageData } from './$types'
@@ -69,6 +69,93 @@
     confirmModal = { open: true, title, message, confirmLabel, onConfirm }
   }
   function closeConfirm() { confirmModal = null }
+
+  // ── Soll-/Mindestbestand (Inkrement 2b) ─────────────────────────────────────
+
+  type TargetRow = { targetQuantity: string; unit: string; minQuantity: string | null } | null
+  type TargetStatusData = {
+    status: 'ok' | 'below_target' | 'below_min' | 'not_comparable'
+    targetInBase: number
+    currentInBase: number
+    minInBase: number | null
+    unit: string
+    dimension: 'mass' | 'volume' | 'count'
+  } | null
+
+  // svelte-ignore state_referenced_locally
+  let stockTarget = $state<TargetRow>(data.stockTarget as TargetRow)
+  // svelte-ignore state_referenced_locally
+  let targetStatus = $state<TargetStatusData>(data.targetStatus as TargetStatusData)
+
+  let showTargetModal = $state(false)
+  let targetQtyInput = $state('')
+  let targetUnitInput = $state('piece')
+  let targetMinInput = $state('')
+  let targetSaving = $state(false)
+  let targetError = $state<string | null>(null)
+
+  const TARGET_LABEL: Record<string, string> = {
+    ok: 'Bestand ausreichend',
+    below_target: 'Unter Soll — nachkaufen',
+    below_min: 'Unter Mindestbestand!',
+    not_comparable: 'Nicht vergleichbar (andere Einheit)',
+  }
+
+  function openTargetModal() {
+    if (stockTarget) {
+      targetQtyInput = stockTarget.targetQuantity
+      targetUnitInput = stockTarget.unit
+      targetMinInput = stockTarget.minQuantity ?? ''
+    } else {
+      targetQtyInput = ''
+      targetUnitInput = product.defaultUnit ?? 'piece'
+      targetMinInput = ''
+    }
+    targetError = null
+    showTargetModal = true
+  }
+
+  async function saveTarget() {
+    const qty = Number(targetQtyInput)
+    if (!Number.isFinite(qty) || qty <= 0) { targetError = 'Soll-Menge muss > 0 sein.'; return }
+    targetSaving = true
+    targetError = null
+    try {
+      const res = await fetch(`/api/products/${product.id}/target`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          targetQuantity: qty,
+          unit: targetUnitInput,
+          minQuantity: targetMinInput.trim() || undefined,
+        }),
+      })
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        targetError = String(body?.error ?? `Fehler ${res.status}`)
+        return
+      }
+      // Reload für frischen Soll-Ist-Vergleich (serverseitig berechnet)
+      showTargetModal = false
+      await invalidateAll()
+      stockTarget = data.stockTarget as TargetRow
+      targetStatus = data.targetStatus as TargetStatusData
+      showToast('Soll-Bestand gespeichert')
+    } catch {
+      targetError = 'Netzwerkfehler.'
+    } finally {
+      targetSaving = false
+    }
+  }
+
+  async function deleteTarget() {
+    const res = await fetch(`/api/products/${product.id}/target`, { method: 'DELETE' })
+    if (!res.ok && res.status !== 204) { showToast('Fehler beim Entfernen', 'error'); return }
+    showTargetModal = false
+    stockTarget = null
+    targetStatus = null
+    showToast('Soll-Bestand entfernt')
+  }
 
   // ── Expiry helpers (per sibling) ────────────────────────────────────────────
 
@@ -353,6 +440,17 @@
         <span class="stock-total-count">aus {data.stockTotals.itemCount} {data.stockTotals.itemCount === 1 ? 'Bestand' : 'Beständen'}</span>
       {/if}
     </div>
+
+    <!-- Soll-/Bedarf-Indikator (2b) -->
+    <div class="target-row">
+      {#if stockTarget && targetStatus}
+        <span class="target-badge target-badge--{targetStatus.status}">{TARGET_LABEL[targetStatus.status]}</span>
+        <span class="target-info">Soll: {Number(stockTarget.targetQuantity).toLocaleString('de-DE', { maximumFractionDigits: 3 })} {unitLabel(stockTarget.unit)}{#if stockTarget.minQuantity} · Min: {Number(stockTarget.minQuantity).toLocaleString('de-DE', { maximumFractionDigits: 3 })}{/if}</span>
+        <button class="target-edit-btn" type="button" onclick={openTargetModal}>Bearbeiten</button>
+      {:else}
+        <button class="target-edit-btn" type="button" onclick={openTargetModal}>+ Soll-Bestand festlegen</button>
+      {/if}
+    </div>
   </div>
 
   <!-- ── Nutrients editor (product-wide) ────────────────────────────────── -->
@@ -556,6 +654,34 @@
   </div>
 {/if}
 
+<!-- ── Soll-Bestand (Modal) ───────────────────────────────────────────────── -->
+<Modal open={showTargetModal} title="Soll-Bestand festlegen" size="sm" onClose={() => (showTargetModal = false)}>
+  <p class="scope-hint">Definiert den gewünschten Bestand dieses Artikels. Bei Unterschreitung entsteht Bedarf (später auf der Einkaufsliste).</p>
+  {#if targetError}<p class="field-error">{targetError}</p>{/if}
+  <div class="target-form">
+    <label class="tf-field">
+      <span class="tf-label">Soll-Menge</span>
+      <input class="input" type="number" min="0" step="0.001" bind:value={targetQtyInput} />
+    </label>
+    <label class="tf-field">
+      <span class="tf-label">Einheit</span>
+      <select class="input" bind:value={targetUnitInput}>
+        {#each units as u (u.id)}<option value={u.symbol}>{u.name}</option>{/each}
+      </select>
+    </label>
+    <label class="tf-field">
+      <span class="tf-label">Mindestbestand (optional)</span>
+      <input class="input" type="number" min="0" step="0.001" bind:value={targetMinInput} placeholder="z.B. 1" />
+    </label>
+  </div>
+  {#snippet footer()}
+    {#if stockTarget}
+      <button class="btn-link btn-link--danger" type="button" onclick={deleteTarget}>Entfernen</button>
+    {/if}
+    <button class="btn-secondary" type="button" disabled={targetSaving} onclick={saveTarget}>Speichern</button>
+  {/snippet}
+</Modal>
+
 {#if confirmModal}
   <ConfirmModal
     open={confirmModal.open}
@@ -673,6 +799,43 @@
     font-size: var(--text-xs);
     color: var(--color-text-muted);
   }
+
+  /* ── Soll/Bedarf ─────────────────────────────────────────────────────── */
+  .target-row {
+    margin-top: var(--space-3);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2);
+  }
+  .target-badge {
+    display: inline-flex;
+    align-items: center;
+    height: 22px;
+    padding: 0 var(--space-2);
+    border-radius: var(--radius-full);
+    font-size: 11px;
+    font-weight: 700;
+  }
+  .target-badge--ok { background: var(--color-success-subtle, #dcfce7); color: var(--color-success, #16a34a); }
+  .target-badge--below_target { background: #fef9c3; color: #ca8a04; }
+  .target-badge--below_min { background: var(--color-danger-subtle, #fee2e2); color: var(--color-danger, #dc2626); }
+  .target-badge--not_comparable { background: var(--color-surface-sunken); color: var(--color-text-muted); }
+  .target-info { font-size: var(--text-xs); color: var(--color-text-muted); }
+  .target-edit-btn {
+    background: none;
+    border: none;
+    padding: 0;
+    color: var(--color-primary);
+    font-size: var(--text-xs);
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .target-edit-btn:hover { text-decoration: underline; }
+
+  .target-form { display: flex; flex-direction: column; gap: var(--space-3); }
+  .tf-field { display: flex; flex-direction: column; gap: var(--space-1); }
+  .tf-label { font-size: var(--text-xs); color: var(--color-text-muted); }
 
   /* ── Inputs / buttons ───────────────────────────────────────────────── */
   .input {
