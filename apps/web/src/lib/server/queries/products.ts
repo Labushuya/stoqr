@@ -76,6 +76,34 @@ export async function getInventoryItems(
 }
 
 // ---------------------------------------------------------------------------
+// Inventory — all stock entries for one product (aggregated article view)
+// ---------------------------------------------------------------------------
+
+export async function listInventoryForProduct(productId: string, householdId: string) {
+	return db.query.inventoryItems.findMany({
+		where: (item, { and, eq }) =>
+			and(eq(item.productId, productId), eq(item.householdId, householdId)),
+		orderBy: [asc(inventoryItems.bestBeforeDate), desc(inventoryItems.createdAt)],
+		with: {
+			place: {
+				columns: { id: true, name: true, icon: true },
+				with: {
+					storage: {
+						columns: { id: true, name: true, icon: true },
+						with: {
+							location: { columns: { id: true, name: true, icon: true } },
+						},
+					},
+				},
+			},
+			store: {
+				columns: { id: true, name: true, chain: true },
+			},
+		},
+	});
+}
+
+// ---------------------------------------------------------------------------
 // Inventory — single item
 // ---------------------------------------------------------------------------
 
