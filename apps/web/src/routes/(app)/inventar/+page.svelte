@@ -1,5 +1,6 @@
 <script lang="ts">
   import ConfirmModal from '$lib/components/ConfirmModal.svelte'
+  import Modal from '$lib/components/Modal.svelte'
   import type { PageData } from './$types'
   import {
     getExpiryStatus,
@@ -75,8 +76,6 @@
   let filterAvailableOnly = $state(true)
 
   let showSheet = $state(false)
-  let sheetMode = $state<'add' | 'edit'>('add')
-  let editingItem = $state<InventoryItem | null>(null)
 
   // Confirm modal state
   let confirmModal = $state<{ open: boolean; title: string; message: string; onConfirm: () => void } | null>(null)
@@ -104,25 +103,15 @@
   let categories = $state<Category[]>(data.categories as Category[])
   let categoriesLoaded = $state(true)
 
-  // Add/edit form fields
+  // Add form fields (article master data only: name + category)
   let formProductName = $state('')
   let formCategoryId = $state('')
-  let formLocationId = $state('')
-  let formStorageId = $state('')
-  let formPlaceId = $state('')
-  let formMhd = $state('')
-  let formQuantity = $state('1')
-  let formUnit = $state('piece')
-  let formNotes = $state('')
   let formSaving = $state(false)
 
   // Expiry config defaults (fallback values — ideally server-loaded)
   const YELLOW_DAYS = 7
   const RED_DAYS = 2
   const TOLERANCE_DAYS = 0
-
-  // svelte-ignore state_referenced_locally
-  let unitOptions = $state(data.units as { id: string; name: string; symbol: string }[])
 
   // ── Derived ────────────────────────────────────────────────────────────────
 
@@ -160,20 +149,6 @@
       }
     }
     return list
-  })
-
-  // Storages for selected locationId in form
-  const formStorages = $derived(() => {
-    if (!formLocationId) return []
-    const loc = locationTree.find((l) => l.id === formLocationId)
-    return loc?.storages ?? []
-  })
-
-  // Places for selected storageId in form
-  const formPlaces = $derived(() => {
-    if (!formStorageId) return []
-    const st = formStorages().find((s) => s.id === formStorageId)
-    return st?.places ?? []
   })
 
   // ── Toast helpers ──────────────────────────────────────────────────────────
@@ -267,45 +242,11 @@
     categoriesLoaded = true
   }
 
-  // ── Open sheet ─────────────────────────────────────────────────────────────
+  // ── Add sheet (Neuer Artikel — nur Stammdaten) ──────────────────────────────
 
   async function openAddSheet() {
-    sheetMode = 'add'
-    editingItem = null
     formProductName = ''
     formCategoryId = ''
-    formLocationId = ''
-    formStorageId = ''
-    formPlaceId = ''
-    formMhd = ''
-    formQuantity = '1'
-    formUnit = 'piece'
-    formNotes = ''
-    showSheet = true
-    await loadCategories()
-  }
-
-  async function openEditSheet(item: InventoryItem) {
-    sheetMode = 'edit'
-    editingItem = item
-    formProductName = item.product.name
-    formCategoryId = item.product.category?.id ?? ''
-    formMhd = item.bestBeforeDate ?? ''
-    formQuantity = item.quantity
-    formUnit = item.unit
-    formNotes = item.notes ?? ''
-
-    // Set cascading place selectors
-    if (item.place) {
-      formLocationId = item.place.storage.location.id
-      formStorageId = item.place.storage.id
-      formPlaceId = item.placeId ?? ''
-    } else {
-      formLocationId = ''
-      formStorageId = ''
-      formPlaceId = ''
-    }
-
     showSheet = true
     await loadCategories()
   }
@@ -314,105 +255,23 @@
     showSheet = false
   }
 
-  // Reset child selectors when parent changes
-  function onLocationChange() {
-    formStorageId = ''
-    formPlaceId = ''
-  }
-
-  function onStorageChange() {
-    formPlaceId = ''
-  }
-
-  // ── Save item ──────────────────────────────────────────────────────────────
+  // ── Save (Artikel anlegen = nur Stammdaten, kein Bestand) ────────────────────
 
   async function saveItem() {
     if (!formProductName.trim()) return
     formSaving = true
-
-    // Use symbol directly — unitOptions already stores the canonical symbol
-    const unitValue = formUnit
-
     try {
-      if (sheetMode === 'add') {
-        // Artikel anlegen = nur Stammdaten, KEIN Bestand (kanonisches Modell).
-        // Bestände werden separat über "Bestand hinzufügen" (easy-add) erfasst.
-        const res = await fetch('/api/products', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            name: formProductName.trim(),
-            categoryId: formCategoryId || undefined,
-            defaultUnit: unitValue || undefined,
-            notes: formNotes.trim() || undefined,
-          }),
-        })
-        if (!res.ok) throw new Error(await res.text())
-        showToast('Artikel angelegt — Bestand über „Bestand hinzufügen"')
-      } else if (sheetMode === 'edit' && editingItem) {
-        const res = await fetch(`/api/inventory/${editingItem.id}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            productName: formProductName.trim() || undefined,
-            placeId: formPlaceId || null,
-            bestBeforeDate: formMhd || null,
-            quantity: formQuantity,
-            unit: unitValue,
-            notes: formNotes.trim() || null,
-            categoryId: formCategoryId || null,
-          }),
-        })
-        if (!res.ok) throw new Error(await res.text())
-        const updated = await res.json()
-        // Patch local state (product stays same, only item fields change)
-        const selectedCat = categories.find((c) => c.id === formCategoryId) || null
-        items = items.map((i) =>
-          i.id === editingItem!.id
-            ? {
-                ...i,
-                quantity: updated.quantity,
-                unit: updated.unit,
-                bestBeforeDate: updated.bestBeforeDate,
-                placeId: updated.placeId,
-                notes: updated.notes,
-                product: { ...i.product, name: formProductName.trim() || i.product.name, categoryId: formCategoryId || null, category: selectedCat },
-              }
-            : i
-        )
-        // Update place breadcrumb from locationTree
-        if (updated.placeId) {
-          for (const loc of locationTree) {
-            for (const st of loc.storages) {
-              for (const pl of st.places) {
-                if (pl.id === updated.placeId) {
-                  items = items.map((i) =>
-                    i.id === editingItem!.id
-                      ? {
-                          ...i,
-                          place: {
-                            id: pl.id,
-                            name: pl.name,
-                            storage: {
-                              id: st.id,
-                              name: st.name,
-                              location: { id: loc.id, name: loc.name },
-                            },
-                          },
-                        }
-                      : i
-                  )
-                }
-              }
-            }
-          }
-        } else {
-          items = items.map((i) =>
-            i.id === editingItem!.id ? { ...i, place: null } : i
-          )
-        }
-        showToast('Gespeichert')
-      }
+      // Bestände werden separat über "Bestand hinzufügen" (easy-add) erfasst.
+      const res = await fetch('/api/products', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: formProductName.trim(),
+          categoryId: formCategoryId || undefined,
+        }),
+      })
+      if (!res.ok) throw new Error(await res.text())
+      showToast('Artikel angelegt — Bestand über „Bestand hinzufügen"')
       closeSheet()
     } catch {
       showToast('Fehler beim Speichern', 'error')
@@ -474,12 +333,6 @@ Das Produkt bleibt im Katalog.`,
   function closeMenu() {
     openMenuId = null
     menuPosition = null
-  }
-
-  // ── Sheet keyboard ─────────────────────────────────────────────────────────
-
-  function onSheetKeydown(e: KeyboardEvent) {
-    if (e.key === 'Escape') closeSheet()
   }
 </script>
 
@@ -660,16 +513,16 @@ Das Produkt bleibt im Katalog.`,
       <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
       <ul role="menu" style="list-style:none;margin:0;padding:var(--space-1)">
         <li role="menuitem">
-          <button
+          <a
             class="dropdown-item"
-            type="button"
-            onclick={() => { const itemToEdit = portalItem; closeMenu(); if (itemToEdit) openEditSheet(itemToEdit) }}
+            href="/inventar/{portalItem.id}"
+            onclick={() => closeMenu()}
           >
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
               <path d="M9.5 2.5L11.5 4.5L5 11H3V9L9.5 2.5Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>
             </svg>
             Bearbeiten
-          </button>
+          </a>
         </li>
         <li role="menuitem">
           <a
@@ -682,18 +535,6 @@ Das Produkt bleibt im Katalog.`,
               <path d="M7 4v6M4 7h6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
             </svg>
             Bestand hinzufügen
-          </a>
-        </li>
-        <li role="menuitem">
-          <a
-            class="dropdown-item"
-            href="/inventar/{portalItem.id}#bezugsquellen"
-            onclick={() => closeMenu()}
-          >
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-              <path d="M2 7.5L7 3l5 4.5V12H9V9H5v3H2V7.5Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" fill="none"/>
-            </svg>
-            Bezugsquellen bearbeiten
           </a>
         </li>
         {#if portalItem.status === 'available'}
@@ -812,194 +653,56 @@ Das Produkt bleibt im Katalog.`,
   </button>
 </div>
 
-<!-- ── AddItemSheet ───────────────────────────────────────────────────────── -->
+<!-- ── Neuer Artikel (Modal) ──────────────────────────────────────────────── -->
 
-{#if showSheet}
-  <!-- Backdrop -->
-  <div
-    class="sheet-backdrop"
-    role="presentation"
-    onclick={closeSheet}
-    onkeydown={onSheetKeydown}
-  ></div>
-
-  <!-- Sheet panel -->
-  <div
-    class="sheet"
-    role="dialog"
-    aria-modal="true"
-    aria-label={sheetMode === 'add' ? 'Produkt hinzufügen' : 'Produkt bearbeiten'}
-  >
-    <div class="sheet-handle" aria-hidden="true"></div>
-
-    <div class="sheet-header">
-      <h2 class="sheet-title">
-        {sheetMode === 'add' ? 'Neuer Artikel' : 'Bearbeiten'}
-      </h2>
-      <button class="sheet-close" type="button" aria-label="Schließen" onclick={closeSheet}>
-        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-          <path d="M4 4l12 12M16 4L4 16" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-        </svg>
-      </button>
+<Modal open={showSheet} title="Neuer Artikel" size="sm" onClose={closeSheet}>
+  <div class="form-section">
+    <!-- Product name -->
+    <div class="field">
+      <label class="label" for="f-name">Produktname <span class="required">*</span></label>
+      <input
+        id="f-name"
+        class="input"
+        type="text"
+        placeholder="z.B. Vollmilch"
+        bind:value={formProductName}
+        required
+      />
     </div>
 
-    <div class="sheet-body">
-      <!-- ── Section: Artikel (Produktkatalog) ───────────────────────────── -->
-      <div class="form-section">
-        <span class="section-label">Artikel</span>
-
-        <!-- Product name -->
-        <div class="field">
-          <label class="label" for="f-name">Produktname <span class="required">*</span></label>
-          <input
-            id="f-name"
-            class="input"
-            type="text"
-            placeholder="z.B. Vollmilch"
-            bind:value={formProductName}
-            required
-          />
-        </div>
-
-        <!-- Category -->
-        <div class="field">
-          <label class="label" for="f-cat">Kategorie</label>
-          <select id="f-cat" class="input" bind:value={formCategoryId}>
-            <option value="">Keine Kategorie</option>
-            {#each categories as cat (cat.id)}
-              <option value={cat.id}>{cat.icon ? cat.icon + ' ' : ''}{cat.name}</option>
-            {/each}
-          </select>
-        </div>
-
-        {#if sheetMode === 'add'}
-          <p class="article-hint">
-            Ein Artikel beschreibt nur das Lebensmittel. Bestände (Menge, MHD, EAN, Markt, Ort)
-            fügst du danach über „Bestand hinzufügen" hinzu.
-          </p>
-        {/if}
-      </div>
-
-      <!-- ── Section: Bestand only shown when editing existing item ─────── -->
-      {#if sheetMode === 'edit'}
-      <div class="section-divider" aria-hidden="true"></div>
-
-      <!-- ── Section: Bestand (dieser Eintrag) ──────────────────────────── -->
-      <div class="form-section">
-        <span class="section-label">Bestand</span>
-
-        <!-- Quantity + Unit -->
-        <div class="field-row">
-          <div class="field field--qty">
-            <label class="label" for="f-qty">Menge</label>
-            <input
-              id="f-qty"
-              class="input"
-              type="number"
-              min="0"
-              step="0.01"
-              bind:value={formQuantity}
-            />
-          </div>
-          <div class="field field--unit">
-            <label class="label" for="f-unit">Einheit</label>
-            <select id="f-unit" class="input" bind:value={formUnit}>
-              {#each unitOptions as u (u.id)}
-                <option value={u.symbol}>{u.name}</option>
-              {/each}
-            </select>
-          </div>
-        </div>
-
-        <!-- MHD — optional, belongs to this inventory entry -->
-        <div class="field">
-          <label class="label" for="f-mhd">
-            MHD <span class="optional">(optional) Mindesthaltbarkeitsdatum</span>
-          </label>
-          <input id="f-mhd" class="input" type="date" bind:value={formMhd} />
-        </div>
-
-        <!-- Location cascade -->
-        <div class="field-group">
-          <div class="field">
-            <label class="label" for="f-loc">Ort</label>
-            <select
-              id="f-loc"
-              class="input"
-              bind:value={formLocationId}
-              onchange={onLocationChange}
-            >
-              <option value="">Kein Ort</option>
-              {#each locationTree as loc (loc.id)}
-                <option value={loc.id}>{loc.icon ? loc.icon + ' ' : ''}{loc.name}</option>
-              {/each}
-            </select>
-          </div>
-
-          {#if formLocationId && formStorages().length > 0}
-            <div class="field">
-              <label class="label" for="f-storage">Lagerort</label>
-              <select
-                id="f-storage"
-                class="input"
-                bind:value={formStorageId}
-                onchange={onStorageChange}
-              >
-                <option value="">Kein Lagerort</option>
-                {#each formStorages() as st (st.id)}
-                  <option value={st.id}>{st.name}</option>
-                {/each}
-              </select>
-            </div>
-          {/if}
-
-          {#if formStorageId && formPlaces().length > 0}
-            <div class="field">
-              <label class="label" for="f-place">Fach</label>
-              <select id="f-place" class="input" bind:value={formPlaceId}>
-                <option value="">Kein Fach</option>
-                {#each formPlaces() as pl (pl.id)}
-                  <option value={pl.id}>{pl.name}</option>
-                {/each}
-              </select>
-            </div>
-          {/if}
-        </div>
-
-        <!-- Notes -->
-        <div class="field">
-          <label class="label" for="f-notes">Notizen <span class="optional">(optional)</span></label>
-          <textarea
-            id="f-notes"
-            class="input textarea"
-            placeholder="z.B. Bereits geöffnet"
-            rows="2"
-            bind:value={formNotes}
-          ></textarea>
-        </div>
-      </div>
-      {/if}
+    <!-- Category -->
+    <div class="field">
+      <label class="label" for="f-cat">Kategorie</label>
+      <select id="f-cat" class="input" bind:value={formCategoryId}>
+        <option value="">Keine Kategorie</option>
+        {#each categories as cat (cat.id)}
+          <option value={cat.id}>{cat.icon ? cat.icon + ' ' : ''}{cat.name}</option>
+        {/each}
+      </select>
     </div>
 
-    <div class="sheet-footer">
-      <button
-        class="btn-primary btn-save-sheet"
-        type="button"
-        disabled={formSaving || !formProductName.trim()}
-        onclick={saveItem}
-      >
-        {#if formSaving}
-          <span class="spinner" aria-hidden="true"></span>
-          Speichern…
-        {:else if sheetMode === 'add'}
-          Hinzufügen
-        {:else}
-          Speichern
-        {/if}
-      </button>
-    </div>
+    <p class="article-hint">
+      Ein Artikel beschreibt nur das Lebensmittel. Bestände (Menge, MHD, EAN, Markt, Ort)
+      fügst du danach über „Bestand hinzufügen" hinzu.
+    </p>
   </div>
-{/if}
+
+  {#snippet footer()}
+    <button
+      class="btn-primary btn-save-sheet"
+      type="button"
+      disabled={formSaving || !formProductName.trim()}
+      onclick={saveItem}
+    >
+      {#if formSaving}
+        <span class="spinner" aria-hidden="true"></span>
+        Speichern…
+      {:else}
+        Hinzufügen
+      {/if}
+    </button>
+  {/snippet}
+</Modal>
 
 <!-- ── Confirm Modal ────────────────────────────────────────────────────── -->
 {#if confirmModal}
@@ -1647,124 +1350,6 @@ Das Produkt bleibt im Katalog.`,
     transform: scale(0.97);
   }
 
-  /* ── Sheet backdrop ───────────────────────────────────────────────────── */
-
-  .sheet-backdrop {
-    position: fixed;
-    inset: 0;
-    z-index: var(--z-sheet-backdrop, 300);
-    background-color: rgba(0, 0, 0, 0.4);
-    animation: fade-in 180ms ease;
-  }
-
-  @keyframes fade-in {
-    from { opacity: 0 }
-    to   { opacity: 1 }
-  }
-
-  /* ── Sheet panel ──────────────────────────────────────────────────────── */
-
-  .sheet {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    z-index: var(--z-sheet, 400);
-    background-color: var(--color-surface);
-    border-radius: var(--radius-xl) var(--radius-xl) 0 0;
-    box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.12);
-    max-height: 92dvh;
-    display: flex;
-    flex-direction: column;
-    animation: sheet-up 240ms cubic-bezier(0.32, 0.72, 0, 1);
-  }
-
-  @keyframes sheet-up {
-    from { transform: translateY(100%) }
-    to   { transform: translateY(0) }
-  }
-
-  @media (min-width: 640px) {
-    .sheet {
-      left: 50%;
-      right: auto;
-      transform: translateX(-50%);
-      width: 480px;
-      border-radius: var(--radius-xl);
-      bottom: var(--space-8);
-      animation: sheet-pop 200ms cubic-bezier(0.32, 0.72, 0, 1);
-    }
-    @keyframes sheet-pop {
-      from { opacity: 0; transform: translateX(-50%) scale(0.96) }
-      to   { opacity: 1; transform: translateX(-50%) scale(1) }
-    }
-  }
-
-  .sheet-handle {
-    width: 36px;
-    height: 4px;
-    border-radius: var(--radius-full);
-    background-color: var(--color-border);
-    margin: var(--space-3) auto var(--space-1);
-    flex-shrink: 0;
-  }
-
-  @media (min-width: 640px) {
-    .sheet-handle { display: none; }
-  }
-
-  .sheet-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: var(--space-3) var(--space-5) var(--space-3);
-    flex-shrink: 0;
-    border-bottom: 1px solid var(--color-border-subtle);
-  }
-
-  .sheet-title {
-    font-family: var(--font-display);
-    font-size: var(--text-lg);
-    font-weight: 700;
-    color: var(--color-text-primary);
-    margin: 0;
-  }
-
-  .sheet-close {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 32px;
-    height: 32px;
-    border-radius: var(--radius-md);
-    border: none;
-    background-color: transparent;
-    color: var(--color-text-muted);
-    cursor: pointer;
-    transition: background-color var(--transition-fast), color var(--transition-fast);
-  }
-
-  .sheet-close:hover {
-    background-color: var(--color-surface-sunken);
-    color: var(--color-text-primary);
-  }
-
-  .sheet-body {
-    overflow-y: auto;
-    padding: var(--space-4) var(--space-5);
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-4);
-    flex: 1;
-    min-height: 0;
-  }
-
-  .sheet-footer {
-    padding: var(--space-4) var(--space-5) calc(var(--space-4) + env(safe-area-inset-bottom, 0px));
-    border-top: 1px solid var(--color-border-subtle);
-    flex-shrink: 0;
-  }
-
   .btn-save-sheet {
     width: 100%;
     height: 44px;
@@ -1779,25 +1364,6 @@ Das Produkt bleibt im Katalog.`,
     flex-direction: column;
     gap: var(--space-1);
   }
-
-  .field-group {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-3);
-    padding: var(--space-3);
-    background-color: var(--color-surface-sunken);
-    border-radius: var(--radius-md);
-    border: 1px solid var(--color-border-subtle);
-  }
-
-  .field-row {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: var(--space-3);
-  }
-
-  .field--qty { flex: 1; }
-  .field--unit { flex: 1; }
 
   .label {
     font-size: var(--text-sm);
@@ -1828,13 +1394,6 @@ Das Produkt bleibt im Katalog.`,
   .input:focus {
     border-color: var(--color-border-focus);
     box-shadow: 0 0 0 3px rgba(196, 103, 58, 0.15);
-  }
-
-  .textarea {
-    height: auto;
-    padding: var(--space-2) var(--space-3);
-    resize: vertical;
-    min-height: 64px;
   }
 
   .article-hint {
@@ -1995,19 +1554,4 @@ Das Produkt bleibt im Katalog.`,
     flex-direction: column;
     gap: var(--space-4);
   }
-
-  .section-label {
-    font-size: var(--text-xs);
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: var(--color-text-muted);
-  }
-
-  .section-divider {
-    height: 1px;
-    background-color: var(--color-border-subtle);
-    margin: calc(var(--space-1) * -1) 0;
-  }
-
 </style>
