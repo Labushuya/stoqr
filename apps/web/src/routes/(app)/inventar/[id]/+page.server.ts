@@ -15,6 +15,7 @@ import type { PageServerLoad, Actions } from './$types'
 import { requireHouseholdId, getUnits } from '$lib/server/queries/households'
 import { deleteProduct, listInventoryForProduct } from '$lib/server/queries/products'
 import { getNutrientTypes } from '$lib/server/queries/nutrients'
+import { buildUnitMetaMap, aggregateStock } from '$lib/utils/stock'
 
 // ---------------------------------------------------------------------------
 // Location-Breadcrumb aus einem (geladenen) place-Objekt bauen
@@ -112,6 +113,10 @@ export const load: PageServerLoad = async ({ params, locals }) => {
     },
   });
 
+  // Gesamtbestand über alle Bestände dieses Artikels (Umrechnungsschicht).
+  // In-Memory aus bereits geladenen siblings + units — kein Extra-DB-Roundtrip.
+  const stockTotals = aggregateStock(siblings, buildUnitMetaMap(units));
+
   return {
     item,
     product: item.product,
@@ -121,6 +126,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
     availableStores,
     allLocations,
     expirySettings,
+    stockTotals,
   };
 };
 

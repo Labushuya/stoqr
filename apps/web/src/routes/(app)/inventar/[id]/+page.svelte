@@ -3,7 +3,7 @@
   import ConfirmModal from '$lib/components/ConfirmModal.svelte'
   import Modal from '$lib/components/Modal.svelte'
   import type { PageData } from './$types'
-  import { formatDate } from '$lib/utils/format'
+  import { formatDate, formatStockTotal } from '$lib/utils/format'
   import { getExpiryStatus, getDaysRemaining, getExpiryLabel, EXPIRY_CLASS } from '$lib/utils/expiry'
 
   // ── Props ─────────────────────────────────────────────────────────────────
@@ -346,6 +346,13 @@
     {#if product.description}
       <p class="product-desc">{product.description}</p>
     {/if}
+    <div class="stock-total">
+      <span class="stock-total-label">Gesamtbestand</span>
+      <span class="stock-total-value">{formatStockTotal(data.stockTotals)}</span>
+      {#if data.stockTotals.itemCount > 0}
+        <span class="stock-total-count">aus {data.stockTotals.itemCount} {data.stockTotals.itemCount === 1 ? 'Bestand' : 'Beständen'}</span>
+      {/if}
+    </div>
   </div>
 
   <!-- ── Nutrients editor (product-wide) ────────────────────────────────── -->
@@ -638,6 +645,33 @@
     font-size: var(--text-sm);
     color: var(--color-text-secondary);
     line-height: 1.5;
+  }
+
+  .stock-total {
+    margin-top: var(--space-4);
+    padding-top: var(--space-3);
+    border-top: 1px solid var(--color-border-subtle);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: var(--space-2);
+  }
+  .stock-total-label {
+    font-size: var(--text-xs);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--color-text-muted);
+  }
+  .stock-total-value {
+    font-family: var(--font-display);
+    font-size: var(--text-lg);
+    font-weight: 700;
+    color: var(--color-text-primary);
+  }
+  .stock-total-count {
+    font-size: var(--text-xs);
+    color: var(--color-text-muted);
   }
 
   /* ── Inputs / buttons ───────────────────────────────────────────────── */

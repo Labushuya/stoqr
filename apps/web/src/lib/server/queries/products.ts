@@ -1,6 +1,8 @@
 import { db } from '$lib/server/db'
 import { products, inventoryItems, categories } from '@stoqr/db'
 import { eq, asc, desc, and, ilike } from 'drizzle-orm'
+import { getUnits } from './households'
+import { buildUnitMetaMap, aggregateStock, type StockTotals } from '$lib/utils/stock'
 
 // ---------------------------------------------------------------------------
 // Inventory — list
@@ -101,6 +103,22 @@ export async function listInventoryForProduct(productId: string, householdId: st
 			},
 		},
 	});
+}
+
+// ---------------------------------------------------------------------------
+// Inventory — aggregated stock totals for one product (Umrechnungsschicht)
+// ---------------------------------------------------------------------------
+
+export async function getProductStockTotals(
+	productId: string,
+	householdId: string
+): Promise<StockTotals> {
+	const [items, units] = await Promise.all([
+		listInventoryForProduct(productId, householdId),
+		getUnits(householdId),
+	]);
+	const metaMap = buildUnitMetaMap(units);
+	return aggregateStock(items, metaMap);
 }
 
 // ---------------------------------------------------------------------------
