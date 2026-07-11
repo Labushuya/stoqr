@@ -157,6 +157,67 @@
     showToast('Soll-Bestand entfernt')
   }
 
+  // ── Bestandskorrektur / Inventur (2c) ───────────────────────────────────────
+
+  type StockGroupView = { dimension: string; displayValue: number; displayUnit: string; displayName: string }
+
+  let showInventoryModal = $state(false)
+  let invUnit = $state('')
+  let invValue = $state('')
+  let invSaving = $state(false)
+  let invError = $state<string | null>(null)
+  let invNeedsIncrease = $state(false)
+
+  function openInventoryModal() {
+    const groups = data.stockTotals.groups as StockGroupView[]
+    // Vorbelegung mit der ersten Gruppe (oder Standard-Einheit, falls kein Bestand).
+    if (groups.length > 0) {
+      invUnit = groups[0].displayUnit
+      invValue = String(groups[0].displayValue)
+    } else {
+      invUnit = product.defaultUnit ?? 'piece'
+      invValue = '0'
+    }
+    invError = null
+    invNeedsIncrease = false
+    showInventoryModal = true
+  }
+
+  // Wenn eine andere Gruppe im Select gewählt wird, den Ist-Wert dieser Gruppe vorbelegen.
+  function onInvUnitChange() {
+    const g = (data.stockTotals.groups as StockGroupView[]).find((x) => x.displayUnit === invUnit)
+    if (g) invValue = String(g.displayValue)
+  }
+
+  async function saveInventory() {
+    const qty = Number(invValue)
+    if (!Number.isFinite(qty) || qty < 0) { invError = 'Bitte gültige Menge >= 0 angeben.'; return }
+    invSaving = true
+    invError = null
+    try {
+      const res = await fetch(`/api/products/${product.id}/inventory-adjust`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ newQuantity: qty, unit: invUnit }),
+      })
+      const body = await res.json().catch(() => ({}))
+      if (!res.ok) { invError = String(body?.error ?? `Fehler ${res.status}`); return }
+      if (body.needsIncrease) {
+        // Erhöhung wird nicht automatisch gemacht — Hinweis, Bestand manuell anlegen.
+        invNeedsIncrease = true
+        showToast('Erhöhung bitte über „Bestand hinzufügen" erfassen', 'error')
+        return
+      }
+      showInventoryModal = false
+      await invalidateAll()
+      showToast('Bestand korrigiert')
+    } catch {
+      invError = 'Netzwerkfehler.'
+    } finally {
+      invSaving = false
+    }
+  }
+
   // ── Expiry helpers (per sibling) ────────────────────────────────────────────
 
   function expiryOf(bestBeforeDate: string | null) {
@@ -439,6 +500,7 @@
       {#if data.stockTotals.itemCount > 0}
         <span class="stock-total-count">aus {data.stockTotals.itemCount} {data.stockTotals.itemCount === 1 ? 'Bestand' : 'Beständen'}</span>
       {/if}
+      <button class="target-edit-btn" type="button" onclick={openInventoryModal}>Bestand korrigieren</button>
     </div>
 
     <!-- Soll-/Bedarf-Indikator (2b) -->
@@ -653,6 +715,34 @@
     {/each}
   </div>
 {/if}
+
+<!-- ── Bestandskorrektur / Inventur (Modal) ───────────────────────────────── -->
+<Modal open={showInventoryModal} title="Bestand korrigieren" size="sm" onClose={() => (showInventoryModal = false)}>
+  <p class="scope-hint">Gib den tatsächlichen aktuellen Bestand an. Die Differenz wird auf die Bestände verrechnet (älteste MHD zuerst) und fließt als Bedarf auf die Einkaufsliste.</p>
+  {#if invError}<p class="field-error">{invError}</p>{/if}
+  {#if invNeedsIncrease}
+    <p class="field-error">Der neue Bestand ist höher als der erfasste. Bitte den Zuwachs über „Bestand hinzufügen" mit MHD/Markt erfassen.</p>
+  {/if}
+  <div class="target-form">
+    {#if (data.stockTotals.groups as StockGroupView[]).length > 1}
+      <label class="tf-field">
+        <span class="tf-label">Einheit-Gruppe</span>
+        <select class="input" bind:value={invUnit} onchange={onInvUnitChange}>
+          {#each data.stockTotals.groups as g (g.displayUnit)}
+            <option value={g.displayUnit}>{g.displayName}</option>
+          {/each}
+        </select>
+      </label>
+    {/if}
+    <label class="tf-field">
+      <span class="tf-label">Tatsächlicher Bestand ({unitLabel(invUnit)})</span>
+      <input class="input" type="number" min="0" step="0.001" bind:value={invValue} />
+    </label>
+  </div>
+  {#snippet footer()}
+    <button class="btn-secondary" type="button" disabled={invSaving} onclick={saveInventory}>Übernehmen</button>
+  {/snippet}
+</Modal>
 
 <!-- ── Soll-Bestand (Modal) ───────────────────────────────────────────────── -->
 <Modal open={showTargetModal} title="Soll-Bestand festlegen" size="sm" onClose={() => (showTargetModal = false)}>
