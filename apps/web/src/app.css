@@ -225,6 +225,8 @@ body {
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  /* Sicherheitsnetz gegen horizontales Wegscrollen auf schmalen Screens */
+  overflow-x: hidden;
 }
 
 /* ============================================================
