@@ -12,18 +12,44 @@ import {
 import { eq, and, asc } from 'drizzle-orm'
 import { error, fail, redirect } from '@sveltejs/kit'
 import type { PageServerLoad, Actions } from './$types'
-import { requireHouseholdId } from '$lib/server/queries/households'
-import { deleteProduct } from '$lib/server/queries/products'
+import { requireHouseholdId, getUnits } from '$lib/server/queries/households'
+import { deleteProduct, listInventoryForProduct } from '$lib/server/queries/products'
+import { getNutrientTypes } from '$lib/server/queries/nutrients'
 
 // ---------------------------------------------------------------------------
-// Load
+// Location-Breadcrumb aus einem (geladenen) place-Objekt bauen
+// ---------------------------------------------------------------------------
+
+type PlaceTree = {
+  id: string
+  name: string
+  storage?: { id: string; name: string; location?: { id: string; name: string } | null } | null
+} | null
+
+function buildLocationPath(
+  place: PlaceTree
+): Array<{ id: string; name: string; kind: 'location' | 'storage' | 'place' }> {
+  const path: Array<{ id: string; name: string; kind: 'location' | 'storage' | 'place' }> = []
+  if (!place) return path
+  if (place.storage?.location) {
+    path.push({ id: place.storage.location.id, name: place.storage.location.name, kind: 'location' })
+  }
+  if (place.storage) {
+    path.push({ id: place.storage.id, name: place.storage.name, kind: 'storage' })
+  }
+  path.push({ id: place.id, name: place.name, kind: 'place' })
+  return path
+}
+
+// ---------------------------------------------------------------------------
+// Load — aggregierte Artikel-Ansicht: ein Artikel + ALLE seine Bestände
 // ---------------------------------------------------------------------------
 
 export const load: PageServerLoad = async ({ params, locals }) => {
   if (!locals.user) redirect(302, '/login');
   const householdId = await requireHouseholdId(locals.user.id);
 
-  // Fetch inventory item with product join
+  // Aufgerufener Bestand (für Zugriff/404 + Produkt-Ermittlung + Hervorhebung)
   const item = await db.query.inventoryItems.findFirst({
     where: and(eq(inventoryItems.id, params.id), eq(inventoryItems.householdId, householdId)),
     with: {
@@ -36,16 +62,6 @@ export const load: PageServerLoad = async ({ params, locals }) => {
           category: true,
         },
       },
-      place: {
-        with: {
-          storage: {
-            with: {
-              location: true,
-            },
-          },
-        },
-      },
-      store: true,
     },
   });
 
@@ -53,7 +69,25 @@ export const load: PageServerLoad = async ({ params, locals }) => {
     error(404, 'Artikel nicht gefunden');
   }
 
-  // Fetch household expiry config for badge calculation
+  // Alle Bestände desselben Produkts (aggregierte Ansicht)
+  const siblingRows = await listInventoryForProduct(item.productId, householdId);
+  const siblings = siblingRows.map((s) => ({
+    ...s,
+    locationPath: buildLocationPath(s.place as PlaceTree),
+  }));
+
+  // Nährstofftypen (für den Editor) + Einheiten (behebt data.units-Bug) + Märkte
+  const [nutrientTypes, units, availableStores] = await Promise.all([
+    getNutrientTypes(),
+    getUnits(householdId),
+    db.query.stores.findMany({
+      where: eq(stores.householdId, householdId),
+      orderBy: asc(stores.name),
+      columns: { id: true, name: true, chain: true },
+    }),
+  ]);
+
+  // Haushalts-Ablaufkonfiguration (für Badge-Berechnung)
   const cfg = await db.query.expiryConfig.findFirst({
     where: eq(expiryConfig.householdId, householdId),
   });
@@ -64,27 +98,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
     graceDaysAfter: cfg?.graceDaysAfter ?? 0,
   };
 
-  // Build location path breadcrumb from joined data
-  const locationPath: Array<{ id: string; name: string; kind: 'location' | 'storage' | 'place' }> =
-    [];
-  if (item.place) {
-    const place = item.place as typeof item.place & {
-      storage: typeof storages.$inferSelect & { location: typeof locations.$inferSelect };
-    };
-    if (place.storage?.location) {
-      locationPath.push({
-        id: place.storage.location.id,
-        name: place.storage.location.name,
-        kind: 'location',
-      });
-    }
-    if (place.storage) {
-      locationPath.push({ id: place.storage.id, name: place.storage.name, kind: 'storage' });
-    }
-    locationPath.push({ id: place.id, name: place.name, kind: 'place' });
-  }
-
-  // Fetch all locations for the location-picker dialog
+  // Alle Orte für den Location-Picker-Dialog
   const allLocations = await db.query.locations.findMany({
     where: eq(locations.householdId, householdId),
     orderBy: asc(locations.sortOrder),
@@ -98,18 +112,15 @@ export const load: PageServerLoad = async ({ params, locals }) => {
     },
   });
 
-  // Fetch all stores for the household (for the market dropdown)
-  const availableStores = await db.query.stores.findMany({
-    where: eq(stores.householdId, householdId),
-    orderBy: asc(stores.name),
-  });
-
   return {
     item,
-    locationPath,
+    product: item.product,
+    siblings,
+    nutrientTypes,
+    units,
+    availableStores,
     allLocations,
     expirySettings,
-    availableStores,
   };
 };
 
@@ -168,6 +179,7 @@ export const actions: Actions = {
     const placeId = data.get('placeId') as string | null;
     const quantity = data.get('quantity') as string | null;
     const unit = data.get('unit') as string | null;
+    const storeId = data.get('storeId') as string | null;
 
     const patch: Partial<typeof inventoryItems.$inferInsert> = {
       updatedAt: new Date(),
@@ -179,6 +191,7 @@ export const actions: Actions = {
     if (notes !== null) patch.notes = notes === '' ? null : notes;
     if (lotNumber !== null) patch.lotNumber = lotNumber === '' ? null : lotNumber;
     if (placeId !== null) patch.placeId = placeId === '' ? null : placeId;
+    if (storeId !== null) patch.storeId = storeId === '' ? null : storeId;
     if (quantity !== null) {
       const q = Number(quantity);
       if (!isNaN(q) && q >= 0) patch.quantity = String(q);

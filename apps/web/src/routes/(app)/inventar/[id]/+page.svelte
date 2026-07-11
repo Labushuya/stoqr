@@ -1,9 +1,8 @@
 <script lang="ts">
-  import { enhance } from '$app/forms'
   import { goto } from '$app/navigation'
   import ConfirmModal from '$lib/components/ConfirmModal.svelte'
   import type { PageData } from './$types'
-  import { formatDate, unitLabel } from '$lib/utils/format'
+  import { formatDate } from '$lib/utils/format'
   import { getExpiryStatus, getDaysRemaining, getExpiryLabel, EXPIRY_CLASS } from '$lib/utils/expiry'
 
   // ── Props ─────────────────────────────────────────────────────────────────
@@ -12,124 +11,43 @@
 
   // ── Types ─────────────────────────────────────────────────────────────────
 
-  type NutrientRow = {
+  type NutrientType = { id: string; slug: string; name: string; unit: string }
+  type Unit = { id: string; name: string; symbol: string }
+  type LocSegment = { id: string; name: string; kind: 'location' | 'storage' | 'place' }
+  type Sibling = {
     id: string
-    nutrientType: { name: string; unit: string; slug: string }
-    valuePer100: string
+    quantity: string
+    unit: string
+    bestBeforeDate: string | null
+    status: string
+    notes: string | null
+    placeId: string | null
+    storeId: string | null
+    store: { id: string; name: string; chain: string | null } | null
+    locationPath: LocSegment[]
   }
+  type NutrientEditRow = { nutrientTypeId: string; valuePer100: string }
 
-  // ── Derived item state ────────────────────────────────────────────────────
+  // ── Static data ─────────────────────────────────────────────────────────
 
+  const product = $derived(data.product)
+  // Nutrient types are a $state (not $derived) so custom types added at runtime
+  // become immediately selectable.
   // svelte-ignore state_referenced_locally
-  let item = $state(data.item)
-  // svelte-ignore state_referenced_locally
-  let locationPath = $state(data.locationPath)
+  let nutrientTypes = $state<NutrientType[]>(data.nutrientTypes as NutrientType[])
+  const units = $derived(data.units as Unit[])
+  const availableStores = $derived(
+    data.availableStores as { id: string; name: string; chain: string | null }[]
+  )
 
-  // ── Expiry derived ────────────────────────────────────────────────────────
-
-  const expiryStatus = $derived(() => {
-    if (!item.bestBeforeDate) return null
-    const d = new Date(item.bestBeforeDate)
-    return getExpiryStatus(d, data.expirySettings.graceDaysAfter, {
-      yellowDaysBefore: data.expirySettings.yellowDaysBefore,
-      redDaysBefore: data.expirySettings.redDaysBefore,
-    })
-  })
-
-  const daysRemaining = $derived(() => {
-    if (!item.bestBeforeDate) return Infinity
-    const d = new Date(item.bestBeforeDate)
-    return getDaysRemaining(d, data.expirySettings.graceDaysAfter)
-  })
-
-  const expiryLabel = $derived(() => {
-    if (!item.bestBeforeDate) return 'Kein MHD'
-    const st = expiryStatus()
-    if (!st) return 'Kein MHD'
-    return getExpiryLabel(st, daysRemaining())
-  })
-
-  const expiryClass = $derived(() => {
-    const st = expiryStatus()
-    return st ? EXPIRY_CLASS[st] : ''
-  })
-
-  // ── Confirm Modal ────────────────────────────────────────────────────────────
-  let confirmModal = $state<{ open: boolean; title: string; message: string; confirmLabel: string; onConfirm: () => void } | null>(null)
-
-  function showConfirm(title: string, message: string, onConfirm: () => void, confirmLabel = 'Entfernen') {
-    confirmModal = { open: true, title, message, confirmLabel, onConfirm }
+  function unitLabel(symbol: string): string {
+    return units.find((u) => u.symbol === symbol)?.name ?? symbol
   }
-
-  function closeConfirm() { confirmModal = null }
-
-  // ── Edit-in-place state ───────────────────────────────────────────────────
-
-  type EditField = 'quantity' | 'bestBeforeDate' | 'notes' | 'lotNumber' | 'unit' | null
-  let editingField = $state<EditField>(null)
-
-  // Transient edit values — initialised once from item, refreshed in startEdit()
-  // svelte-ignore state_referenced_locally
-  let editQuantity = $state(String(item.quantity))
-  // svelte-ignore state_referenced_locally
-  let editBestBeforeDate = $state(item.bestBeforeDate ?? '')
-  // svelte-ignore state_referenced_locally
-  let editNotes = $state(item.notes ?? '')
-  // svelte-ignore state_referenced_locally
-  let editLotNumber = $state(item.lotNumber ?? '')
-  // svelte-ignore state_referenced_locally
-  let editUnit = $state(item.unit)
-
-  function startEdit(field: EditField) {
-    // Refresh transient values from current item state
-    editQuantity = String(item.quantity)
-    editBestBeforeDate = item.bestBeforeDate ?? ''
-    editNotes = item.notes ?? ''
-    editLotNumber = item.lotNumber ?? ''
-    editUnit = item.unit
-    editingField = field
+  function nutrientName(id: string): string {
+    return nutrientTypes.find((t) => t.id === id)?.name ?? '?'
   }
-
-  function cancelEdit() {
-    editingField = null
-  }
-
-  // ── Location picker ───────────────────────────────────────────────────────
-
-  let showLocationPicker = $state(false)
-
-  function openLocationPicker() {
-    showLocationPicker = true
-  }
-
-  function closeLocationPicker() {
-    showLocationPicker = false
-  }
-
-  async function selectPlace(placeId: string) {
-    closeLocationPicker()
-    const fd = new FormData()
-    fd.set('placeId', placeId)
-    const res = await fetch(`?/updateItem`, { method: 'POST', body: fd })
-    if (res.ok) {
-      // Rebuild locationPath from allLocations
-      for (const loc of data.allLocations) {
-        for (const st of loc.storages) {
-          for (const pl of st.places) {
-            if (pl.id === placeId) {
-              locationPath = [
-                { id: loc.id, name: loc.name, kind: 'location' },
-                { id: st.id, name: st.name, kind: 'storage' },
-                { id: pl.id, name: pl.name, kind: 'place' },
-              ]
-              return
-            }
-          }
-        }
-      }
-    } else {
-      showToast('Fehler beim Speichern des Lagerorts', 'error')
-    }
+  function nutrientUnit(id: string): string {
+    return nutrientTypes.find((t) => t.id === id)?.unit ?? ''
   }
 
   // ── Toast ─────────────────────────────────────────────────────────────────
@@ -137,123 +55,269 @@
   type Toast = { id: number; message: string; type: 'success' | 'error' }
   let toasts = $state<Toast[]>([])
   let toastCounter = 0
-
   function showToast(message: string, type: 'success' | 'error' = 'success') {
     const id = ++toastCounter
     toasts = [...toasts, { id, message, type }]
-    setTimeout(() => {
-      toasts = toasts.filter((t) => t.id !== id)
-    }, 3500)
+    setTimeout(() => { toasts = toasts.filter((t) => t.id !== id) }, 3500)
   }
 
-  // ── Quantity stepper ──────────────────────────────────────────────────────
+  // ── Confirm modal ──────────────────────────────────────────────────────────
+
+  let confirmModal = $state<{ open: boolean; title: string; message: string; confirmLabel: string; onConfirm: () => void } | null>(null)
+  function showConfirm(title: string, message: string, onConfirm: () => void, confirmLabel = 'Entfernen') {
+    confirmModal = { open: true, title, message, confirmLabel, onConfirm }
+  }
+  function closeConfirm() { confirmModal = null }
+
+  // ── Expiry helpers (per sibling) ────────────────────────────────────────────
+
+  function expiryOf(bestBeforeDate: string | null) {
+    if (!bestBeforeDate) return { label: 'Kein MHD', cls: 'mhd-fresh' }
+    const d = new Date(bestBeforeDate)
+    const st = getExpiryStatus(d, data.expirySettings.graceDaysAfter, {
+      yellowDaysBefore: data.expirySettings.yellowDaysBefore,
+      redDaysBefore: data.expirySettings.redDaysBefore,
+    })
+    const days = getDaysRemaining(d, data.expirySettings.graceDaysAfter)
+    return { label: getExpiryLabel(st, days), cls: EXPIRY_CLASS[st] }
+  }
+
+  function statusLabel(status: string): string {
+    switch (status) {
+      case 'consumed': return 'Verbraucht'
+      case 'expired': return 'Abgelaufen'
+      case 'donated': return 'Gespendet'
+      case 'discarded': return 'Entsorgt'
+      default: return ''
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Nutrients editor (product-wide)
+  // ═══════════════════════════════════════════════════════════════════════════
 
   // svelte-ignore state_referenced_locally
-  let qty = $state(Number(item.quantity))
+  let nutrientRows = $state<NutrientEditRow[]>(
+    (product.nutrients ?? []).map((n: { nutrientTypeId: string; valuePer100: string }) => ({
+      nutrientTypeId: n.nutrientTypeId,
+      valuePer100: String(n.valuePer100),
+    }))
+  )
 
-  async function changeQuantity(delta: number) {
-    const next = Math.max(0, qty + delta)
-    qty = next
-    const fd = new FormData()
-    fd.set('quantity', String(next))
-    const res = await fetch(`?/updateQuantity`, { method: 'POST', body: fd })
+  // Types not yet used in a row (avoid duplicate selection)
+  const availableTypes = $derived(
+    nutrientTypes.filter((t) => !nutrientRows.some((r) => r.nutrientTypeId === t.id))
+  )
+
+  let addingNutrient = $state(false)
+  let selectedNewType = $state('')
+
+  // Custom nutrient-type inline form
+  let showCustomForm = $state(false)
+  let customName = $state('')
+  let customUnit = $state('g')
+  let customSaving = $state(false)
+
+  async function addNutrientRow() {
+    if (!selectedNewType) return
+    // Add row with value 0, persist immediately so it exists product-wide
+    const typeId = selectedNewType
+    selectedNewType = ''
+    nutrientRows = [...nutrientRows, { nutrientTypeId: typeId, valuePer100: '0' }]
+    await saveNutrient(typeId, '0')
+  }
+
+  async function saveNutrient(nutrientTypeId: string, valuePer100: string) {
+    const value = Number(valuePer100)
+    if (!Number.isFinite(value) || value < 0) {
+      showToast('Ungültiger Wert', 'error')
+      return
+    }
+    const res = await fetch(`/api/products/${product.id}/nutrients`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ nutrientTypeId, valuePer100: value }),
+    })
     if (!res.ok) {
-      showToast('Fehler beim Aktualisieren der Menge', 'error')
-      qty = Number(item.quantity)
-    } else {
-      item = { ...item, quantity: String(next) }
+      showToast('Fehler beim Speichern des Nährwerts', 'error')
+      return
     }
+    nutrientRows = nutrientRows.map((r) =>
+      r.nutrientTypeId === nutrientTypeId ? { ...r, valuePer100: String(value) } : r
+    )
+    showToast('Nährwert gespeichert')
   }
 
-  // ── Field save helpers ────────────────────────────────────────────────────
-
-  async function saveField(field: EditField) {
-    if (!field) return
-    const fd = new FormData()
-
-    switch (field) {
-      case 'quantity':
-        fd.set('quantity', editQuantity)
-        break
-      case 'bestBeforeDate':
-        fd.set('bestBeforeDate', editBestBeforeDate)
-        break
-      case 'notes':
-        fd.set('notes', editNotes)
-        break
-      case 'lotNumber':
-        fd.set('lotNumber', editLotNumber)
-        break
-      case 'unit':
-        fd.set('unit', editUnit)
-        break
+  async function deleteNutrientRow(nutrientTypeId: string) {
+    const res = await fetch(
+      `/api/products/${product.id}/nutrients?nutrientTypeId=${encodeURIComponent(nutrientTypeId)}`,
+      { method: 'DELETE' }
+    )
+    if (!res.ok && res.status !== 204) {
+      showToast('Fehler beim Löschen', 'error')
+      return
     }
+    nutrientRows = nutrientRows.filter((r) => r.nutrientTypeId !== nutrientTypeId)
+    showToast('Nährwert entfernt')
+  }
 
-    const res = await fetch(`?/updateItem`, { method: 'POST', body: fd })
-    if (res.ok) {
-      // Optimistically update item
-      if (field === 'quantity') {
-        item = { ...item, quantity: editQuantity }
-        qty = Number(editQuantity)
-      } else if (field === 'bestBeforeDate') {
-        item = { ...item, bestBeforeDate: editBestBeforeDate === '' ? null : editBestBeforeDate }
-      } else if (field === 'notes') {
-        item = { ...item, notes: editNotes === '' ? null : editNotes }
-      } else if (field === 'lotNumber') {
-        item = { ...item, lotNumber: editLotNumber === '' ? null : editLotNumber }
-      } else if (field === 'unit') {
-        item = { ...item, unit: editUnit }
+  async function createCustomNutrient() {
+    const name = customName.trim()
+    const unit = customUnit.trim()
+    if (!name || !unit) { showToast('Name und Einheit erforderlich', 'error'); return }
+    customSaving = true
+    try {
+      const res = await fetch('/api/nutrient-types', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, unit }),
+      })
+      const type = await res.json().catch(() => null)
+      if (!res.ok || !type?.id) {
+        showToast(String(type?.error ?? 'Fehler beim Anlegen'), 'error')
+        return
       }
-      showToast('Gespeichert')
-      editingField = null
-    } else {
-      showToast('Fehler beim Speichern', 'error')
+      if (!nutrientTypes.some((t) => t.id === type.id)) {
+        nutrientTypes = [...nutrientTypes, type]
+      }
+      showCustomForm = false
+      customName = ''
+      customUnit = 'g'
+      // Add a row for it right away
+      nutrientRows = [...nutrientRows, { nutrientTypeId: type.id, valuePer100: '0' }]
+      await saveNutrient(type.id, '0')
+    } finally {
+      customSaving = false
     }
   }
 
-  function onFieldKeydown(e: KeyboardEvent, field: EditField) {
-    if (e.key === 'Enter') saveField(field)
-    if (e.key === 'Escape') cancelEdit()
-  }
-
-  // ── Nutrients ─────────────────────────────────────────────────────────────
-
-  const knownNutrients = [
-    { slug: 'energy-kcal', label: 'Energie', unit: 'kcal' },
-    { slug: 'energy-kj', label: 'Energie', unit: 'kJ' },
-    { slug: 'fat', label: 'Fett', unit: 'g' },
-    { slug: 'saturated-fat', label: 'davon gesättigt', unit: 'g' },
-    { slug: 'carbohydrates', label: 'Kohlenhydrate', unit: 'g' },
-    { slug: 'sugars', label: 'davon Zucker', unit: 'g' },
-    { slug: 'fiber', label: 'Ballaststoffe', unit: 'g' },
-    { slug: 'proteins', label: 'Protein', unit: 'g' },
-    { slug: 'salt', label: 'Salz', unit: 'g' },
-  ]
-
-  const nutrients = $derived(() => {
-    const map = new Map<string, NutrientRow>()
-    for (const n of item.product.nutrients ?? []) {
-      map.set(n.nutrientType.slug, n as NutrientRow)
-    }
-    return map
-  })
-
-  function getNutrientValue(slug: string): string {
-    const n = nutrients().get(slug)
-    if (!n) return '—'
-    return `${Number(n.valuePer100).toLocaleString('de-DE', { maximumFractionDigits: 2 })}`
-  }
-
-  // ── Units ─────────────────────────────────────────────────────────────────
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Stock entries (siblings) — list + inline edit
+  // ═══════════════════════════════════════════════════════════════════════════
 
   // svelte-ignore state_referenced_locally
-  let unitOptions = $state(data.units as { id: string; name: string; symbol: string }[])
+  let siblings = $state<Sibling[]>(data.siblings as Sibling[])
+
+  let editingRowId = $state<string | null>(null)
+  let draftQuantity = $state('')
+  let draftUnit = $state('')
+  let draftMhd = $state('')
+  let draftStoreId = $state('')
+
+  function startRowEdit(row: Sibling) {
+    editingRowId = row.id
+    draftQuantity = String(row.quantity)
+    draftUnit = row.unit
+    draftMhd = row.bestBeforeDate ?? ''
+    draftStoreId = row.storeId ?? ''
+  }
+  function cancelRowEdit() { editingRowId = null }
+
+  async function saveRow(row: Sibling) {
+    const patch = {
+      quantity: draftQuantity,
+      unit: draftUnit,
+      bestBeforeDate: draftMhd || null,
+      storeId: draftStoreId || null,
+    }
+    const res = await fetch(`/api/inventory/${row.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(patch),
+    })
+    if (!res.ok) { showToast('Fehler beim Speichern', 'error'); return }
+    const store = availableStores.find((s) => s.id === draftStoreId) ?? null
+    siblings = siblings.map((s) =>
+      s.id === row.id
+        ? { ...s, quantity: draftQuantity, unit: draftUnit, bestBeforeDate: draftMhd || null, storeId: draftStoreId || null, store }
+        : s
+    )
+    editingRowId = null
+    showToast('Bestand gespeichert')
+  }
+
+  async function consumeRow(row: Sibling) {
+    const res = await fetch(`/api/inventory/${row.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: 'consumed' }),
+    })
+    if (!res.ok) { showToast('Fehler', 'error'); return }
+    siblings = siblings.map((s) => (s.id === row.id ? { ...s, status: 'consumed' } : s))
+    showToast('Als verbraucht markiert')
+  }
+
+  async function deleteRow(row: Sibling) {
+    const res = await fetch(`/api/inventory/${row.id}`, { method: 'DELETE' })
+    if (!res.ok && res.status !== 204) { showToast('Fehler beim Entfernen', 'error'); return }
+    siblings = siblings.filter((s) => s.id !== row.id)
+    showToast('Bestand entfernt')
+    if (siblings.length === 0) goto('/inventar')
+  }
+
+  // ── Location picker (per sibling) ───────────────────────────────────────────
+
+  let showLocationPicker = $state(false)
+  let pickerTargetId = $state<string | null>(null)
+
+  function openLocationPicker(rowId: string) {
+    pickerTargetId = rowId
+    showLocationPicker = true
+  }
+  function closeLocationPicker() {
+    showLocationPicker = false
+    pickerTargetId = null
+  }
+
+  async function selectPlace(placeId: string) {
+    const rowId = pickerTargetId
+    closeLocationPicker()
+    if (!rowId) return
+    const res = await fetch(`/api/inventory/${rowId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ placeId }),
+    })
+    if (!res.ok) { showToast('Fehler beim Speichern des Lagerorts', 'error'); return }
+    // Rebuild locationPath for that row from allLocations
+    let path: LocSegment[] = []
+    for (const loc of data.allLocations) {
+      for (const st of loc.storages) {
+        for (const pl of st.places) {
+          if (pl.id === placeId) {
+            path = [
+              { id: loc.id, name: loc.name, kind: 'location' },
+              { id: st.id, name: st.name, kind: 'storage' },
+              { id: pl.id, name: pl.name, kind: 'place' },
+            ]
+          }
+        }
+      }
+    }
+    siblings = siblings.map((s) => (s.id === rowId ? { ...s, placeId, locationPath: path } : s))
+    showToast('Lagerort gespeichert')
+  }
+
+  // ── Product-wide destructive actions ────────────────────────────────────────
+
+  async function deleteProductCatalog() {
+    const res = await fetch(`/api/products/${product.id}`, { method: 'DELETE' })
+    if (res.status === 409) {
+      const b = await res.json().catch(() => ({}))
+      showToast(String(b?.error ?? 'Produkt hat noch Bestände.'), 'error')
+      return
+    }
+    if (!res.ok && res.status !== 204) { showToast('Fehler beim Löschen', 'error'); return }
+    goto('/inventar')
+  }
+
+  // deleteAll uses the server action (transaction: product + all stock)
+  function submitDeleteAll() {
+    ;(document.getElementById('frm-del-all') as HTMLFormElement)?.submit()
+  }
 </script>
 
-<!-- ── Page ──────────────────────────────────────────────────────────────── -->
-
 <div class="page">
-
   <!-- ── Back link ──────────────────────────────────────────────────────── -->
   <a href="/inventar" class="back-link">
     <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
@@ -264,8 +328,6 @@
 
   <!-- ── Product header card ────────────────────────────────────────────── -->
   <div class="card product-card">
-
-    <!-- Image placeholder + product info -->
     <div class="product-hero">
       <div class="product-image-placeholder" aria-hidden="true">
         <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
@@ -274,372 +336,179 @@
           <circle cx="14" cy="18" r="3" stroke="var(--color-primary)" stroke-width="1.5" fill="none"/>
         </svg>
       </div>
-
       <div class="product-info">
-        <h1 class="product-name">{item.product.name}</h1>
-        {#if item.product.brand}
-          <span class="product-brand">{item.product.brand}</span>
-        {/if}
-        {#if item.product.gtin}
-          <span class="product-barcode">
-            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-              <rect x="1" y="2" width="1.5" height="8" fill="currentColor"/>
-              <rect x="3.5" y="2" width="1" height="8" fill="currentColor"/>
-              <rect x="5.5" y="2" width="2" height="8" fill="currentColor"/>
-              <rect x="8.5" y="2" width="1" height="8" fill="currentColor"/>
-              <rect x="10" y="2" width="1" height="8" fill="currentColor"/>
-            </svg>
-            {item.product.gtin}
-          </span>
-        {/if}
-        {#if item.product.category}
-          <span class="product-category">{item.product.category.name}</span>
-        {/if}
+        <h1 class="product-name">{product.name}</h1>
+        {#if product.brand}<span class="product-brand">{product.brand}</span>{/if}
+        {#if product.category}<span class="product-category">{product.category.name}</span>{/if}
+        <span class="product-unit">Standard-Einheit: {unitLabel(product.defaultUnit)}</span>
       </div>
     </div>
-
-    <!-- Status badge for consumed/discarded items -->
-    {#if item.status !== 'available'}
-      <div class="status-banner status-banner--{item.status}">
-        {#if item.status === 'consumed'}
-          Verbraucht
-        {:else if item.status === 'expired'}
-          Abgelaufen entsorgt
-        {:else if item.status === 'donated'}
-          Gespendet
-        {:else if item.status === 'discarded'}
-          Entsorgt
-        {/if}
-      </div>
+    {#if product.description}
+      <p class="product-desc">{product.description}</p>
     {/if}
   </div>
 
-  <!-- ── MHD card ────────────────────────────────────────────────────────── -->
+  <!-- ── Nutrients editor (product-wide) ────────────────────────────────── -->
   <div class="card">
     <div class="section-header">
-      <h2 class="section-title">Mindesthaltbarkeitsdatum</h2>
-      {#if editingField !== 'bestBeforeDate'}
-        <button class="btn-edit" type="button" onclick={() => startEdit('bestBeforeDate')} title="MHD bearbeiten">
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-            <path d="M9.5 2.5L11.5 4.5L5 11H3V9L9.5 2.5Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>
-          </svg>
-        </button>
-      {/if}
+      <h2 class="section-title">Nährwerte <span class="section-subtitle">pro 100 g / 100 ml</span></h2>
     </div>
+    <p class="scope-hint">Diese Nährwerte gelten für alle Bestände dieses Artikels.</p>
 
-    <div class="mhd-row">
-      {#if editingField === 'bestBeforeDate'}
-        <div class="field-edit-row">
-          <!-- svelte-ignore a11y_autofocus -->
-          <input
-            class="input"
-            type="date"
-            bind:value={editBestBeforeDate}
-            onkeydown={(e) => onFieldKeydown(e, 'bestBeforeDate')}
-            autofocus
-          />
-          <button class="btn-save" type="button" onclick={() => saveField('bestBeforeDate')}>Speichern</button>
-          <button class="btn-cancel" type="button" onclick={cancelEdit}>Abbrechen</button>
-        </div>
-      {:else}
-        <div class="mhd-value">
-          <span class="mhd-date">{item.bestBeforeDate ? formatDate(item.bestBeforeDate) : '—'}</span>
-          {#if item.bestBeforeDate}
-            <span class="mhd-badge {expiryClass()} mhd-badge--big">
-              {expiryLabel()}
-            </span>
-          {:else}
-            <span class="mhd-badge mhd-fresh mhd-badge--big">Kein MHD</span>
-          {/if}
-        </div>
-      {/if}
-    </div>
-  </div>
-
-  <!-- ── Location card ─────────────────────────────────────────────────── -->
-  <div class="card">
-    <div class="section-header">
-      <h2 class="section-title">Lagerort</h2>
-      <button class="btn-edit" type="button" onclick={openLocationPicker} title="Lagerort ändern">
-        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-          <path d="M9.5 2.5L11.5 4.5L5 11H3V9L9.5 2.5Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>
-        </svg>
-      </button>
-    </div>
-
-    <div class="location-path">
-      {#if locationPath.length === 0}
-        <span class="location-unset">Kein Lagerort zugewiesen</span>
-      {:else}
-        {#each locationPath as segment, i (segment.id)}
-          {#if i > 0}
-            <svg class="path-sep" width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-              <path d="M5 3l4 4-4 4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-          {/if}
-          <button
-            class="path-segment"
-            type="button"
-            onclick={openLocationPicker}
-            title="Lagerort ändern"
-          >
-            {segment.name}
-          </button>
-        {/each}
-      {/if}
-    </div>
-  </div>
-
-  <!-- ── Quantity card ──────────────────────────────────────────────────── -->
-  <div class="card">
-    <div class="section-header">
-      <h2 class="section-title">Menge</h2>
-      {#if editingField !== 'unit'}
-        <button class="btn-edit" type="button" onclick={() => startEdit('unit')} title="Einheit bearbeiten">
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-            <path d="M9.5 2.5L11.5 4.5L5 11H3V9L9.5 2.5Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>
-          </svg>
-        </button>
-      {/if}
-    </div>
-
-    {#if editingField === 'unit'}
-      <div class="field-edit-row">
-        <select class="input select" bind:value={editUnit}>
-          {#each unitOptions as opt}
-            <option value={opt.symbol}>{opt.name}</option>
-          {/each}
-        </select>
-        <button class="btn-save" type="button" onclick={() => saveField('unit')}>Speichern</button>
-        <button class="btn-cancel" type="button" onclick={cancelEdit}>Abbrechen</button>
-      </div>
+    {#if nutrientRows.length === 0}
+      <p class="empty-hint">Noch keine Nährwerte erfasst.</p>
     {:else}
-      <div class="quantity-row">
-        <button
-          class="qty-btn"
-          type="button"
-          onclick={() => changeQuantity(-1)}
-          disabled={qty <= 0}
-          aria-label="Menge verringern"
-        >
-          <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
-            <path d="M4 9h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-          </svg>
-        </button>
-
-        <div class="qty-display">
-          <span class="qty-number">{qty}</span>
-          <span class="qty-unit">{unitLabel(item.unit)}</span>
-        </div>
-
-        <button
-          class="qty-btn"
-          type="button"
-          onclick={() => changeQuantity(1)}
-          aria-label="Menge erhöhen"
-        >
-          <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
-            <path d="M9 4v10M4 9h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-          </svg>
-        </button>
-      </div>
-    {/if}
-  </div>
-
-  <!-- ── Notes & Lot card ───────────────────────────────────────────────── -->
-  <div class="card">
-    <h2 class="section-title" style="margin-bottom: var(--space-4)">Details</h2>
-
-    <!-- Lot number -->
-    <div class="detail-row">
-      <span class="detail-label">Losnummer</span>
-      {#if editingField === 'lotNumber'}
-          <!-- svelte-ignore a11y_autofocus -->
-        <div class="field-edit-row field-edit-row--inline">
-          <input
-            class="input input--sm"
-            type="text"
-            placeholder="z.B. L1234"
-            bind:value={editLotNumber}
-            onkeydown={(e) => onFieldKeydown(e, 'lotNumber')}
-            autofocus
-          />
-          <button class="btn-save" type="button" onclick={() => saveField('lotNumber')}>Ok</button>
-          <button class="btn-cancel" type="button" onclick={cancelEdit}>×</button>
-        </div>
-      {:else}
-        <div class="detail-value-row">
-          <span class="detail-value">{item.lotNumber ?? '—'}</span>
-          <button class="btn-icon" type="button" onclick={() => startEdit('lotNumber')} title="Bearbeiten">
-            <svg width="13" height="13" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-              <path d="M9.5 2.5L11.5 4.5L5 11H3V9L9.5 2.5Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>
-            </svg>
-          </button>
-        </div>
-      {/if}
-    </div>
-
-    <!-- Notes -->
-    <div class="detail-row">
-      <span class="detail-label">Notizen</span>
-          <!-- svelte-ignore a11y_autofocus -->
-      {#if editingField === 'notes'}
-        <div class="field-edit-col">
-          <textarea
-            class="input textarea"
-            placeholder="Notizen zum Artikel..."
-            bind:value={editNotes}
-            onkeydown={(e) => { if (e.key === 'Escape') cancelEdit() }}
-            autofocus
-            rows="3"
-          ></textarea>
-          <div class="field-edit-actions">
-            <button class="btn-save" type="button" onclick={() => saveField('notes')}>Speichern</button>
-            <button class="btn-cancel" type="button" onclick={cancelEdit}>Abbrechen</button>
+      <div class="nutrient-list">
+        {#each nutrientRows as row (row.nutrientTypeId)}
+          <div class="nutrient-row">
+            <span class="nutrient-name">{nutrientName(row.nutrientTypeId)}</span>
+            <input
+              class="input nutrient-value"
+              type="number"
+              min="0"
+              step="0.01"
+              value={row.valuePer100}
+              onblur={(e) => saveNutrient(row.nutrientTypeId, (e.target as HTMLInputElement).value)}
+              onkeydown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }}
+              aria-label="{nutrientName(row.nutrientTypeId)} Wert"
+            />
+            <span class="nutrient-unit">{nutrientUnit(row.nutrientTypeId)}</span>
+            <button class="btn-icon-danger" type="button" aria-label="Nährwert entfernen" onclick={() => deleteNutrientRow(row.nutrientTypeId)}>
+              <svg width="13" height="13" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                <path d="M2 3.5h10M5 3.5V2.5h4v1M5.5 6v4M8.5 6v4M3 3.5l.7 8h6.6l.7-8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </button>
           </div>
-        </div>
-      {:else}
-        <div class="detail-value-row">
-          <span class="detail-value detail-value--notes">{item.notes ?? '—'}</span>
-          <button class="btn-icon" type="button" onclick={() => startEdit('notes')} title="Notiz bearbeiten">
-            <svg width="13" height="13" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-              <path d="M9.5 2.5L11.5 4.5L5 11H3V9L9.5 2.5Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>
-            </svg>
-          </button>
-        </div>
-      {/if}
+        {/each}
+      </div>
+    {/if}
+
+    <!-- Add nutrient row -->
+    <div class="nutrient-add">
+      <select class="input" bind:value={selectedNewType} disabled={addingNutrient} aria-label="Nährstoff wählen">
+        <option value="">+ Nährstoff hinzufügen…</option>
+        {#each availableTypes as t (t.id)}
+          <option value={t.id}>{t.name} ({t.unit})</option>
+        {/each}
+      </select>
+      <button class="btn-secondary" type="button" onclick={addNutrientRow} disabled={!selectedNewType}>Hinzufügen</button>
+      <button class="btn-link" type="button" onclick={() => (showCustomForm = !showCustomForm)}>
+        {showCustomForm ? 'Abbrechen' : 'Eigener Nährstoff'}
+      </button>
     </div>
-  </div>
 
-  <!-- ── Nährwerte card ─────────────────────────────────────────────────── -->
-  <div class="card">
-    <h2 class="section-title" style="margin-bottom: var(--space-4)">Nährwerte <span class="section-subtitle">pro 100 g / 100 ml</span></h2>
-
-    {#if (item.product.nutrients?.length ?? 0) === 0}
-      <p class="nutrients-empty">Keine Nährwertangaben vorhanden.</p>
-    {:else}
-      <table class="nutrients-table">
-        <thead>
-          <tr>
-            <th class="nt-col-name">Nährstoff</th>
-            <th class="nt-col-val">Menge</th>
-          </tr>
-        </thead>
-        <tbody>
-          {#each knownNutrients as row (row.slug)}
-            <tr class="nt-row">
-              <td class="nt-name" class:nt-name--indent={row.slug === 'saturated-fat' || row.slug === 'sugars'}>
-                {row.label}
-              </td>
-              <td class="nt-val">
-                {#if nutrients().has(row.slug)}
-                  {getNutrientValue(row.slug)}
-                  <span class="nt-unit">{nutrients().get(row.slug)?.nutrientType.unit ?? row.unit}</span>
-                {:else}
-                  <span class="nt-none">Keine Angabe</span>
-                {/if}
-              </td>
-            </tr>
-          {/each}
-          <!-- Any extra nutrients not in knownNutrients -->
-          {#each item.product.nutrients ?? [] as n (n.id)}
-            {#if !knownNutrients.find((k) => k.slug === n.nutrientType.slug)}
-              <tr class="nt-row">
-                <td class="nt-name">{n.nutrientType.name}</td>
-                <td class="nt-val">
-                  {Number(n.valuePer100).toLocaleString('de-DE', { maximumFractionDigits: 2 })}
-                  <span class="nt-unit">{n.nutrientType.unit}</span>
-                </td>
-              </tr>
-            {/if}
-          {/each}
-        </tbody>
-      </table>
+    {#if showCustomForm}
+      <div class="custom-nutrient">
+        <input class="input" type="text" placeholder="Name (z.B. Magnesium)" bind:value={customName} maxlength="128" aria-label="Name des Nährstoffs" />
+        <input class="input custom-unit" type="text" placeholder="Einheit" bind:value={customUnit} maxlength="16" aria-label="Einheit" />
+        <button class="btn-secondary" type="button" onclick={createCustomNutrient} disabled={customSaving}>Anlegen</button>
+      </div>
     {/if}
   </div>
 
-  <!-- ── Actions card ───────────────────────────────────────────────────── -->
-  {#if item.status === 'available'}
-    <div class="card actions-card">
-      <form
-        method="POST"
-        action="?/markConsumed"
-        use:enhance={() => {
-          return async ({ result, update }) => {
-            if (result.type === 'redirect') {
-              goto(result.location)
-            } else {
-              update()
-            }
-          }
-        }}
-      >
-        <button class="btn-consumed" type="submit">
-          <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
-            <circle cx="9" cy="9" r="7.5" stroke="currentColor" stroke-width="1.5"/>
-            <path d="M5.5 9l2.5 2.5 4.5-4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-          Als verbraucht markieren
-        </button>
-      </form>
-
-      <button
-        class="btn-delete"
-        type="button"
-        onclick={() => showConfirm(
-          'Bestandseintrag entfernen?',
-          'Dieser Bestandseintrag wird aus dem Inventar entfernt. Das Produkt bleibt im Katalog.',
-          () => { closeConfirm(); (document.getElementById('frm-del-item') as HTMLFormElement)?.submit() }
-        )}
-      >
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-          <path d="M2 4h12M6 4V2.5h4V4M5.5 4v8h5V4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-        Aus Inventar entfernen
-      </button>
-      <form id="frm-del-item" method="POST" action="?/deleteItem" style="display:none" use:enhance={() => async ({ result, update }) => { if (result.type === 'redirect') goto(result.location); else await update() }}></form>
-
-      <button
-        class="btn-delete-product"
-        type="button"
-        onclick={() => showConfirm(
-          'Produkt dauerhaft löschen?',
-          `"${item.product.name}" wird dauerhaft aus dem Katalog entfernt und erscheint nicht mehr in Suche, Inventar oder Easy-Add.`,
-          () => { closeConfirm(); (document.getElementById('frm-del-product') as HTMLFormElement)?.submit() }
-        )}
-      >
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-          <circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.4"/>
-          <path d="M5 8h6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
-        </svg>
-        Produkt aus Katalog entfernen
-      </button>
-      <form id="frm-del-product" method="POST" action="?/deleteProduct" style="display:none" use:enhance={() => async ({ result, update }) => { if (result.type === 'redirect') goto(result.location); else await update() }}></form>
-
+  <!-- ── Stock entries (siblings) ───────────────────────────────────────── -->
+  <div class="card">
+    <div class="section-header">
+      <h2 class="section-title">Bestände <span class="section-subtitle">({siblings.length})</span></h2>
     </div>
-  {/if}
-</div>
 
-  <!-- "Alles löschen" — always visible regardless of item status -->
-  <div class="card actions-card actions-card--danger">
-      <button
-        class="btn-delete-all"
-        type="button"
-        onclick={() => showConfirm(
-          'Artikel vollständig löschen?',
-          'Produkt, alle Bestandseinträge und alle Bezugsquellen werden dauerhaft gelöscht. Diese Aktion kann nicht rückgängig gemacht werden.',
-          () => { closeConfirm(); (document.getElementById('frm-del-all') as HTMLFormElement)?.submit() },
-          'Alles löschen'
-        )}
-      >
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-          <path d="M2 4h12M6 4V2.5h4V4M5.5 4v8h5V4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
-          <path d="M3 4l1 9.5h8L13 4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-        Alles löschen (inkl. Bestand)
-      </button>
-      <form id="frm-del-all" method="POST" action="?/deleteAll" style="display:none" use:enhance={() => async ({ result, update }) => { if (result.type === 'redirect') goto(result.location); else await update() }}></form>
+    {#if siblings.length === 0}
+      <p class="empty-hint">Keine Bestände. Über „Bestand hinzufügen" im Inventar anlegen.</p>
+    {:else}
+      <div class="stock-list">
+        {#each siblings as row (row.id)}
+          {@const exp = expiryOf(row.bestBeforeDate)}
+          <div class="stock-entry" class:stock-entry--current={row.id === data.item.id} class:stock-entry--consumed={row.status !== 'available'}>
+            {#if editingRowId === row.id}
+              <!-- Inline edit -->
+              <div class="stock-edit">
+                <div class="stock-edit-fields">
+                  <label class="mini-field">
+                    <span class="mini-label">Menge</span>
+                    <input class="input" type="number" min="0" step="0.01" bind:value={draftQuantity} />
+                  </label>
+                  <label class="mini-field">
+                    <span class="mini-label">Einheit</span>
+                    <select class="input" bind:value={draftUnit}>
+                      {#each units as u (u.id)}<option value={u.symbol}>{u.name}</option>{/each}
+                    </select>
+                  </label>
+                  <label class="mini-field">
+                    <span class="mini-label">MHD</span>
+                    <input class="input" type="date" bind:value={draftMhd} />
+                  </label>
+                  <label class="mini-field">
+                    <span class="mini-label">Markt</span>
+                    <select class="input" bind:value={draftStoreId}>
+                      <option value="">Kein Markt</option>
+                      {#each availableStores as s (s.id)}<option value={s.id}>{s.name}{s.chain ? ` (${s.chain})` : ''}</option>{/each}
+                    </select>
+                  </label>
+                </div>
+                <button class="btn-link" type="button" onclick={() => openLocationPicker(row.id)}>
+                  Lagerort: {row.locationPath.length ? row.locationPath.map((p) => p.name).join(' › ') : 'wählen…'}
+                </button>
+                <div class="stock-edit-actions">
+                  <button class="btn-secondary" type="button" onclick={() => saveRow(row)}>Speichern</button>
+                  <button class="btn-link" type="button" onclick={cancelRowEdit}>Abbrechen</button>
+                </div>
+              </div>
+            {:else}
+              <!-- Display -->
+              <div class="stock-main">
+                <span class="stock-qty">{row.quantity} {unitLabel(row.unit)}</span>
+                <span class="stock-mhd {exp.cls}">{exp.label}</span>
+                {#if row.status !== 'available'}
+                  <span class="stock-status">{statusLabel(row.status)}</span>
+                {/if}
+              </div>
+              <div class="stock-meta">
+                {#if row.bestBeforeDate}<span>MHD: {formatDate(row.bestBeforeDate)}</span>{/if}
+                {#if row.store}<span>· {row.store.name}</span>{/if}
+                {#if row.locationPath.length}<span>· {row.locationPath.map((p) => p.name).join(' › ')}</span>{/if}
+              </div>
+              <div class="stock-actions">
+                <button class="btn-link" type="button" onclick={() => startRowEdit(row)}>Bearbeiten</button>
+                {#if row.status === 'available'}
+                  <button class="btn-link" type="button" onclick={() => consumeRow(row)}>Verbraucht</button>
+                {/if}
+                <button class="btn-link btn-link--danger" type="button" onclick={() => deleteRow(row)}>Entfernen</button>
+              </div>
+            {/if}
+          </div>
+        {/each}
+      </div>
+    {/if}
   </div>
+
+  <!-- ── Product-wide actions ───────────────────────────────────────────── -->
+  <div class="card actions-card actions-card--danger">
+    <button
+      class="btn-delete-product"
+      type="button"
+      onclick={() => showConfirm(
+        'Produkt aus Katalog entfernen?',
+        `„${product.name}" wird aus dem Katalog entfernt. Nur möglich, wenn keine Bestände mehr existieren.`,
+        () => { closeConfirm(); deleteProductCatalog() }
+      )}
+    >
+      Produkt aus Katalog entfernen
+    </button>
+    <button
+      class="btn-delete-all"
+      type="button"
+      onclick={() => showConfirm(
+        'Artikel vollständig löschen?',
+        'Produkt, alle Bestände und alle zugehörigen Nährwertangaben werden dauerhaft gelöscht. Diese Aktion kann nicht rückgängig gemacht werden.',
+        () => { closeConfirm(); submitDeleteAll() },
+        'Alles löschen'
+      )}
+    >
+      Alles löschen (inkl. Bestände)
+    </button>
+    <form id="frm-del-all" method="POST" action="?/deleteAll" style="display:none"></form>
+  </div>
+</div>
 
 <!-- ── Location picker dialog ────────────────────────────────────────────── -->
 {#if showLocationPicker}
@@ -654,30 +523,20 @@
           </svg>
         </button>
       </div>
-
       <div class="dialog-body">
         {#if data.allLocations.length === 0}
-          <p class="picker-empty">Keine Lagerorte vorhanden. Lege zuerst Orte an.</p>
+          <p class="empty-hint">Keine Lagerorte vorhanden. Lege zuerst Orte an.</p>
         {:else}
           {#each data.allLocations as loc (loc.id)}
             <div class="picker-location">
-              <div class="picker-location-name">
-                <span class="picker-icon">{loc.icon ?? '📍'}</span>
-                {loc.name}
-              </div>
+              <div class="picker-location-name"><span class="picker-icon">{loc.icon ?? '📍'}</span> {loc.name}</div>
               {#each loc.storages as st (st.id)}
                 <div class="picker-storage">
                   <div class="picker-storage-name">{st.name}</div>
                   {#if st.places.length > 0}
                     <div class="picker-places">
                       {#each st.places as pl (pl.id)}
-                        <button
-                          class="picker-place-btn"
-                          type="button"
-                          onclick={() => selectPlace(pl.id)}
-                        >
-                          {pl.name}
-                        </button>
+                        <button class="picker-place-btn" type="button" onclick={() => selectPlace(pl.id)}>{pl.name}</button>
                       {/each}
                     </div>
                   {:else}
@@ -689,9 +548,8 @@
           {/each}
         {/if}
       </div>
-
       <div class="dialog-footer">
-        <button class="btn-cancel" type="button" onclick={closeLocationPicker}>Abbrechen</button>
+        <button class="btn-link" type="button" onclick={closeLocationPicker}>Abbrechen</button>
       </div>
     </div>
   </div>
@@ -701,20 +559,7 @@
 {#if toasts.length > 0}
   <div class="toast-container" role="status" aria-live="polite">
     {#each toasts as toast (toast.id)}
-      <div class="toast" class:toast--error={toast.type === 'error'}>
-        {#if toast.type === 'success'}
-          <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-            <circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.5"/>
-            <path d="M5 8l2 2 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-        {:else}
-          <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-            <circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.5"/>
-            <path d="M8 5v3.5M8 11v.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-          </svg>
-        {/if}
-        {toast.message}
-      </div>
+      <div class="toast" class:toast--error={toast.type === 'error'}>{toast.message}</div>
     {/each}
   </div>
 {/if}
@@ -732,18 +577,14 @@
 {/if}
 
 <style>
-  /* ── Page layout ──────────────────────────────────────────────────────── */
-
   .page {
     max-width: 680px;
     margin: 0 auto;
-    padding: var(--space-6) var(--space-6) var(--space-16);
+    padding: var(--space-6) var(--space-4) var(--space-16);
     display: flex;
     flex-direction: column;
     gap: var(--space-4);
   }
-
-  /* ── Back link ────────────────────────────────────────────────────────── */
 
   .back-link {
     display: inline-flex;
@@ -755,348 +596,69 @@
     text-decoration: none;
     transition: color var(--transition-fast);
     padding: var(--space-1) 0;
-    margin-bottom: var(--space-2);
   }
-
-  .back-link:hover {
-    color: var(--color-primary);
-  }
-
-  /* ── Card ─────────────────────────────────────────────────────────────── */
+  .back-link:hover { color: var(--color-primary); }
 
   .card {
     background-color: var(--color-surface-raised);
     border: 1px solid var(--color-border);
     border-radius: var(--radius-lg);
-    padding: var(--space-5) var(--space-6);
+    padding: var(--space-5) var(--space-5);
     box-shadow: var(--shadow-sm);
   }
 
-  /* ── Section header ───────────────────────────────────────────────────── */
-
-  .section-header {
-    display: flex;
-    align-items: center;
-    gap: var(--space-2);
-    margin-bottom: var(--space-4);
-  }
-
+  .section-header { margin-bottom: var(--space-3); }
   .section-title {
     font-family: var(--font-display);
-    font-size: var(--text-sm);
-    font-weight: 600;
-    color: var(--color-text-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.07em;
+    font-size: var(--text-lg);
+    font-weight: 700;
+    color: var(--color-text-primary);
     margin: 0;
-    flex: 1;
   }
-
   .section-subtitle {
-    font-family: var(--font-body);
-    font-weight: 400;
-    text-transform: none;
-    letter-spacing: 0;
-    color: var(--color-text-muted);
     font-size: var(--text-xs);
+    font-weight: 500;
+    color: var(--color-text-muted);
   }
 
-  /* ── Product card ─────────────────────────────────────────────────────── */
-
-  .product-hero {
-    display: flex;
-    align-items: flex-start;
-    gap: var(--space-5);
+  .scope-hint {
+    font-size: var(--text-xs);
+    color: var(--color-text-muted);
+    margin: 0 0 var(--space-3);
+  }
+  .empty-hint {
+    font-size: var(--text-sm);
+    color: var(--color-text-muted);
+    margin: var(--space-1) 0;
   }
 
-  .product-image-placeholder {
-    flex-shrink: 0;
-    width: 72px;
-    height: 72px;
-    border-radius: var(--radius-lg);
-    overflow: hidden;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background-color: var(--color-primary-subtle);
-  }
-
-  .product-info {
-    flex: 1;
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-1);
-  }
-
+  /* ── Product header ─────────────────────────────────────────────────── */
+  .product-hero { display: flex; gap: var(--space-4); align-items: flex-start; }
+  .product-image-placeholder { flex-shrink: 0; }
+  .product-info { display: flex; flex-direction: column; gap: var(--space-1); min-width: 0; }
   .product-name {
     font-family: var(--font-display);
     font-size: var(--text-xl);
     font-weight: 700;
     color: var(--color-text-primary);
-    letter-spacing: -0.01em;
     margin: 0;
-    line-height: 1.2;
+    word-break: break-word;
   }
-
-  .product-brand {
+  .product-brand, .product-category, .product-unit {
     font-size: var(--text-sm);
     color: var(--color-text-secondary);
-    font-weight: 500;
   }
-
-  .product-barcode {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--space-1);
-    font-size: var(--text-xs);
-    font-family: var(--font-mono);
-    color: var(--color-text-muted);
-    background-color: var(--color-surface-sunken);
-    padding: 2px var(--space-2);
-    border-radius: var(--radius-sm);
-    width: fit-content;
-  }
-
-  .product-category {
-    display: inline-flex;
-    align-items: center;
-    height: 20px;
-    padding: 0 var(--space-2);
-    border-radius: var(--radius-full);
-    background-color: var(--color-secondary-subtle);
-    color: var(--color-secondary);
-    font-size: var(--text-xs);
-    font-weight: 500;
-    width: fit-content;
-  }
-
-  /* ── Status banner ────────────────────────────────────────────────────── */
-
-  .status-banner {
-    margin-top: var(--space-4);
-    padding: var(--space-2) var(--space-4);
-    border-radius: var(--radius-md);
+  .product-unit { font-size: var(--text-xs); color: var(--color-text-muted); }
+  .product-desc {
+    margin: var(--space-3) 0 0;
     font-size: var(--text-sm);
-    font-weight: 600;
-    text-align: center;
-  }
-
-  .status-banner--consumed {
-    background-color: var(--color-success-subtle);
-    color: var(--color-success);
-  }
-
-  .status-banner--expired {
-    background-color: var(--color-danger-subtle);
-    color: var(--color-danger);
-  }
-
-  .status-banner--donated,
-  .status-banner--discarded {
-    background-color: var(--color-accent-subtle);
-    color: var(--color-accent);
-  }
-
-  /* ── MHD row ──────────────────────────────────────────────────────────── */
-
-  .mhd-row {
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: var(--space-3);
-  }
-
-  .mhd-value {
-    display: flex;
-    align-items: center;
-    gap: var(--space-3);
-    flex-wrap: wrap;
-  }
-
-  .mhd-date {
-    font-family: var(--font-mono);
-    font-size: var(--text-xl);
-    font-weight: 600;
-    color: var(--color-text-primary);
-    letter-spacing: -0.01em;
-  }
-
-  .mhd-badge {
-    font-size: var(--text-sm) !important;
-    padding: var(--space-1) var(--space-3) !important;
-  }
-
-  .mhd-badge--big {
-    font-size: var(--text-base) !important;
-    padding: var(--space-2) var(--space-4) !important;
-    border-radius: var(--radius-md) !important;
-  }
-
-  /* ── Location path ────────────────────────────────────────────────────── */
-
-  .location-path {
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: var(--space-1);
-  }
-
-  .location-unset {
-    font-size: var(--text-sm);
-    color: var(--color-text-muted);
-    font-style: italic;
-  }
-
-  .path-sep {
-    color: var(--color-text-muted);
-    flex-shrink: 0;
-  }
-
-  .path-segment {
-    background: none;
-    border: none;
-    padding: var(--space-1) var(--space-2);
-    border-radius: var(--radius-md);
-    font-size: var(--text-sm);
-    font-weight: 500;
-    color: var(--color-text-link);
-    cursor: pointer;
-    transition: background-color var(--transition-fast), color var(--transition-fast);
-  }
-
-  .path-segment:hover {
-    background-color: var(--color-primary-subtle);
-    color: var(--color-primary-hover);
-  }
-
-  /* ── Quantity stepper ─────────────────────────────────────────────────── */
-
-  .quantity-row {
-    display: flex;
-    align-items: center;
-    gap: var(--space-4);
-  }
-
-  .qty-btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 44px;
-    height: 44px;
-    border-radius: var(--radius-md);
-    border: 1.5px solid var(--color-border);
-    background-color: var(--color-surface);
-    color: var(--color-text-primary);
-    cursor: pointer;
-    transition: border-color var(--transition-fast), background-color var(--transition-fast), color var(--transition-fast);
-    flex-shrink: 0;
-  }
-
-  .qty-btn:hover:not(:disabled) {
-    border-color: var(--color-primary);
-    background-color: var(--color-primary-subtle);
-    color: var(--color-primary);
-  }
-
-  .qty-btn:disabled {
-    opacity: 0.35;
-    cursor: not-allowed;
-  }
-
-  .qty-display {
-    display: flex;
-    align-items: baseline;
-    gap: var(--space-2);
-    min-width: 80px;
-    justify-content: center;
-  }
-
-  .qty-number {
-    font-family: var(--font-display);
-    font-size: var(--text-3xl);
-    font-weight: 700;
-    color: var(--color-text-primary);
-    line-height: 1;
-    letter-spacing: -0.02em;
-    min-width: 2ch;
-    text-align: center;
-  }
-
-  .qty-unit {
-    font-size: var(--text-base);
-    color: var(--color-text-muted);
-    font-weight: 500;
-  }
-
-  /* ── Detail rows ──────────────────────────────────────────────────────── */
-
-  .detail-row {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-1);
-    padding: var(--space-3) 0;
-    border-bottom: 1px solid var(--color-border-subtle);
-  }
-
-  .detail-row:last-child {
-    border-bottom: none;
-  }
-
-  .detail-label {
-    font-size: var(--text-xs);
-    font-weight: 600;
-    color: var(--color-text-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-  }
-
-  .detail-value-row {
-    display: flex;
-    align-items: center;
-    gap: var(--space-2);
-  }
-
-  .detail-value {
-    font-size: var(--text-base);
-    color: var(--color-text-primary);
-    flex: 1;
-  }
-
-  .detail-value--notes {
-    white-space: pre-wrap;
-    line-height: 1.6;
     color: var(--color-text-secondary);
+    line-height: 1.5;
   }
 
-  /* ── Field edit ───────────────────────────────────────────────────────── */
-
-  .field-edit-row {
-    display: flex;
-    align-items: center;
-    gap: var(--space-2);
-    flex-wrap: wrap;
-  }
-
-  .field-edit-row--inline {
-    flex-wrap: nowrap;
-  }
-
-  .field-edit-col {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-2);
-  }
-
-  .field-edit-actions {
-    display: flex;
-    gap: var(--space-2);
-  }
-
-  /* ── Inputs ───────────────────────────────────────────────────────────── */
-
+  /* ── Inputs / buttons ───────────────────────────────────────────────── */
   .input {
-    height: 38px;
+    height: 40px;
     padding: 0 var(--space-3);
     border-radius: var(--radius-md);
     border: 1px solid var(--color-border);
@@ -1105,43 +667,18 @@
     font-family: var(--font-body);
     font-size: var(--text-base);
     outline: none;
-    transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+    box-sizing: border-box;
     min-width: 0;
+    transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
   }
-
-  .input::placeholder {
-    color: var(--color-text-muted);
-  }
-
   .input:focus {
     border-color: var(--color-border-focus);
     box-shadow: 0 0 0 3px rgba(196, 103, 58, 0.15);
   }
 
-  .input--sm {
-    height: 34px;
-    font-size: var(--text-sm);
-  }
-
-  .textarea {
-    height: auto;
-    padding: var(--space-2) var(--space-3);
-    resize: vertical;
-    line-height: 1.6;
-  }
-
-  .select {
-    cursor: pointer;
-    padding-right: var(--space-6);
-  }
-
-  /* ── Buttons ──────────────────────────────────────────────────────────── */
-
-  .btn-save {
-    display: inline-flex;
-    align-items: center;
-    height: 34px;
-    padding: 0 var(--space-3);
+  .btn-secondary {
+    height: 40px;
+    padding: 0 var(--space-4);
     border-radius: var(--radius-md);
     border: none;
     background-color: var(--color-primary);
@@ -1152,617 +689,200 @@
     cursor: pointer;
     white-space: nowrap;
     transition: background-color var(--transition-fast);
-    flex-shrink: 0;
   }
+  .btn-secondary:hover:not(:disabled) { background-color: var(--color-primary-hover); }
+  .btn-secondary:disabled { opacity: 0.45; cursor: not-allowed; }
 
-  .btn-save:hover {
-    background-color: var(--color-primary-hover);
+  .btn-link {
+    background: none;
+    border: none;
+    padding: var(--space-1) 0;
+    color: var(--color-primary);
+    font-family: var(--font-body);
+    font-size: var(--text-sm);
+    font-weight: 500;
+    cursor: pointer;
+    white-space: nowrap;
   }
+  .btn-link:hover { color: var(--color-primary-hover); text-decoration: underline; }
+  .btn-link--danger { color: var(--color-danger, #dc2626); }
 
-  .btn-cancel {
+  .btn-icon-danger {
     display: inline-flex;
     align-items: center;
-    height: 34px;
-    padding: 0 var(--space-3);
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    border: 1px solid var(--color-border);
+    background: transparent;
+    color: var(--color-text-muted);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: border-color var(--transition-fast), color var(--transition-fast), background-color var(--transition-fast);
+  }
+  .btn-icon-danger:hover {
+    border-color: var(--color-danger, #dc2626);
+    color: var(--color-danger, #dc2626);
+    background-color: var(--color-danger-subtle, #fee2e2);
+  }
+
+  /* ── Nutrient editor ─────────────────────────────────────────────────── */
+  .nutrient-list { display: flex; flex-direction: column; gap: var(--space-2); margin-bottom: var(--space-3); }
+  .nutrient-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+  .nutrient-name { flex: 1; font-size: var(--text-sm); color: var(--color-text-primary); min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  .nutrient-value { width: 96px; flex-shrink: 0; }
+  .nutrient-unit { width: 36px; flex-shrink: 0; font-size: var(--text-xs); color: var(--color-text-muted); }
+
+  .nutrient-add { display: flex; gap: var(--space-2); flex-wrap: wrap; align-items: center; }
+  .nutrient-add .input { flex: 1 1 180px; }
+
+  .custom-nutrient { display: flex; gap: var(--space-2); flex-wrap: wrap; margin-top: var(--space-3); }
+  .custom-nutrient .input { flex: 1 1 160px; }
+  .custom-nutrient .custom-unit { flex: 0 1 90px; }
+
+  /* ── Stock list ──────────────────────────────────────────────────────── */
+  .stock-list { display: flex; flex-direction: column; gap: var(--space-2); }
+  .stock-entry {
+    border: 1px solid var(--color-border-subtle);
+    border-radius: var(--radius-md);
+    padding: var(--space-3);
+    background-color: var(--color-surface);
+  }
+  .stock-entry--current { border-color: var(--color-primary); background-color: var(--color-primary-subtle); }
+  .stock-entry--consumed { opacity: 0.6; }
+
+  .stock-main { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
+  .stock-qty { font-size: var(--text-base); font-weight: 700; color: var(--color-text-primary); }
+  .stock-mhd {
+    font-size: var(--text-xs);
+    font-weight: 600;
+    padding: 2px var(--space-2);
+    border-radius: var(--radius-full);
+  }
+  .stock-status {
+    font-size: var(--text-xs);
+    font-weight: 600;
+    color: var(--color-text-muted);
+    padding: 2px var(--space-2);
+    border-radius: var(--radius-full);
+    background: var(--color-surface-sunken);
+  }
+  .stock-meta {
+    display: flex;
+    gap: var(--space-1);
+    flex-wrap: wrap;
+    font-size: var(--text-xs);
+    color: var(--color-text-muted);
+    margin-top: var(--space-1);
+  }
+  .stock-actions { display: flex; gap: var(--space-3); margin-top: var(--space-2); flex-wrap: wrap; }
+
+  .stock-edit { display: flex; flex-direction: column; gap: var(--space-2); }
+  .stock-edit-fields { display: flex; gap: var(--space-2); flex-wrap: wrap; }
+  .mini-field { display: flex; flex-direction: column; gap: 2px; flex: 1 1 120px; min-width: 0; }
+  .mini-label { font-size: var(--text-xs); color: var(--color-text-muted); }
+  .stock-edit-actions { display: flex; gap: var(--space-3); align-items: center; }
+
+  /* MHD badge colors (shared classes from expiry utils) */
+  :global(.mhd-fresh) { background: var(--color-success-subtle, #dcfce7); color: var(--color-success, #16a34a); }
+  :global(.mhd-ok) { background: var(--color-success-subtle, #dcfce7); color: var(--color-success, #16a34a); }
+  :global(.mhd-soon) { background: #fef9c3; color: #ca8a04; }
+  :global(.mhd-critical) { background: #ffedd5; color: #ea580c; }
+  :global(.mhd-expired) { background: var(--color-danger-subtle, #fee2e2); color: var(--color-danger, #dc2626); }
+
+  /* ── Actions card ────────────────────────────────────────────────────── */
+  .actions-card { display: flex; flex-direction: column; gap: var(--space-2); }
+  .actions-card--danger { border-color: rgba(220, 38, 38, 0.25); }
+  .btn-delete-product, .btn-delete-all {
+    height: 40px;
     border-radius: var(--radius-md);
     border: 1px solid var(--color-border);
-    background-color: transparent;
+    background: transparent;
     color: var(--color-text-secondary);
     font-family: var(--font-body);
     font-size: var(--text-sm);
-    font-weight: 500;
-    cursor: pointer;
-    white-space: nowrap;
-    transition: border-color var(--transition-fast), color var(--transition-fast);
-    flex-shrink: 0;
-  }
-
-  .btn-cancel:hover {
-    border-color: var(--color-border-strong);
-    color: var(--color-text-primary);
-  }
-
-  .btn-edit {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 28px;
-    height: 28px;
-    border-radius: var(--radius-md);
-    border: none;
-    background-color: transparent;
-    color: var(--color-text-muted);
-    cursor: pointer;
-    transition: background-color var(--transition-fast), color var(--transition-fast);
-    flex-shrink: 0;
-  }
-
-  .btn-edit:hover {
-    background-color: var(--color-surface-sunken);
-    color: var(--color-text-primary);
-  }
-
-  .btn-icon {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 26px;
-    height: 26px;
-    border-radius: var(--radius-md);
-    border: none;
-    background-color: transparent;
-    color: var(--color-text-muted);
-    cursor: pointer;
-    transition: background-color var(--transition-fast), color var(--transition-fast);
-    flex-shrink: 0;
-  }
-
-  .btn-icon:hover {
-    background-color: var(--color-surface-sunken);
-    color: var(--color-text-primary);
-  }
-
-  /* ── Action buttons ───────────────────────────────────────────────────── */
-
-  .actions-card {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-3);
-  }
-
-  .btn-consumed {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: var(--space-2);
-    width: 100%;
-    height: 48px;
-    border-radius: var(--radius-md);
-    border: none;
-    background-color: var(--color-secondary);
-    color: var(--color-text-inverse);
-    font-family: var(--font-body);
-    font-size: var(--text-base);
     font-weight: 600;
     cursor: pointer;
-    transition: background-color var(--transition-fast), box-shadow var(--transition-fast);
+    transition: border-color var(--transition-fast), color var(--transition-fast), background-color var(--transition-fast);
+  }
+  .btn-delete-all { color: var(--color-danger, #dc2626); }
+  .btn-delete-product:hover, .btn-delete-all:hover {
+    border-color: var(--color-danger, #dc2626);
+    color: var(--color-danger, #dc2626);
+    background-color: var(--color-danger-subtle, #fee2e2);
   }
 
-  .btn-consumed:hover {
-    background-color: var(--color-secondary-hover);
-    box-shadow: var(--shadow-md);
-  }
-
-  .btn-delete {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: var(--space-2);
-    width: 100%;
-    height: 40px;
-    border-radius: var(--radius-md);
-    border: 1.5px solid var(--color-border);
-    background-color: transparent;
-    color: var(--color-text-secondary);
-    font-family: var(--font-body);
-    font-size: var(--text-sm);
-    font-weight: 500;
-    cursor: pointer;
-    transition: border-color var(--transition-fast), background-color var(--transition-fast), color var(--transition-fast);
-  }
-
-  .btn-delete:hover {
-    border-color: var(--color-danger);
-    background-color: var(--color-danger-subtle);
-    color: var(--color-danger);
-  }
-
-  .btn-delete-product {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: var(--space-2);
-    width: 100%;
-    height: 40px;
-    border-radius: var(--radius-md);
-    border: 1.5px solid var(--color-border);
-    background-color: transparent;
-    color: var(--color-text-muted);
-    font-family: var(--font-body);
-    font-size: var(--text-sm);
-    font-weight: 500;
-    cursor: pointer;
-    transition: border-color var(--transition-fast), background-color var(--transition-fast), color var(--transition-fast);
-  }
-
-  .btn-delete-product:hover {
-    border-color: var(--color-danger);
-    background-color: var(--color-danger-subtle);
-    color: var(--color-danger);
-  }
-
-  .btn-delete-all {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: var(--space-2);
-    width: 100%;
-    height: 40px;
-    border-radius: var(--radius-md);
-    border: 1.5px solid var(--color-danger);
-    background-color: var(--color-danger-subtle);
-    color: var(--color-danger);
-    font-family: var(--font-body);
-    font-size: var(--text-sm);
-    font-weight: 600;
-    cursor: pointer;
-    transition: border-color var(--transition-fast), background-color var(--transition-fast), color var(--transition-fast);
-  }
-
-  .btn-delete-all:hover {
-    background-color: var(--color-danger);
-    color: #fff;
-  }
-
-  /* ── Nutrients table ──────────────────────────────────────────────────── */
-
-  .nutrients-empty {
-    font-size: var(--text-sm);
-    color: var(--color-text-muted);
-    font-style: italic;
-    margin: 0;
-  }
-
-  .nutrients-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: var(--text-sm);
-  }
-
-  .nutrients-table thead tr {
-    border-bottom: 1.5px solid var(--color-border);
-  }
-
-  .nt-col-name {
-    text-align: left;
-    font-size: var(--text-xs);
-    font-weight: 600;
-    color: var(--color-text-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    padding: 0 0 var(--space-2) 0;
-  }
-
-  .nt-col-val {
-    text-align: right;
-    font-size: var(--text-xs);
-    font-weight: 600;
-    color: var(--color-text-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    padding: 0 0 var(--space-2) var(--space-2);
-  }
-
-  .nt-row {
-    border-bottom: 1px solid var(--color-border-subtle);
-  }
-
-  .nt-row:last-child {
-    border-bottom: none;
-  }
-
-  .nt-name {
-    padding: var(--space-2) 0;
-    color: var(--color-text-secondary);
-    vertical-align: middle;
-  }
-
-  .nt-name--indent {
-    padding-left: var(--space-4);
-    font-size: var(--text-xs);
-    color: var(--color-text-muted);
-  }
-
-  .nt-val {
-    text-align: right;
-    padding: var(--space-2) 0 var(--space-2) var(--space-2);
-    font-family: var(--font-mono);
-    color: var(--color-text-primary);
-    font-weight: 500;
-    white-space: nowrap;
-  }
-
-  .nt-unit {
-    font-family: var(--font-body);
-    color: var(--color-text-muted);
-    font-size: var(--text-xs);
-    margin-left: 2px;
-  }
-
-  .nt-none {
-    font-family: var(--font-body);
-    color: var(--color-text-muted);
-    font-style: italic;
-    font-weight: 400;
-  }
-
-  /* ── Dialog ───────────────────────────────────────────────────────────── */
-
+  /* ── Dialog ──────────────────────────────────────────────────────────── */
   .dialog-backdrop {
-    position: fixed;
-    inset: 0;
-    background-color: rgba(44, 31, 20, 0.45);
-    z-index: var(--z-modal);
-    display: flex;
-    align-items: flex-end;
-    justify-content: center;
-    padding: 0;
+    position: fixed; inset: 0; z-index: 300;
+    background: rgba(0,0,0,0.5);
+    display: flex; align-items: center; justify-content: center;
+    padding: var(--space-4);
   }
-
-  @media (min-width: 520px) {
-    .dialog-backdrop {
-      align-items: center;
-      padding: var(--space-4);
-    }
-  }
-
   .dialog {
-    background-color: var(--color-surface-raised);
-    border-radius: var(--radius-xl) var(--radius-xl) 0 0;
-    width: 100%;
-    max-width: 520px;
-    max-height: 80vh;
-    display: flex;
-    flex-direction: column;
-    box-shadow: var(--shadow-xl);
+    background: var(--color-surface);
+    border-radius: var(--radius-xl);
+    width: 100%; max-width: 480px;
+    max-height: 80dvh;
+    display: flex; flex-direction: column;
+    box-shadow: var(--shadow-lg);
   }
-
-  @media (min-width: 520px) {
-    .dialog {
-      border-radius: var(--radius-xl);
-    }
-  }
-
-  .dialog-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: var(--space-5) var(--space-6) var(--space-4);
-    border-bottom: 1px solid var(--color-border);
-    flex-shrink: 0;
-  }
-
-  .dialog-title {
-    font-family: var(--font-display);
-    font-size: var(--text-lg);
-    font-weight: 700;
-    color: var(--color-text-primary);
-    letter-spacing: -0.01em;
-    margin: 0;
-  }
-
-  .dialog-close {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 32px;
-    height: 32px;
-    border-radius: var(--radius-md);
-    border: none;
-    background-color: transparent;
-    color: var(--color-text-muted);
-    cursor: pointer;
-    transition: background-color var(--transition-fast), color var(--transition-fast);
-    flex-shrink: 0;
-  }
-
-  .dialog-close:hover {
-    background-color: var(--color-surface-sunken);
-    color: var(--color-text-primary);
-  }
-
-  .dialog-body {
-    flex: 1;
-    overflow-y: auto;
-    padding: var(--space-4) var(--space-6);
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-4);
-  }
-
-  .dialog-footer {
-    padding: var(--space-4) var(--space-6) var(--space-5);
-    border-top: 1px solid var(--color-border);
-    flex-shrink: 0;
-  }
-
-  .picker-empty {
-    font-size: var(--text-sm);
-    color: var(--color-text-muted);
-    font-style: italic;
-    margin: 0;
-    text-align: center;
-    padding: var(--space-6) 0;
-  }
-
-  .picker-location {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-3);
-  }
-
-  .picker-location-name {
-    display: flex;
-    align-items: center;
-    gap: var(--space-2);
-    font-weight: 700;
-    font-size: var(--text-base);
-    color: var(--color-text-primary);
-  }
-
-  .picker-icon {
-    font-size: 1.1em;
-  }
-
-  .picker-storage {
-    padding-left: var(--space-6);
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-2);
-  }
-
-  .picker-storage-name {
-    font-size: var(--text-sm);
-    font-weight: 600;
-    color: var(--color-text-secondary);
-  }
-
-  .picker-places {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--space-2);
-  }
-
+  .dialog-header { display: flex; align-items: center; justify-content: space-between; padding: var(--space-4) var(--space-5); border-bottom: 1px solid var(--color-border-subtle); }
+  .dialog-title { font-family: var(--font-display); font-size: var(--text-lg); font-weight: 700; margin: 0; }
+  .dialog-close { border: none; background: transparent; color: var(--color-text-muted); cursor: pointer; padding: var(--space-1); }
+  .dialog-body { padding: var(--space-4) var(--space-5); overflow-y: auto; }
+  .dialog-footer { padding: var(--space-3) var(--space-5); border-top: 1px solid var(--color-border-subtle); display: flex; justify-content: flex-end; }
+  .picker-location { margin-bottom: var(--space-4); }
+  .picker-location-name { font-weight: 700; font-size: var(--text-sm); margin-bottom: var(--space-2); }
+  .picker-storage { margin-left: var(--space-3); margin-bottom: var(--space-2); }
+  .picker-storage-name { font-size: var(--text-sm); font-weight: 600; color: var(--color-text-secondary); margin-bottom: var(--space-1); }
+  .picker-places { display: flex; flex-wrap: wrap; gap: var(--space-2); }
   .picker-place-btn {
-    display: inline-flex;
-    align-items: center;
-    height: 30px;
-    padding: 0 var(--space-3);
-    border-radius: var(--radius-full);
-    border: 1.5px solid var(--color-border);
-    background-color: var(--color-surface);
+    padding: var(--space-1) var(--space-3);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--color-border);
+    background: var(--color-surface);
     color: var(--color-text-primary);
-    font-family: var(--font-body);
     font-size: var(--text-sm);
-    font-weight: 500;
     cursor: pointer;
-    transition: border-color var(--transition-fast), background-color var(--transition-fast), color var(--transition-fast);
   }
+  .picker-place-btn:hover { border-color: var(--color-primary); background: var(--color-primary-subtle); }
+  .picker-no-places { font-size: var(--text-xs); color: var(--color-text-muted); margin: 0; }
+  .picker-icon { margin-right: var(--space-1); }
 
-  .picker-place-btn:hover {
-    border-color: var(--color-primary);
-    background-color: var(--color-primary-subtle);
-    color: var(--color-primary);
-  }
-
-  .picker-no-places {
-    font-size: var(--text-xs);
-    color: var(--color-text-muted);
-    font-style: italic;
-    margin: 0;
-  }
-
-  /* ── Toast ────────────────────────────────────────────────────────────── */
-
+  /* ── Toast ───────────────────────────────────────────────────────────── */
   .toast-container {
     position: fixed;
-    bottom: var(--space-6);
+    bottom: calc(var(--space-6) + 64px);
     left: 50%;
     transform: translateX(-50%);
-    z-index: var(--z-toast);
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-2);
-    align-items: center;
+    z-index: 600;
+    display: flex; flex-direction: column; gap: var(--space-2); align-items: center;
     pointer-events: none;
   }
-
   .toast {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--space-2);
     padding: var(--space-3) var(--space-4);
     border-radius: var(--radius-lg);
-    background-color: var(--color-accent);
-    color: var(--color-text-inverse);
+    background: var(--color-accent, #1f2937);
+    color: var(--color-text-inverse, #fff);
     font-size: var(--text-sm);
     font-weight: 500;
     box-shadow: var(--shadow-lg);
-    white-space: nowrap;
-    animation: toast-in 200ms ease;
   }
+  .toast--error { background: var(--color-danger, #dc2626); }
 
-  .toast--error {
-    background-color: var(--color-danger);
-  }
-
-  @keyframes toast-in {
-    from { opacity: 0; transform: translateY(8px); }
-    to   { opacity: 1; transform: translateY(0); }
-  }
-
-  .stores-empty {
-    font-size: var(--text-sm);
-    color: var(--color-text-muted);
-    font-style: italic;
-    margin: 0 0 var(--space-4);
-  }
-
-  .stores-hint {
-    font-size: var(--text-sm);
-    color: var(--color-text-muted);
-    font-style: italic;
-    margin: var(--space-3) 0 0;
-  }
-
-  .stores-list {
-    list-style: none;
-    margin: 0 0 var(--space-4);
-    padding: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 0;
-  }
-
-  .store-row {
-    display: flex;
-    align-items: center;
-    gap: var(--space-3);
-    padding: var(--space-2) 0;
-    border-bottom: 1px solid var(--color-border-subtle);
-  }
-
-  .store-row:last-child {
-    border-bottom: none;
-  }
-
-  .store-name {
-    flex: 1;
-    font-size: var(--text-base);
-    color: var(--color-text-primary);
-    font-weight: 500;
-  }
-
-  .store-order-badge {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-width: 24px;
-    height: 20px;
-    padding: 0 var(--space-2);
-    border-radius: var(--radius-full);
-    background-color: var(--color-surface-sunken);
-    color: var(--color-text-muted);
-    font-size: var(--text-xs);
-    font-family: var(--font-mono);
-    font-weight: 600;
-    flex-shrink: 0;
-  }
-
-  .store-order-btns {
-    display: flex;
-    gap: var(--space-1);
-    flex-shrink: 0;
-  }
-
-  .btn-order {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 28px;
-    height: 28px;
-    border-radius: var(--radius-md);
-    border: 1px solid var(--color-border);
-    background-color: var(--color-surface);
-    color: var(--color-text-secondary);
-    font-size: var(--text-sm);
-    cursor: pointer;
-    transition: border-color var(--transition-fast), background-color var(--transition-fast), color var(--transition-fast);
-    flex-shrink: 0;
-  }
-
-  .btn-order:hover:not(:disabled) {
-    border-color: var(--color-primary);
-    background-color: var(--color-primary-subtle);
-    color: var(--color-primary);
-  }
-
-  .btn-order:disabled {
-    opacity: 0.3;
-    cursor: not-allowed;
-  }
-
-  .btn-remove-store {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 26px;
-    height: 26px;
-    border-radius: var(--radius-md);
-    border: none;
-    background-color: transparent;
-    color: var(--color-text-muted);
-    cursor: pointer;
-    transition: background-color var(--transition-fast), color var(--transition-fast);
-    flex-shrink: 0;
-  }
-
-  .btn-remove-store:hover {
-    background-color: var(--color-danger-subtle);
-    color: var(--color-danger);
-  }
-
-  .add-store-row {
-    display: flex;
-    align-items: center;
-    gap: var(--space-2);
-    flex-wrap: wrap;
-  }
-
-  .add-store-select {
-    flex: 1;
-    min-width: 160px;
-  }
-
-  /* ── Mobile ───────────────────────────────────────────────────────────── */
-
-  @media (max-width: 600px) {
-    .page {
-      padding: var(--space-4) var(--space-4) var(--space-16);
-    }
-
-    .product-name {
-      font-size: var(--text-lg);
-    }
-
-    .mhd-date {
-      font-size: var(--text-lg);
-    }
-
-    .qty-number {
-      font-size: var(--text-2xl);
-    }
-
-    .toast-container {
-      bottom: var(--space-4);
-      left: var(--space-4);
-      right: var(--space-4);
-      transform: none;
-    }
-
-    .toast {
-      width: 100%;
-      justify-content: center;
-    }
+  /* ── Responsive ──────────────────────────────────────────────────────── */
+  @media (max-width: 560px) {
+    .page { padding: var(--space-4) var(--space-3) var(--space-12); }
+    .card { padding: var(--space-4); }
+    .stock-edit-fields .mini-field { flex-basis: 100%; }
+    .nutrient-add .input { flex-basis: 100%; }
+    .toast-container { left: var(--space-4); right: var(--space-4); transform: none; }
+    .toast { width: 100%; text-align: center; }
   }
 </style>
