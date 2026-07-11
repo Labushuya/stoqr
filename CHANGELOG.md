@@ -5,22 +5,48 @@ Neueste Einträge oben. Jeder Eintrag nennt den Commit-Kontext, damit andere LLM
 
 ---
 
-## [Unreleased] — Inkrement 1: Modell-Umbau (in Arbeit)
+## [Unreleased] — Inkrement 1: Kanonischer Modell-Umbau (implementiert, Test auf Pi ausstehend)
 
-### Geplant
-- Kanonisches Datenmodell final umsetzen (siehe docs/ROADMAP.md):
-  - EAN/Barcode + Markt (store_id) vom Artikel ans Bestand (inventory_items) verschieben
-  - Lagerort bleibt am Bestand
-  - Artikel-Formular auf reine Stammdaten reduzieren
-  - Bestand-Formular erhält EAN-Scan, Markt, Lagerort
-  - Migration + Testdaten-Reset
+### Datenmodell
+- **EAN ans Bestand**: `inventory_items.gtin` neu (Migration 0005). EAN ist jetzt
+  Eigenschaft des konkreten Bestands, nicht des Artikels.
+- **product_stores entfernt** (Migration 0005): Markt liegt am Bestand (`store_id`).
+- **products.notes** neu (Migration 0006): Notizen als Artikel-Stammdaten.
+- **products.gtin bleibt** — ausschließlich als interner Open-Food-Facts Cache-Schlüssel,
+  nicht im UI, nicht das Bestand-EAN.
+- **Testdaten-Reset**: `DELETE FROM inventory_items` in Migration 0005 (Modellwechsel).
+  Artikel, Orte, Märkte bleiben erhalten.
+
+### Query-Layer / API
+- `listProducts()`, `updateProduct()` neu; `getProductById`/`createProduct` um
+  description/notes/defaultUnit erweitert.
+- `PATCH /api/products/[id]` neu (Stammdaten aktualisieren); `POST /api/products`
+  akzeptiert notes und gibt vollen Artikel zurück.
+- `api/product-stores/*` Routen entfernt.
+- `api/stores/[id]` DELETE: Referenz-Check auf `inventory_items.store_id`.
+- `api/barcode/[gtin]` gibt jetzt `product.id` zurück.
+
+### UI — Zwei-Schritt-Flow
+- **Artikel ≠ Bestand**: „Neuer Artikel" auf /inventar legt nur Stammdaten an
+  (POST /api/products), kein Bestand.
+- **Einstellungen → Artikel** (neue Seite): Artikel-Katalog anlegen/bearbeiten/löschen,
+  Design analog Märkte, CRUD via /api/products, ConfirmModal, 409-Löschschutz.
+- **„Bestand hinzufügen" (easy-add)** vervollständigt: EAN-Scan (Kamera → OFF-Lookup →
+  Artikelvorschlag), Markt-Dropdown, Notiz je Bestand.
+- Barcode-Scanner vom Artikel- ins Bestand-Formular verschoben.
+
+### Commits
+9689107 (Modell-Umbau) · f57688d (products.notes + Queries) · 7f651bb (PATCH API) ·
+6b3ba93 (Artikelverwaltung) · 58115ce (Add-Sheet = Artikel) · 36bfa8d (easy-add EAN/Markt/Notiz)
+
+### Test-Steps (Pi) — siehe docs/ROADMAP.md „Offene Punkte"
+Deploy: `docker compose pull && docker compose up -d --force-recreate stoqr`,
+dann `docker compose logs stoqr | grep "\[migrate\]"` (0005 + 0006 müssen laufen).
 
 ### Architektur-Entscheidungen (2026-07-11)
-- **Universeller Master-Artikel**: EAN + Markt liegen am Bestand, nicht am Artikel.
-  Ein Artikel = ein Lebensmittel-Konzept, existiert einmal. Bestände tragen die
-  variablen Werte (Anzahl, MHD, EAN, Markt, Lagerort).
-- Lagerort am Bestand (gleiches Produkt an mehreren Orten möglich).
-- Bei Umstellung: neue Migration + Reset der Testdaten.
+- **Universeller Master-Artikel**: EAN + Markt am Bestand, nicht am Artikel.
+- Lagerort am Bestand. products global/geteilt. products.gtin = OFF-Cache.
+- Bei Umstellung: neue Migration + Reset der Bestands-Testdaten.
 
 ---
 

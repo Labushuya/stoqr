@@ -3,7 +3,7 @@
 > Kanonisches Datenmodell und Entwicklungsplan. Diese Datei ist führend für Absicht,
 > Logik und Ziel von stoqr. Bei Widersprüchen zwischen Code und dieser Datei gilt diese Datei.
 
-Letzte Aktualisierung: 2026-07-11
+Letzte Aktualisierung: 2026-07-11 (Inkrement 1 implementiert)
 
 ---
 
@@ -65,6 +65,9 @@ Raum (location) > Lagerort (storage) > Fach (place)
 | EAN + Markt | am **Bestand** (universeller Master-Artikel) |
 | Lagerort | am **Bestand** (gleiches Produkt an mehreren Orten möglich) |
 | Migration | Neue Migration + Testdaten-Reset |
+| products.gtin | bleibt als **interner Open-Food-Facts Cache-Schlüssel** (nicht im UI, nicht das Bestand-EAN) |
+| products (Katalog) | **global/geteilt** (kein household_id) — ein Artikel für alle Haushalte |
+| Artikelverwaltung | eigene Seite unter **Einstellungen → Artikel** (anlegen/ändern/löschen) |
 
 ---
 
@@ -72,7 +75,10 @@ Raum (location) > Lagerort (storage) > Fach (place)
 
 1. Räume, Lagerorte, Fächer anlegen (Orte)
 2. Artikel anlegen — nur Stammdaten, **kein** Bestand entsteht dabei
-3. Bestand anlegen — wählt Artikel, erfasst Anzahl + MHD + EAN + Markt + Lagerort
+   - Schnell: `/inventar` → FAB „Neuer Artikel" (Name, Kategorie, Notiz)
+   - Vollständig: `Einstellungen → Artikel` (anlegen/ändern/löschen)
+3. Bestand anlegen — `/inventar` → „Bestand hinzufügen": Artikel wählen (oder EAN scannen),
+   Ort, Anzahl + MHD + EAN + Markt + Notiz
 
 ---
 
@@ -86,13 +92,18 @@ Format: `Artikel: [Name]`, Beschreibung: `[Gesamtanzahl][Einheit] | [Notiz] | [M
 
 ## Roadmap (Inkremente)
 
-### Inkrement 1 — Modell-Umbau (aktuell)
-- [ ] Schema: EAN + store_id ans Bestand (inventory_items), vom Artikel entfernen
-- [ ] Migration + Reset
-- [ ] Artikel-Formular: nur Stammdaten (Name, Beschreibung, Kategorie, Einheit, Notizen)
-- [ ] Bestand-Formular: Artikel wählen + Anzahl + MHD + EAN-Scan + Markt + Lagerort
-- [ ] Barcode-Scanner vom Artikel- ins Bestand-Formular verschieben
-- [ ] product_stores (M:N) evaluieren — ggf. entfernen da Markt jetzt am Bestand
+### Inkrement 1 — Modell-Umbau (abgeschlossen, Test ausstehend)
+- [x] Schema: EAN + store_id ans Bestand (inventory_items), vom Artikel entfernt
+- [x] Migration 0005 (gtin an Bestand, product_stores DROP) + 0006 (products.notes) + Reset
+- [x] Artikel-Formular: nur Stammdaten (Name, Beschreibung, Kategorie, Einheit, Notizen)
+- [x] Bestand-Formular (easy-add): Artikel wählen + Anzahl + MHD + EAN-Scan + Markt + Lagerort + Notiz
+- [x] Barcode-Scanner vom Artikel- ins Bestand-Formular verschoben
+- [x] product_stores (M:N) entfernt — Markt liegt jetzt am Bestand
+- [x] Artikelverwaltung als eigene Seite: Einstellungen → Artikel (CRUD via /api/products)
+- [x] products.gtin als interner OFF-Cache dokumentiert & belassen
+
+> Alle Inkrement-1-Punkte sind implementiert & gepusht, aber **noch nicht von Christopher
+> auf dem Pi getestet** — siehe „Offene Punkte / noch zu testen".
 
 ### Inkrement 2 — Auswertung & Bring!
 - [ ] Gesamtbestand pro Artikel (Aggregation über alle Bestände)
@@ -107,8 +118,17 @@ Format: `Artikel: [Name]`, Beschreibung: `[Gesamtanzahl][Einheit] | [Notiz] | [M
 ---
 
 ## Offene Punkte / noch zu testen (nicht bestätigt)
+
+**Inkrement 1 (Commits 9689107, f57688d, 7f651bb, 6b3ba93, 58115ce, 36bfa8d) — Test auf Pi ausstehend:**
+- Migration 0005 + 0006 laufen sauber (Testdaten-Reset der Bestände)
+- „Neuer Artikel" legt nur Stammdaten an (kein Bestand)
+- Einstellungen → Artikel: Liste, anlegen, bearbeiten, löschen (409-Schutz bei Beständen)
+- „Bestand hinzufügen": EAN-Scan → Artikel-Vorschlag, Markt-Dropdown, Notiz
+- Bestand trägt EAN + Markt + Ort; erscheint auf /inventar
+
+**Ältere, noch nicht bestätigte Punkte:**
 - Realtime Name-Update nach Bearbeiten (Commit 78e7e5e)
-- "Alles löschen" / "Aus Katalog entfernen" direkt im 3-Dot-Menü (Commit 78e7e5e)
+- „Alles löschen" / „Aus Katalog entfernen" direkt im 3-Dot-Menü (Commit 78e7e5e)
 - Kategorie-Emoji in Suche (Commit 808ae64)
 - Custom-Unit-Umbenennung propagiert zu Artikeln (Commit 7da27e1)
 
