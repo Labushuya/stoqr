@@ -106,7 +106,6 @@
 
   // Add/edit form fields
   let formProductName = $state('')
-  let formBarcode = $state('')
   let formCategoryId = $state('')
   let formLocationId = $state('')
   let formStorageId = $state('')
@@ -116,14 +115,6 @@
   let formUnit = $state('Stück')
   let formNotes = $state('')
   let formSaving = $state(false)
-
-  // Barcode scanner
-  let showScanner = $state(false)
-  let scannerLoading = $state(false)
-  let scannerNotFound = $state(false)
-  let scannerVideoEl = $state<HTMLVideoElement | null>(null)
-  let scannerStream = $state<MediaStream | null>(null)
-  let scannerAnimFrame = $state<number | null>(null)
 
   // Expiry config defaults (fallback values — ideally server-loaded)
   const YELLOW_DAYS = 7
@@ -282,7 +273,6 @@
     sheetMode = 'add'
     editingItem = null
     formProductName = ''
-    formBarcode = ''
     formCategoryId = ''
     formLocationId = ''
     formStorageId = ''
@@ -299,7 +289,6 @@
     sheetMode = 'edit'
     editingItem = item
     formProductName = item.product.name
-    formBarcode = ''
     formCategoryId = item.product.category?.id ?? ''
     formMhd = item.bestBeforeDate ?? ''
     formQuantity = item.quantity
@@ -346,28 +335,19 @@
 
     try {
       if (sheetMode === 'add') {
-        const res = await fetch('/api/inventory', {
+        // Artikel anlegen = nur Stammdaten, KEIN Bestand (kanonisches Modell).
+        // Bestände werden separat über "Bestand hinzufügen" (easy-add) erfasst.
+        const res = await fetch('/api/products', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            productName: formProductName.trim(),
-            gtin: formBarcode.trim() || undefined,
+            name: formProductName.trim(),
             categoryId: formCategoryId || undefined,
-            placeId: formPlaceId || undefined,
-            bestBeforeDate: formMhd || undefined,
-            quantity: formQuantity,
-            unit: unitValue,
             notes: formNotes.trim() || undefined,
           }),
         })
         if (!res.ok) throw new Error(await res.text())
-        // Reload items
-        const refreshed = await fetch('/api/inventory')
-        if (refreshed.ok) {
-          const all: InventoryItem[] = await refreshed.json()
-          items = all
-        }
-        showToast('Produkt hinzugefügt')
+        showToast('Artikel angelegt — Bestand über „Bestand hinzufügen"')
       } else if (sheetMode === 'edit' && editingItem) {
         const res = await fetch(`/api/inventory/${editingItem.id}`, {
           method: 'PATCH',
@@ -493,102 +473,6 @@ Das Produkt bleibt im Katalog.`,
   function closeMenu() {
     openMenuId = null
     menuPosition = null
-  }
-
-  // ── Barcode scanner ────────────────────────────────────────────────────────
-
-  async function openScanner() {
-    scannerNotFound = false
-    scannerLoading = false
-    showScanner = true
-    // Give DOM time to mount the video element
-    await new Promise((r) => setTimeout(r, 80))
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment' },
-      })
-      scannerStream = stream
-      if (scannerVideoEl) {
-        scannerVideoEl.srcObject = stream
-        await scannerVideoEl.play()
-        startBarcodeDetection()
-      }
-    } catch {
-      showToast('Kamerazugriff verweigert', 'error')
-      closeScanner()
-    }
-  }
-
-  function closeScanner() {
-    if (scannerAnimFrame !== null) {
-      cancelAnimationFrame(scannerAnimFrame)
-      scannerAnimFrame = null
-    }
-    if (scannerStream) {
-      scannerStream.getTracks().forEach((t) => t.stop())
-      scannerStream = null
-    }
-    showScanner = false
-  }
-
-  function startBarcodeDetection() {
-    // Use BarcodeDetector API if available
-    if (!('BarcodeDetector' in window)) {
-      showToast('BarcodeDetector nicht verfügbar — bitte manuell eingeben', 'error')
-      closeScanner()
-      return
-    }
-    // @ts-expect-error BarcodeDetector is not yet in all TS libs
-    const detector = new BarcodeDetector({ formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128', 'code_39', 'qr_code'] })
-
-    async function detect() {
-      if (!scannerVideoEl || !showScanner) return
-      try {
-        const codes = await detector.detect(scannerVideoEl)
-        if (codes.length > 0) {
-          const rawValue: string = codes[0].rawValue
-          await onBarcodeDetected(rawValue)
-          return
-        }
-      } catch {
-        // detection frame failed, retry
-      }
-      scannerAnimFrame = requestAnimationFrame(detect)
-    }
-
-    scannerAnimFrame = requestAnimationFrame(detect)
-  }
-
-  async function onBarcodeDetected(gtin: string) {
-    closeScanner()
-    formBarcode = gtin
-    scannerLoading = true
-    scannerNotFound = false
-    try {
-      const res = await fetch(`/api/barcode/${encodeURIComponent(gtin)}`)
-      if (res.ok) {
-        const product = await res.json()
-        if (product) {
-          if (product.name)  formProductName = product.name
-          if (product.brand) {
-            // brand is not a standalone form field but stored on product;
-            // set notes hint if brand not otherwise capturable
-          }
-          if (product.categoryId) formCategoryId = product.categoryId
-          scannerNotFound = false
-        } else {
-          scannerNotFound = true
-        }
-      } else if (res.status === 404) {
-        scannerNotFound = true
-      } else {
-        showToast('Fehler beim Abrufen des Produkts', 'error')
-      }
-    } catch {
-      showToast('Netzwerkfehler beim Barcode-Lookup', 'error')
-    } finally {
-      scannerLoading = false
-    }
   }
 
   // ── Sheet keyboard ─────────────────────────────────────────────────────────
@@ -949,7 +833,7 @@ Das Produkt bleibt im Katalog.`,
 
     <div class="sheet-header">
       <h2 class="sheet-title">
-        {sheetMode === 'add' ? 'Produkt hinzufügen' : 'Bearbeiten'}
+        {sheetMode === 'add' ? 'Neuer Artikel' : 'Bearbeiten'}
       </h2>
       <button class="sheet-close" type="button" aria-label="Schließen" onclick={closeSheet}>
         <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
@@ -976,45 +860,6 @@ Das Produkt bleibt im Katalog.`,
           />
         </div>
 
-        <!-- Barcode (only on add) -->
-        {#if sheetMode === 'add'}
-          <div class="field">
-            <label class="label" for="f-barcode">Barcode <span class="optional">(optional)</span></label>
-            <div class="input-addon">
-              <input
-                id="f-barcode"
-                class="input"
-                type="text"
-                placeholder="EAN / GTIN"
-                bind:value={formBarcode}
-              />
-              <button
-                class="addon-btn addon-btn--active"
-                type="button"
-                title="Barcode scannen"
-                onclick={openScanner}
-                disabled={scannerLoading}
-              >
-                {#if scannerLoading}
-                  <span class="spinner spinner--dark" aria-hidden="true"></span>
-                {:else}
-                  <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
-                    <rect x="2" y="4" width="2" height="10" fill="currentColor"/>
-                    <rect x="5" y="4" width="1" height="10" fill="currentColor"/>
-                    <rect x="7" y="4" width="2" height="10" fill="currentColor"/>
-                    <rect x="10.5" y="4" width="1" height="10" fill="currentColor"/>
-                    <rect x="12.5" y="4" width="3" height="10" fill="currentColor"/>
-                    <path d="M1 2h3M14 2h3M1 16h3M14 16h3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
-                  </svg>
-                {/if}
-              </button>
-            </div>
-            {#if scannerNotFound}
-              <p class="barcode-hint barcode-hint--warn">Produkt nicht gefunden — bitte manuell eingeben.</p>
-            {/if}
-          </div>
-        {/if}
-
         <!-- Category -->
         <div class="field">
           <label class="label" for="f-cat">Kategorie</label>
@@ -1025,6 +870,13 @@ Das Produkt bleibt im Katalog.`,
             {/each}
           </select>
         </div>
+
+        {#if sheetMode === 'add'}
+          <p class="article-hint">
+            Ein Artikel beschreibt nur das Lebensmittel. Bestände (Menge, MHD, EAN, Markt, Ort)
+            fügst du danach über „Bestand hinzufügen" hinzu.
+          </p>
+        {/if}
       </div>
 
       <!-- ── Section: Bestand only shown when editing existing item ─────── -->
@@ -1144,34 +996,6 @@ Das Produkt bleibt im Katalog.`,
           Speichern
         {/if}
       </button>
-    </div>
-  </div>
-{/if}
-
-<!-- ── BarcodeScanner overlay ─────────────────────────────────────────────── -->
-
-{#if showScanner}
-  <div class="scanner-backdrop" role="presentation" onclick={closeScanner}></div>
-  <div class="scanner-panel" role="dialog" aria-modal="true" aria-label="Barcode scannen">
-    <div class="scanner-header">
-      <span class="scanner-title">Barcode scannen</span>
-      <button class="sheet-close" type="button" aria-label="Scanner schließen" onclick={closeScanner}>
-        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-          <path d="M4 4l12 12M16 4L4 16" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-        </svg>
-      </button>
-    </div>
-    <div class="scanner-viewport">
-      <!-- svelte-ignore a11y_media_has_caption -->
-      <video
-        class="scanner-video"
-        bind:this={scannerVideoEl}
-        playsinline
-        autoplay
-        muted
-      ></video>
-      <div class="scanner-reticle" aria-hidden="true"></div>
-      <p class="scanner-hint">Barcode in den Rahmen halten</p>
     </div>
   </div>
 {/if}
@@ -1981,7 +1805,6 @@ Das Produkt bleibt im Katalog.`,
   }
 
   .required { color: var(--color-danger, #dc2626); }
-  .optional { font-weight: 400; color: var(--color-text-muted); }
 
   .input {
     height: 40px;
@@ -2013,43 +1836,11 @@ Das Produkt bleibt im Katalog.`,
     min-height: 64px;
   }
 
-  /* Barcode input with scan button */
-  .input-addon {
-    display: flex;
-    gap: 0;
-    border-radius: var(--radius-md);
-    overflow: hidden;
-    border: 1px solid var(--color-border);
-    transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
-  }
-
-  .input-addon:focus-within {
-    border-color: var(--color-border-focus);
-    box-shadow: 0 0 0 3px rgba(196, 103, 58, 0.15);
-  }
-
-  .input-addon .input {
-    border: none;
-    border-radius: 0;
-    flex: 1;
-  }
-
-  .input-addon .input:focus {
-    box-shadow: none;
-  }
-
-  .addon-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 42px;
-    flex-shrink: 0;
-    border: none;
-    background-color: var(--color-surface-sunken);
+  .article-hint {
+    font-size: var(--text-xs);
     color: var(--color-text-muted);
-    cursor: not-allowed;
-    border-left: 1px solid var(--color-border);
-    transition: background-color var(--transition-fast), color var(--transition-fast);
+    line-height: 1.5;
+    margin: 0;
   }
 
   /* ── Spinner ──────────────────────────────────────────────────────────── */
@@ -2172,133 +1963,6 @@ Das Produkt bleibt im Katalog.`,
     .item-grid {
       grid-template-columns: 1fr;
     }
-  }
-  .addon-btn--active {
-    cursor: pointer;
-    color: var(--color-primary);
-    background-color: var(--color-primary-subtle);
-  }
-
-  .addon-btn--active:hover:not(:disabled) {
-    background-color: var(--color-primary);
-    color: var(--color-text-inverse);
-  }
-
-  .addon-btn--active:disabled {
-    cursor: not-allowed;
-    opacity: 0.7;
-  }
-
-  .barcode-hint {
-    font-size: var(--text-xs);
-    margin: 0;
-  }
-
-  .barcode-hint--warn {
-    color: var(--color-danger, #dc2626);
-  }
-
-  /* ── Scanner overlay ──────────────────────────────────────────────────── */
-
-  .scanner-backdrop {
-    position: fixed;
-    inset: 0;
-    z-index: var(--z-sheet-backdrop, 300);
-    background-color: rgba(0, 0, 0, 0.7);
-    animation: fade-in 180ms ease;
-  }
-
-  .scanner-panel {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    z-index: var(--z-sheet, 400);
-    background-color: var(--color-surface);
-    border-radius: var(--radius-xl) var(--radius-xl) 0 0;
-    box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.18);
-    display: flex;
-    flex-direction: column;
-    max-height: 80dvh;
-    animation: sheet-up 240ms cubic-bezier(0.32, 0.72, 0, 1);
-  }
-
-  @media (min-width: 640px) {
-    .scanner-panel {
-      left: 50%;
-      right: auto;
-      transform: translateX(-50%);
-      width: 480px;
-      border-radius: var(--radius-xl);
-      bottom: var(--space-8);
-      animation: sheet-pop 200ms cubic-bezier(0.32, 0.72, 0, 1);
-    }
-  }
-
-  .scanner-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: var(--space-4) var(--space-5);
-    border-bottom: 1px solid var(--color-border-subtle);
-    flex-shrink: 0;
-  }
-
-  .scanner-title {
-    font-family: var(--font-display);
-    font-size: var(--text-lg);
-    font-weight: 700;
-    color: var(--color-text-primary);
-  }
-
-  .scanner-viewport {
-    position: relative;
-    flex: 1;
-    overflow: hidden;
-    background-color: #000;
-    min-height: 280px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .scanner-video {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    display: block;
-  }
-
-  .scanner-reticle {
-    position: absolute;
-    inset: 0;
-    margin: auto;
-    width: 220px;
-    height: 120px;
-    border: 2px solid var(--color-primary);
-    border-radius: var(--radius-md);
-    box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.45);
-    pointer-events: none;
-  }
-
-  .scanner-hint {
-    position: absolute;
-    bottom: var(--space-4);
-    left: 50%;
-    transform: translateX(-50%);
-    background-color: rgba(0, 0, 0, 0.55);
-    color: #fff;
-    font-size: var(--text-xs);
-    font-weight: 500;
-    padding: var(--space-1) var(--space-3);
-    border-radius: var(--radius-full);
-    white-space: nowrap;
-    pointer-events: none;
-  }
-
-  .spinner--dark {
-    border-color: rgba(0, 0, 0, 0.2);
-    border-top-color: var(--color-primary);
   }
 
   /* ── Form sections ────────────────────────────────────────────────────── */
