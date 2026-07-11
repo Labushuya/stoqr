@@ -1,183 +1,257 @@
 <script lang="ts">
-  // No reactive state needed for a static placeholder
+  import type { PageData } from './$types'
+  import { toast } from '$lib/stores/toast'
+
+  let { data }: { data: PageData } = $props()
+
+  type Unit = { id: string; name: string; symbol: string }
+  type Item = {
+    id: string
+    productId: string | null
+    freeTextName: string | null
+    quantity: string
+    unit: string
+    source: 'manual' | 'auto' | 'bring'
+    isChecked: boolean
+    notes: string | null
+    product: { id: string; name: string } | null
+    preferredStore: { id: string; name: string } | null
+  }
+
+  // svelte-ignore state_referenced_locally
+  let items = $state<Item[]>(data.items as Item[])
+  // svelte-ignore state_referenced_locally
+  let pageLoadError = $state<string | null>(data.loadError ?? null)
+  const units = $derived(data.units as Unit[])
+
+  function unitLabel(symbol: string): string {
+    return units.find((u) => u.symbol === symbol)?.name ?? symbol
+  }
+  function itemName(i: Item): string {
+    return i.product?.name ?? i.freeTextName ?? 'Unbenannt'
+  }
+  function qtyDisplay(i: Item): string {
+    return `${Number(i.quantity).toLocaleString('de-DE', { maximumFractionDigits: 3 })} ${unitLabel(i.unit)}`
+  }
+
+  const openItems = $derived(items.filter((i) => !i.isChecked))
+  const checkedItems = $derived(items.filter((i) => i.isChecked))
+
+  // ── Manueller Eintrag ────────────────────────────────────────────────────
+  let newName = $state('')
+  let newQty = $state('1')
+  let newUnit = $state('piece')
+  let adding = $state(false)
+
+  async function addItem() {
+    const name = newName.trim()
+    if (!name) return
+    adding = true
+    try {
+      const res = await fetch('/api/shopping-list', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ freeTextName: name, quantity: Number(newQty) || 1, unit: newUnit }),
+      })
+      const body = await res.json().catch(() => ({}))
+      if (!res.ok) { toast.error(body?.error ?? `Fehler ${res.status}`); return }
+      items = [...items, body as Item]
+      newName = ''
+      newQty = '1'
+      newUnit = 'piece'
+    } catch {
+      toast.error('Netzwerkfehler.')
+    } finally {
+      adding = false
+    }
+  }
+
+  async function toggle(i: Item) {
+    const next = !i.isChecked
+    // optimistisch
+    items = items.map((x) => (x.id === i.id ? { ...x, isChecked: next } : x))
+    const res = await fetch(`/api/shopping-list/${i.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ isChecked: next }),
+    })
+    if (!res.ok) {
+      items = items.map((x) => (x.id === i.id ? { ...x, isChecked: !next } : x))
+      toast.error('Fehler beim Abhaken.')
+    }
+  }
+
+  async function removeItem(i: Item) {
+    const res = await fetch(`/api/shopping-list/${i.id}`, { method: 'DELETE' })
+    if (!res.ok && res.status !== 204) { toast.error('Fehler beim Löschen.'); return }
+    items = items.filter((x) => x.id !== i.id)
+  }
+
+  let generating = $state(false)
+  async function generateNeeds() {
+    generating = true
+    try {
+      const res = await fetch('/api/shopping-list/generate', { method: 'POST' })
+      const body = await res.json().catch(() => ({}))
+      if (!res.ok) { toast.error(body?.error ?? 'Fehler'); return }
+      // Liste neu laden
+      const listRes = await fetch('/api/shopping-list')
+      if (listRes.ok) items = await listRes.json()
+      toast.success(`Bedarf aktualisiert (${body.created} neu, ${body.updated} aktualisiert, ${body.removed} entfernt)`)
+    } catch {
+      toast.error('Netzwerkfehler.')
+    } finally {
+      generating = false
+    }
+  }
+
+  // Einbuchen: zum Bestand-anlegen-Flow mit Vorbelegung (2c-3).
+  function bookInHref(i: Item): string {
+    const params = new URLSearchParams()
+    if (i.productId) {
+      params.set('productId', i.productId)
+      if (i.product?.name) params.set('productName', i.product.name)
+    }
+    params.set('qty', i.quantity)
+    params.set('unit', i.unit)
+    params.set('fromShoppingItem', i.id)
+    return `/inventar/easy-add?${params.toString()}`
+  }
 </script>
 
 <div class="page">
-  <div class="card">
-    <!-- Cart icon -->
-    <div class="icon-wrap" aria-hidden="true">
-      <svg
-        width="48"
-        height="48"
-        viewBox="0 0 48 48"
-        fill="none"
-        xmlns="http://www.w3.org/2000/svg"
-      >
-        <path
-          d="M6 8h4l5.6 22.4A4 4 0 0 0 19.5 33h17a4 4 0 0 0 3.87-3L43 16H14"
-          stroke="currentColor"
-          stroke-width="2.5"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        />
-        <circle cx="20" cy="40" r="2.5" stroke="currentColor" stroke-width="2.5" />
-        <circle cx="36" cy="40" r="2.5" stroke="currentColor" stroke-width="2.5" />
-      </svg>
-    </div>
+  <header class="page-header">
+    <h1 class="page-title">Einkaufsliste</h1>
+    <p class="page-desc">
+      Automatischer Bedarf aus Soll-Ist plus manuelle Einträge. Nach dem Einkauf per „Einbuchen"
+      als echten Bestand übernehmen.
+    </p>
+  </header>
 
-    <h1 class="heading">Einkaufsliste</h1>
+  {#if pageLoadError}
+    <div class="alert alert--error" role="alert">{pageLoadError}</div>
+  {/if}
 
-    <p class="subtext">Die Einkaufsliste wird in Phase 3 implementiert.</p>
-
-    <div class="planned-box">
-      <p class="planned-label">Geplante Features</p>
-      <ul class="planned-list">
-        <li>
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-            <path d="M2 7l3.5 3.5L12 3.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-          Automatische Generierung aus Vorrat &amp; Bedarf
-        </li>
-        <li>
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-            <path d="M2 7l3.5 3.5L12 3.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-          Integration mit Bring!
-        </li>
-        <li>
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-            <path d="M2 7l3.5 3.5L12 3.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-          Manuelle Artikel hinzufügen &amp; abhaken
-        </li>
-      </ul>
-    </div>
-
-    <a href="/" class="back-link">
-      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-        <path d="M10 3L5 8l5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>
-      Zurück zum Dashboard
-    </a>
+  <div class="toolbar">
+    <button class="btn-ghost" type="button" disabled={generating} onclick={generateNeeds}>
+      {generating ? 'Wird berechnet…' : '↻ Bedarf aus Beständen erzeugen'}
+    </button>
   </div>
+
+  <!-- ── Offene Einträge ─────────────────────────────────────────────────── -->
+  <section class="card">
+    <h2 class="section-title">Zu kaufen <span class="section-sub">({openItems.length})</span></h2>
+    {#if openItems.length === 0}
+      <p class="empty-hint">Nichts offen. Bedarf erzeugen oder manuell hinzufügen.</p>
+    {:else}
+      <ul class="item-list">
+        {#each openItems as i (i.id)}
+          <li class="item">
+            <button class="check" type="button" aria-label="Abhaken" onclick={() => toggle(i)}></button>
+            <div class="item-main">
+              <span class="item-name">{itemName(i)}</span>
+              <span class="item-meta">
+                {qtyDisplay(i)}
+                {#if i.source === 'auto'}<span class="src-badge">auto</span>{/if}
+                {#if i.preferredStore}· {i.preferredStore.name}{/if}
+              </span>
+            </div>
+            <div class="item-actions">
+              <a class="btn-book" href={bookInHref(i)}>Einbuchen</a>
+              <button class="btn-x" type="button" aria-label="Entfernen" onclick={() => removeItem(i)}>✕</button>
+            </div>
+          </li>
+        {/each}
+      </ul>
+    {/if}
+
+    <!-- Manueller Eintrag -->
+    <div class="add-row">
+      <input class="input" type="text" bind:value={newName} placeholder="Eintrag hinzufügen…" maxlength="255"
+             onkeydown={(e) => { if (e.key === 'Enter') addItem() }} aria-label="Bezeichnung" />
+      <input class="input input--qty" type="number" min="0" step="0.01" bind:value={newQty} aria-label="Menge" />
+      <select class="input input--unit" bind:value={newUnit} aria-label="Einheit">
+        {#each units as u (u.id)}<option value={u.symbol}>{u.name}</option>{/each}
+      </select>
+      <button class="btn-primary" type="button" disabled={adding || !newName.trim()} onclick={addItem}>+</button>
+    </div>
+  </section>
+
+  <!-- ── Erledigt ────────────────────────────────────────────────────────── -->
+  {#if checkedItems.length > 0}
+    <section class="card">
+      <h2 class="section-title">Erledigt <span class="section-sub">({checkedItems.length})</span></h2>
+      <ul class="item-list">
+        {#each checkedItems as i (i.id)}
+          <li class="item item--done">
+            <button class="check check--done" type="button" aria-label="Wieder öffnen" onclick={() => toggle(i)}>✓</button>
+            <div class="item-main">
+              <span class="item-name">{itemName(i)}</span>
+              <span class="item-meta">{qtyDisplay(i)}</span>
+            </div>
+            <div class="item-actions">
+              <a class="btn-book" href={bookInHref(i)}>Einbuchen</a>
+              <button class="btn-x" type="button" aria-label="Entfernen" onclick={() => removeItem(i)}>✕</button>
+            </div>
+          </li>
+        {/each}
+      </ul>
+    </section>
+  {/if}
 </div>
 
 <style>
-  .page {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    min-height: 60vh;
-    padding: var(--space-8) var(--space-6);
-  }
+  .page { max-width: 720px; margin: 0 auto; padding: var(--space-6) var(--space-4) var(--space-16); }
+  .page-header { margin-bottom: var(--space-5); }
+  .page-title { font-family: var(--font-display); font-size: var(--text-2xl); font-weight: 700; color: var(--color-text-primary); margin: 0 0 var(--space-2); }
+  .page-desc { font-size: var(--text-sm); color: var(--color-text-secondary); margin: 0; line-height: 1.6; }
 
-  .card {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
-    gap: var(--space-5);
-    max-width: 420px;
-    width: 100%;
-    background-color: var(--color-surface-raised);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-xl);
-    padding: var(--space-12) var(--space-8);
-    box-shadow: var(--shadow-md);
-  }
+  .alert { padding: var(--space-3) var(--space-4); border-radius: var(--radius-md); font-size: var(--text-sm); margin-bottom: var(--space-4); }
+  .alert--error { background: var(--color-danger-subtle, #fee2e2); color: var(--color-danger, #dc2626); }
 
-  .icon-wrap {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 80px;
-    height: 80px;
-    border-radius: var(--radius-xl);
-    background-color: var(--color-primary-subtle);
-    color: var(--color-primary);
-    flex-shrink: 0;
-  }
+  .toolbar { margin-bottom: var(--space-4); }
+  .btn-ghost { border: 1px solid var(--color-border); background: transparent; color: var(--color-primary); border-radius: var(--radius-md); height: 38px; padding: 0 var(--space-4); font-size: var(--text-sm); font-weight: 600; cursor: pointer; }
+  .btn-ghost:hover:not(:disabled) { background: var(--color-primary-subtle); border-color: var(--color-primary); }
+  .btn-ghost:disabled { opacity: 0.5; cursor: not-allowed; }
 
-  .heading {
-    font-family: var(--font-display);
-    font-size: var(--text-2xl);
-    font-weight: 700;
-    color: var(--color-text-primary);
-    letter-spacing: -0.02em;
-    margin: 0;
-  }
+  .card { background: var(--color-surface-raised); border: 1px solid var(--color-border); border-radius: var(--radius-xl); padding: var(--space-5); margin-bottom: var(--space-5); box-shadow: var(--shadow-sm); }
+  .section-title { font-family: var(--font-display); font-size: var(--text-lg); font-weight: 700; color: var(--color-text-primary); margin: 0 0 var(--space-4); }
+  .section-sub { font-size: var(--text-xs); font-weight: 500; color: var(--color-text-muted); }
+  .empty-hint { font-size: var(--text-sm); color: var(--color-text-muted); margin: 0 0 var(--space-3); }
 
-  .subtext {
-    font-size: var(--text-base);
-    color: var(--color-text-secondary);
-    margin: 0;
-    line-height: 1.6;
-  }
+  .item-list { list-style: none; margin: 0 0 var(--space-3); padding: 0; display: flex; flex-direction: column; }
+  .item { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-2) 0; border-bottom: 1px solid var(--color-border-subtle); }
+  .item:last-child { border-bottom: none; }
+  .item--done { opacity: 0.55; }
+  .item--done .item-name { text-decoration: line-through; }
 
-  .planned-box {
-    width: 100%;
-    background-color: var(--color-surface);
-    border: 1px solid var(--color-border-subtle);
-    border-radius: var(--radius-lg);
-    padding: var(--space-4) var(--space-5);
-    text-align: left;
-  }
+  .check { width: 22px; height: 22px; flex-shrink: 0; border: 2px solid var(--color-border-strong, var(--color-border)); border-radius: var(--radius-sm, 6px); background: var(--color-surface); cursor: pointer; }
+  .check:hover { border-color: var(--color-primary); }
+  .check--done { border-color: var(--color-primary); background: var(--color-primary); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 13px; }
 
-  .planned-label {
-    font-size: var(--text-xs);
-    font-weight: 600;
-    color: var(--color-text-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    margin: 0 0 var(--space-3);
-  }
+  .item-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+  .item-name { font-size: var(--text-sm); font-weight: 600; color: var(--color-text-primary); }
+  .item-meta { font-size: var(--text-xs); color: var(--color-text-muted); display: flex; align-items: center; gap: var(--space-1); flex-wrap: wrap; }
+  .src-badge { background: var(--color-primary-subtle); color: var(--color-primary); border-radius: var(--radius-full); padding: 0 var(--space-2); font-size: 10px; font-weight: 700; }
 
-  .planned-list {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-2);
-  }
+  .item-actions { display: flex; align-items: center; gap: var(--space-2); flex-shrink: 0; }
+  .btn-book { font-size: var(--text-xs); font-weight: 600; color: var(--color-primary); text-decoration: none; border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: var(--space-1) var(--space-2); }
+  .btn-book:hover { background: var(--color-primary-subtle); border-color: var(--color-primary); }
+  .btn-x { border: none; background: none; color: var(--color-text-muted); cursor: pointer; font-size: 14px; padding: var(--space-1); }
+  .btn-x:hover { color: var(--color-danger, #dc2626); }
 
-  .planned-list li {
-    display: flex;
-    align-items: center;
-    gap: var(--space-2);
-    font-size: var(--text-sm);
-    color: var(--color-text-secondary);
-    line-height: 1.5;
-  }
+  .add-row { display: flex; gap: var(--space-2); flex-wrap: wrap; }
+  .input { height: 40px; padding: 0 var(--space-3); border-radius: var(--radius-md); border: 1px solid var(--color-border); background: var(--color-surface); color: var(--color-text-primary); font-family: var(--font-body); font-size: var(--text-base); outline: none; box-sizing: border-box; }
+  .input:focus { border-color: var(--color-border-focus); box-shadow: 0 0 0 3px rgba(196, 103, 58, 0.15); }
+  .add-row .input:first-child { flex: 1 1 160px; min-width: 0; }
+  .input--qty { flex: 0 1 80px; }
+  .input--unit { flex: 0 1 130px; }
+  .btn-primary { height: 40px; width: 40px; border: none; background: var(--color-primary); color: var(--color-text-inverse); border-radius: var(--radius-md); font-size: var(--text-lg); font-weight: 700; cursor: pointer; flex-shrink: 0; }
+  .btn-primary:disabled { opacity: 0.45; cursor: not-allowed; }
 
-  .planned-list li svg {
-    color: var(--color-secondary);
-    flex-shrink: 0;
-  }
-
-  .back-link {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--space-1);
-    font-size: var(--text-sm);
-    font-weight: 500;
-    color: var(--color-text-link);
-    text-decoration: none;
-    transition: color var(--transition-fast), gap var(--transition-fast);
-  }
-
-  .back-link:hover {
-    color: var(--color-primary-hover);
-    gap: var(--space-2);
-  }
-
-  @media (max-width: 480px) {
-    .card {
-      padding: var(--space-8) var(--space-5);
-    }
-
-    .heading {
-      font-size: var(--text-xl);
-    }
+  @media (max-width: 560px) {
+    .page { padding: var(--space-4) var(--space-3) var(--space-12); }
+    .card { padding: var(--space-4); }
+    .add-row .input:first-child { flex-basis: 100%; }
   }
 </style>
