@@ -27,5 +27,19 @@ export const load: PageServerLoad = async ({ locals, url }) => {
     preselectedProduct = await getProductById(productId)
   }
 
-  return { categories, locations, units, stores: storeRows, preselectedProduct }
+  // Einbuchen aus der Einkaufsliste (2c-3): Vorbelegung + Referenz zum Listeneintrag.
+  const fromShoppingItem = url.searchParams.get('fromShoppingItem')
+  const prefillQty = url.searchParams.get('qty')
+  const prefillUnit = url.searchParams.get('unit')
+
+  return {
+    categories,
+    locations,
+    units,
+    stores: storeRows,
+    preselectedProduct,
+    fromShoppingItem,
+    prefillQty,
+    prefillUnit,
+  }
 }

@@ -65,7 +65,8 @@
   let formLocationId = $state('')
   let formStorageId = $state('')
   let formPlaceId = $state('')
-  let formUnit = $state(unitOptions[0]?.symbol ?? 'Stück')
+  // svelte-ignore state_referenced_locally
+  let formUnit = $state((data.prefillUnit as string | null) || unitOptions[0]?.symbol || 'Stück')
   let formStoreId = $state('')
   let formNotes = $state('')
 
@@ -83,7 +84,10 @@
 
   // Step 3 — MHD rows
   let rowCounter = $state(0)
-  let mhdRows = $state<MhdRow[]>([{ id: ++rowCounter, quantity: '1', mhd: '' }])
+  // svelte-ignore state_referenced_locally
+  let mhdRows = $state<MhdRow[]>([
+    { id: ++rowCounter, quantity: (data.prefillQty as string | null) || '1', mhd: '' },
+  ])
 
   // Save state
   let saving = $state(false)
@@ -346,8 +350,14 @@
       const succeeded = results.length - failed
 
       if (failed === 0) {
+        // Einbuchen aus der Einkaufsliste (2c-3): virtuellen Eintrag entfernen,
+        // da er jetzt als echter Bestand existiert.
+        const fromItem = data.fromShoppingItem as string | null
+        if (fromItem) {
+          await fetch(`/api/shopping-list/${fromItem}`, { method: 'DELETE' }).catch(() => {})
+        }
         showToast(`${succeeded} Eintrag${succeeded !== 1 ? 'e' : ''} hinzugefügt`)
-        setTimeout(() => goto('/inventar'), 800)
+        setTimeout(() => goto(fromItem ? '/einkaufsliste' : '/inventar'), 800)
       } else if (succeeded > 0) {
         showToast(`Fehler beim Speichern: ${failed}/${results.length} fehlgeschlagen`, 'error')
         // partial success — stay on page so user can retry failed rows
