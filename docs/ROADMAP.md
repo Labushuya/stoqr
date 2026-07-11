@@ -3,7 +3,7 @@
 > Kanonisches Datenmodell und Entwicklungsplan. Diese Datei ist führend für Absicht,
 > Logik und Ziel von stoqr. Bei Widersprüchen zwischen Code und dieser Datei gilt diese Datei.
 
-Letzte Aktualisierung: 2026-07-12 (Inkrement 2a + FAB-Angleich)
+Letzte Aktualisierung: 2026-07-12 (Einheiten-Seite + Inkrement 2b)
 
 ---
 
@@ -111,9 +111,15 @@ Kein Text-/Pipe-Export (existiert so in Bring! nicht).
   - [x] Einheiten-Umrechnungsschicht: units um dimension + to_base_factor (Migration 0007)
   - [x] Aggregationslogik lib/utils/stock.ts (mass/volume normalisiert, count je Einheit getrennt) + Tests
   - [x] Gesamtbestand-Anzeige auf der Artikel-Detailseite (z.B. „2 Packung + 1,5 kg")
-- **2b — Soll/Bedarf**: stock_targets-CRUD (Soll/Min je Artikel) + Soll-Ist-Vergleich
+- **2b — Soll/Bedarf** (abgeschlossen, Test ausstehend):
+  - [x] Soll-/Mindestbestand je Artikel (stock_targets-CRUD, API /api/products/[id]/target)
+  - [x] Soll-Ist-Vergleich (compareToTarget: ok/below_target/below_min/not_comparable) + Tests
+  - [x] Bedarf-Indikator auf der Artikel-Detailseite + Soll-Modal
 - **2c — Einkaufsliste-UI**: auto (aus Bedarf) + manuell, abhaken
 - **2d — echte Bring!-API**: Login (verschlüsselte Credentials), Liste synchronisieren
+
+### Einstellungen (Verwaltung)
+- [x] Einheiten-Verwaltungsseite mit Umrechnung (Dimension + Faktor) + Vorschlägen gängiger Einheiten
 
 ### Inkrement 3 — Komfort
 - [ ] Dubletten-Vermeidung (Konzept offen — siehe Changelog)
@@ -124,6 +130,10 @@ Kein Text-/Pipe-Export (existiert so in Bring! nicht).
 ---
 
 ## Offene Punkte / noch zu testen (nicht bestätigt)
+
+**Einheiten-Seite + Inkrement 2b (Commits 34e4b4f, 4ff5490, 0b5b446, d0ee0ed, 0394380) — Test auf Pi ausstehend:**
+- Einstellungen → Einheiten: Custom-Einheit mit Dimension+Faktor anlegen/bearbeiten/löschen; Vorschlag (z.B. EL) per Klick übernehmen; System-Einheiten read-only; benutzte Einheit löschen → 409
+- Artikel-Detailseite: Soll festlegen (Menge+Einheit+optional Min); Bedarf-Indikator (grün ok / gelb unter Soll / rot unter Min / grau nicht vergleichbar); Soll entfernen
 
 **Inkrement 2a + FAB-Angleich (Commits 0efec01, de024bf, 3594c0f, 72669a9, 849b013) — Test auf Pi ausstehend:**
 - Migration 0007 läuft sauber (units.dimension + to_base_factor gebackfillt)

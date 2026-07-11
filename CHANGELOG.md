@@ -5,6 +5,33 @@ Neueste Einträge oben. Jeder Eintrag nennt den Commit-Kontext, damit andere LLM
 
 ---
 
+## [Unreleased] — Einheiten-Verwaltung + Inkrement 2b (Soll/Bedarf) (implementiert, Test auf Pi ausstehend)
+
+### Einheiten-Verwaltungsseite
+- Neue Unterseite **Einstellungen → Einheiten**: CRUD für Einheiten inkl. Dimension
+  (Masse/Volumen/Stückzahl) + Umrechnungsfaktor zur Basiseinheit (g/ml). System-Einheiten read-only.
+- **Vorschlags-Modal** gängiger Einheiten (mg, dag, Pfund, cl, EL, TL, Prise, Bund, …) — Klick übernimmt.
+- `/api/units` POST+PATCH um dimension + toBaseFactor erweitert.
+- Bisherige Inline-Einheiten-Section von der Einstellungen-Hauptseite auf die Unterseite verschoben (Tile).
+
+### Inkrement 2b — Soll/Bedarf
+- **Soll-/Mindestbestand je Artikel**: stock_targets-CRUD (Query-Layer + `/api/products/[id]/target` PUT/DELETE, Upsert).
+- **Soll-Ist-Vergleich** `compareToTarget` (stock.ts, + Tests): ok / unter Soll / unter Min / nicht vergleichbar.
+  mass/volume über Faktor, count symbolgenau.
+- **Bedarf-Indikator** auf der Artikel-Detailseite (Ampel-Badge) + Modal zum Soll-Festlegen/Entfernen.
+
+### Commits
+34e4b4f (units-API dimension/factor) · 4ff5490 (Einheiten-Seite + Vorschläge) · 0b5b446
+(compareToTarget + Tests) · d0ee0ed (stock-targets Query+API) · 0394380 (Soll-Indikator Detailseite)
+
+### Test-Steps (Pi)
+- Einstellungen → Einheiten: Einheit „EL/15 ml" per Vorschlag anlegen; eigene Masse-Einheit mit Faktor;
+  System read-only; benutzte Einheit löschen → 409.
+- Artikel-Detailseite: Soll „3 Stück" festlegen → bei Ist 1 „Unter Soll" (gelb), bei ≥3 grün, unter Min rot;
+  Soll in Einheit ohne passenden Ist → „nicht vergleichbar".
+
+---
+
 ## [Unreleased] — Inkrement 2a + FAB-Angleich (implementiert, Test auf Pi ausstehend)
 
 ### FAB-Buttons angeglichen
