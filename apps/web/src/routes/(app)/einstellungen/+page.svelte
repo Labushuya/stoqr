@@ -1,7 +1,6 @@
 <script lang="ts">
   import { enhance } from '$app/forms'
   import type { PageData, ActionData } from './$types'
-  import { toast } from '$lib/stores/toast'
 
   // ── Props ──────────────────────────────────────────────────────────────────
 
@@ -59,118 +58,6 @@
     form && (form as any).action === 'updateCategoryTolerance' ? (form as any).error : null
   )
 
-  // ── Units state ────────────────────────────────────────────────────────────
-
-  type Unit = {
-    id: string
-    name: string
-    symbol: string
-    isSystem: boolean
-    householdId: string | null
-    sortOrder: number | null
-  }
-
-  // svelte-ignore state_referenced_locally
-  let unitRows = $state<Unit[]>((data as any).units as Unit[])
-  let newUnitName = $state('')
-  let newUnitSymbol = $state('')
-  let unitAdding = $state(false)
-  let unitAddError = $state<string | null>(null)
-
-  // Per-row errors: keyed by unit id
-  let unitRowErrors = $state<Record<string, string>>({})
-
-  // Inline edit state
-  let editingUnitId = $state<string | null>(null)
-  let editingUnitName = $state('')
-  let editingUnitSymbol = $state('')
-  let unitEditSaving = $state(false)
-
-  function startEditUnit(unit: Unit) {
-    editingUnitId = unit.id
-    editingUnitName = unit.name
-    editingUnitSymbol = unit.symbol
-    unitRowErrors = { ...unitRowErrors, [unit.id]: '' }
-  }
-
-  function cancelEditUnit() {
-    editingUnitId = null
-  }
-
-  async function saveEditUnit(id: string) {
-    const name = editingUnitName.trim()
-    const symbol = editingUnitSymbol.trim()
-    if (!name || !symbol) {
-      unitRowErrors = { ...unitRowErrors, [id]: 'Name und Kürzel sind erforderlich.' }
-      return
-    }
-    unitEditSaving = true
-    unitRowErrors = { ...unitRowErrors, [id]: '' }
-    try {
-      const res = await fetch(`/api/units/${id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, symbol }),
-      })
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}))
-        unitRowErrors = { ...unitRowErrors, [id]: body.error ?? `Fehler ${res.status}` }
-        return
-      }
-      const updated: Unit = await res.json()
-      unitRows = unitRows.map((u) => (u.id === id ? updated : u))
-      editingUnitId = null
-    } catch {
-      unitRowErrors = { ...unitRowErrors, [id]: 'Netzwerkfehler.' }
-    } finally {
-      unitEditSaving = false
-    }
-  }
-
-  async function addUnit() {
-    const name = newUnitName.trim()
-    const symbol = newUnitSymbol.trim()
-    if (!name || !symbol) {
-      unitAddError = 'Name und Kürzel sind erforderlich.'
-      return
-    }
-    unitAdding = true
-    unitAddError = null
-    try {
-      const res = await fetch('/api/units', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, symbol }),
-      })
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}))
-        unitAddError = body.error ?? `Fehler ${res.status}`
-        return
-      }
-      const created: Unit = await res.json()
-      unitRows = [...unitRows, created]
-      newUnitName = ''
-      newUnitSymbol = ''
-    } catch {
-      unitAddError = 'Netzwerkfehler.'
-    } finally {
-      unitAdding = false
-    }
-  }
-
-  async function deleteUnit(id: string) {
-    try {
-      const res = await fetch(`/api/units/${id}`, { method: 'DELETE' })
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}))
-        toast.error(body.error ?? `Fehler ${res.status}`)
-        return
-      }
-      unitRows = unitRows.filter((u) => u.id !== id)
-    } catch {
-      toast.error('Netzwerkfehler.')
-    }
-  }
 </script>
 
 <div class="page">
@@ -511,161 +398,20 @@
     {/if}
   </section>
 
-  <!-- ── Section 3: Einheiten ──────────────────────────────────────────── -->
+  <!-- ── Einheiten ─────────────────────────────────────────────────────── -->
 
   <section class="settings-section">
     <div class="section-header">
-      <h2 class="section-title">
-        <span class="section-icon" aria-hidden="true">
-          <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-            <path d="M4 14V4M4 9h6M10 4v10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-            <path d="M13 7l2 2-2 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-        </span>
-        Einheiten
-      </h2>
-      <p class="section-desc">
-        Verwalte die Mengeneinheiten, die bei Artikeln verwendet werden. System-Einheiten sind
-        schreibgeschützt. Eigene Einheiten können jederzeit gelöscht werden.
-      </p>
+      <h2 class="section-title">Einheiten</h2>
+      <span class="section-desc">Mengeneinheiten und Umrechnung verwalten</span>
     </div>
-
-    {#if unitAddError}
-      <div class="alert alert--error" role="alert">
+    <div class="section-body">
+      <a href="/einstellungen/einheiten" class="members-link">
+        <span>Einheiten verwalten</span>
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-          <circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.5"/>
-          <path d="M8 5v3.5M8 11v.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+          <path d="M6 3l5 5-5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
-        {unitAddError}
-      </div>
-    {/if}
-
-    <div class="units-list" role="list">
-      {#each unitRows as unit (unit.id)}
-        <div class="unit-row" role="listitem">
-          {#if editingUnitId === unit.id}
-            <div class="unit-chip unit-chip--editing">
-              <input
-                class="input unit-input-inline"
-                type="text"
-                value={editingUnitName}
-                oninput={(e) => { editingUnitName = (e.currentTarget as HTMLInputElement).value }}
-                maxlength="32"
-                aria-label="Name"
-                onkeydown={(e) => {
-                  if (e.key === 'Enter') saveEditUnit(unit.id)
-                  if (e.key === 'Escape') cancelEditUnit()
-                }}
-              />
-              <input
-                class="input unit-input-inline unit-input-inline--symbol"
-                type="text"
-                value={editingUnitSymbol}
-                oninput={(e) => { editingUnitSymbol = (e.currentTarget as HTMLInputElement).value }}
-                maxlength="8"
-                aria-label="Kürzel"
-                onkeydown={(e) => {
-                  if (e.key === 'Enter') saveEditUnit(unit.id)
-                  if (e.key === 'Escape') cancelEditUnit()
-                }}
-              />
-              <button
-                class="btn-save-inline"
-                type="button"
-                disabled={unitEditSaving}
-                aria-label="Speichern"
-                onclick={() => saveEditUnit(unit.id)}
-              >
-                {#if unitEditSaving}
-                  <span class="spinner spinner--sm" aria-hidden="true"></span>
-                {:else}
-                  <svg width="13" height="13" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-                    <path d="M2 7l3.5 3.5L12 3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
-                  </svg>
-                {/if}
-                Speichern
-              </button>
-              <button
-                class="btn-cancel-inline"
-                type="button"
-                onclick={cancelEditUnit}
-                aria-label="Abbrechen"
-              >
-                Abbrechen
-              </button>
-            </div>
-          {:else}
-            <div class="unit-chip">
-              <span class="unit-name">{unit.name}</span>
-              <span class="unit-symbol">({unit.symbol})</span>
-              {#if unit.isSystem}
-                <span class="unit-badge" aria-label="System-Einheit">
-                  <svg width="11" height="11" viewBox="0 0 11 11" fill="none" aria-hidden="true">
-                    <rect x="3" y="5" width="5" height="4" rx="0.75" stroke="currentColor" stroke-width="1.2"/>
-                    <path d="M4 5V3.5a1.5 1.5 0 013 0V5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
-                  </svg>
-                  System
-                </span>
-              {:else}
-                <button
-                  class="unit-edit"
-                  type="button"
-                  aria-label="Einheit {unit.name} bearbeiten"
-                  onclick={() => startEditUnit(unit)}
-                >
-                  <svg width="12" height="12" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-                    <path d="M9.5 2.5L11.5 4.5L5 11H3V9L9.5 2.5Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>
-                  </svg>
-                </button>
-                <button
-                  class="unit-delete"
-                  type="button"
-                  aria-label="Einheit {unit.name} löschen"
-                  onclick={() => deleteUnit(unit.id)}
-                >
-                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-                    <path d="M2 2l8 8M10 2l-8 8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-                  </svg>
-                </button>
-              {/if}
-            </div>
-          {/if}
-        </div>
-      {/each}
-    </div>
-
-    <div class="unit-add-row">
-      <input
-        class="input unit-input"
-        type="text"
-        placeholder="Name"
-        bind:value={newUnitName}
-        maxlength="64"
-        aria-label="Name der neuen Einheit"
-        onkeydown={(e) => { if (e.key === 'Enter') addUnit() }}
-      />
-      <input
-        class="input unit-input unit-input--symbol"
-        type="text"
-        placeholder="Kürzel"
-        bind:value={newUnitSymbol}
-        maxlength="16"
-        aria-label="Kürzel der neuen Einheit"
-        onkeydown={(e) => { if (e.key === 'Enter') addUnit() }}
-      />
-      <button
-        class="btn-primary"
-        type="button"
-        disabled={unitAdding}
-        onclick={addUnit}
-      >
-        {#if unitAdding}
-          <span class="spinner" aria-hidden="true"></span>
-          Hinzufügen…
-        {:else}
-          Hinzufügen
-        {/if}
-      </button>
+      </a>
     </div>
   </section>
 
@@ -1165,146 +911,6 @@
     padding: var(--space-4) 0;
   }
 
-  /* ── Units ────────────────────────────────────────────────────────────── */
-
-  .units-list {
-    display: flex;
-    flex-direction: row;
-    flex-wrap: wrap;
-    gap: var(--space-2);
-    margin-bottom: var(--space-5);
-    min-height: 36px;
-    align-items: flex-start;
-  }
-
-  .unit-row {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-1);
-  }
-
-  .unit-chip {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--space-1);
-    min-height: 36px;
-    padding: 0 var(--space-3);
-    border-radius: var(--radius-full);
-    border: 1px solid var(--color-border);
-    background-color: var(--color-surface);
-    font-size: var(--text-sm);
-    color: var(--color-text-primary);
-    white-space: nowrap;
-    align-self: flex-start;
-  }
-
-  .unit-chip--editing {
-    border-radius: var(--radius-lg);
-    padding: var(--space-2) var(--space-3);
-    gap: var(--space-2);
-    white-space: normal;
-    flex-wrap: wrap;
-    align-self: stretch;
-  }
-
-  .unit-name {
-    font-weight: 500;
-  }
-
-  .unit-symbol {
-    color: var(--color-text-muted);
-    font-size: var(--text-xs);
-  }
-
-  .unit-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 3px;
-    height: 20px;
-    padding: 0 var(--space-2);
-    border-radius: var(--radius-full);
-    background-color: var(--color-surface-sunken);
-    color: var(--color-text-muted);
-    font-size: 11px;
-    font-weight: 600;
-    margin-left: var(--space-1);
-  }
-
-  .unit-edit {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 20px;
-    height: 20px;
-    border-radius: 50%;
-    border: none;
-    background-color: transparent;
-    color: var(--color-text-muted);
-    cursor: pointer;
-    padding: 0;
-    margin-left: var(--space-1);
-    flex-shrink: 0;
-    transition: background-color var(--transition-fast), color var(--transition-fast);
-  }
-
-  .unit-edit:hover {
-    background-color: var(--color-primary-subtle);
-    color: var(--color-primary);
-  }
-
-  .unit-delete {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 20px;
-    height: 20px;
-    border-radius: 50%;
-    border: none;
-    background-color: transparent;
-    color: var(--color-text-muted);
-    cursor: pointer;
-    padding: 0;
-    margin-left: var(--space-1);
-    flex-shrink: 0;
-    transition: background-color var(--transition-fast), color var(--transition-fast);
-  }
-
-  .unit-delete:hover {
-    background-color: var(--color-danger-subtle, #fee2e2);
-    color: var(--color-danger, #dc2626);
-  }
-
-  .unit-input-inline {
-    height: 28px;
-    flex: 1 1 100px;
-    min-width: 80px;
-    max-width: 180px;
-    font-size: var(--text-sm);
-    padding: 0 var(--space-2);
-  }
-
-  .unit-input-inline--symbol {
-    flex: 0 1 72px;
-    max-width: 80px;
-  }
-
-  .unit-add-row {
-    display: flex;
-    align-items: center;
-    gap: var(--space-2);
-    flex-wrap: wrap;
-  }
-
-  .unit-input {
-    flex: 1 1 140px;
-    max-width: 220px;
-  }
-
-  .unit-input--symbol {
-    flex: 0 1 100px;
-    max-width: 100px;
-  }
-
   /* ── Spinner ──────────────────────────────────────────────────────────── */
 
   .spinner {
@@ -1364,11 +970,6 @@
     }
 
     /* Unit edit/delete icon buttons — increase tap area */
-    .unit-edit,
-    .unit-delete {
-      width: 36px;
-      height: 36px;
-    }
   }
 
   .members-link {
