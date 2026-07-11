@@ -49,7 +49,7 @@ export function formatStockTotal(totals: StockTotals): string {
   return totals.groups
     .map((g) => {
       const value = g.displayValue.toLocaleString('de-DE', { maximumFractionDigits: 3 });
-      return `${value} ${g.displayName}`;
+      return `${value} ${g.displayUnit}`;
     })
     .join(' + ');
 }
