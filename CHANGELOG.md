@@ -5,6 +5,58 @@ Neueste Einträge oben. Jeder Eintrag nennt den Commit-Kontext, damit andere LLM
 
 ---
 
+## [Unreleased] — Feedback-Runde 1 (implementiert, Test auf Pi ausstehend)
+
+Reaktion auf 5 Praxis-Findings nach Inkrement 1.
+
+### Einheiten-Bug behoben
+- Einstellungen → Artikel: Einheit-Feld ist jetzt ein **Dropdown** (statt Freitext),
+  Auswahl aus getUnits (value=symbol, Anzeige=name) — konsistent mit Inventar/easy-add.
+- Anzeige mappt gespeichertes symbol auf den Namen (z.B. "Packung" statt rohem Wert).
+- Inventar-"Neuer Artikel" sendet die gewählte Einheit als `defaultUnit` mit
+  (vorher stummer `'piece'`-Fallback → daher die "Packung → g/piece"-Diskrepanz).
+- Defaults durchgängig auf symbol `'piece'` korrigiert.
+
+### Nährwert-Editor (neu)
+- Detailseite hat einen **editierbaren Nährwert-Editor** (produktweit, Hinweis
+  "gilt für alle Bestände"): Zeile hinzufügen, Wert ändern, Zeile löschen.
+- **Eigene Nährstofftypen** anlegbar (POST /api/nutrient-types, idempotent per Slug).
+- Neue API: GET/POST /api/nutrient-types, PUT/DELETE /api/products/[id]/nutrients.
+- Query-Layer: nutrients.ts (slugify, getNutrientTypes, createNutrientType,
+  upsertProductNutrient, deleteProductNutrient).
+- **Slug-Mismatch behoben**: der Editor arbeitet direkt gegen nutrient_types statt
+  einer hartcodierten Bindestrich-Liste (Seed nutzt Unterstrich-slugs).
+
+### Aggregierte Artikel-Detailseite
+- /inventar/[id] zeigt jetzt den **Artikel mit ALLEN seinen Beständen** (mehrere
+  MHDs/Mengen) statt eines einzelnen Bestands.
+- Pro Bestand: Menge/Einheit/MHD+Badge/Markt/Ort/Status; **Inline-Edit** via
+  bestehender PATCH /api/inventory/[id]; Verbraucht/Entfernen pro Zeile.
+- **Bezugsquelle (Markt) editierbar** je Bestand; tote Bezugsquellen-UI/CSS-Reste entfernt.
+- Behebt latenten data.units-Bug (Einheiten-Select auf Detailseite war leer).
+
+### Responsive / Mobile
+- Globaler Fix: (app)-Shell-Padding auf Mobile reduziert (behebt doppeltes Padding),
+  body overflow-x:hidden als Sicherheitsnetz.
+- artikel/maerkte: Felder brechen sauber auf volle Breite; inventar FAB-Labels ab
+  ≤680px ausgeblendet; easy-add unit-row flex-wrap.
+
+### Commits
+e4d4b4c (Artikel-Einheit-Dropdown) · 3b79517 (defaultUnit-Kopplung) · da07d91
+(nutrients Query-Layer) · 6d9bfa8 (/api/nutrient-types) · c83f1cc
+(/api/products/[id]/nutrients) · ace56ed (aggregierte Detailseite + Editor) ·
+035b911 (globaler Mobile-Fix) · 5c382c2 (Responsive-Fixes)
+
+### Test-Steps (Pi)
+1. Artikel mit "Packung" anlegen → Einstellungen → Artikel zeigt "Packung"; Feld = Dropdown.
+2. Detailseite: Nährwert-Zeile add (Standard + eigener "Magnesium/mg"), Wert ändern,
+   löschen → nach Reload persistent; alle Seed-Nährstoffe korrekt beschriftet.
+3. Artikel mit 2+ Beständen → Detailseite listet alle; Inline-Edit (Menge/MHD/Markt/Ort)
+   je Bestand persistiert.
+4. Mobile 360–480px: kein horizontaler Overflow, Felder/FAB sauber.
+
+---
+
 ## [Unreleased] — Inkrement 1: Kanonischer Modell-Umbau (implementiert, Test auf Pi ausstehend)
 
 ### Datenmodell

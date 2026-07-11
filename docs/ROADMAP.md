@@ -3,7 +3,7 @@
 > Kanonisches Datenmodell und Entwicklungsplan. Diese Datei ist führend für Absicht,
 > Logik und Ziel von stoqr. Bei Widersprüchen zwischen Code und dieser Datei gilt diese Datei.
 
-Letzte Aktualisierung: 2026-07-11 (Inkrement 1 implementiert)
+Letzte Aktualisierung: 2026-07-11 (Feedback-Runde 1)
 
 ---
 
@@ -112,12 +112,20 @@ Format: `Artikel: [Name]`, Beschreibung: `[Gesamtanzahl][Einheit] | [Notiz] | [M
 
 ### Inkrement 3 — Komfort
 - [ ] Dubletten-Vermeidung (Konzept offen — siehe Changelog)
-- [ ] Nährwerte dynamisch + OCR
-- [ ] Mobile-first Feinschliff
+- [x] Nährwerte dynamisch editierbar (Editor + eigene Nährstofftypen) — Feedback-Runde 1
+- [ ] Nährwerte per OCR erfassen
+- [~] Mobile-first Feinschliff (globaler + seiten-spezifischer Sweep, Feedback-Runde 1)
 
 ---
 
 ## Offene Punkte / noch zu testen (nicht bestätigt)
+
+**Feedback-Runde 1 (Commits e4d4b4c, 3b79517, da07d91, 6d9bfa8, c83f1cc, ace56ed, 035b911, 5c382c2) — Test auf Pi ausstehend:**
+- Einheit: "Packung" bleibt "Packung" (Anzeige + Speichern); Feld = Dropdown
+- Nährwert-Editor: Zeile add/ändern/löschen persistent; eigener Nährstoff anlegbar; Seed-Nährstoffe korrekt beschriftet
+- Aggregierte Detailseite: alle Bestände eines Artikels sichtbar; Inline-Edit (Menge/MHD/Markt/Ort) je Bestand persistent
+- Bezugsquelle je Bestand editierbar; keine Bezugsquellen-UI-Reste
+- Mobile 360–480px: kein Overflow, Felder/FAB sauber
 
 **Inkrement 1 (Commits 9689107, f57688d, 7f651bb, 6b3ba93, 58115ce, 36bfa8d) — Test auf Pi ausstehend:**
 - Migration 0005 + 0006 laufen sauber (Testdaten-Reset der Bestände)
