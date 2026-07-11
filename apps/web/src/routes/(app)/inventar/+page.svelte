@@ -639,11 +639,11 @@ Das Produkt bleibt im Katalog.`,
 
 <div class="fab-group">
   <a class="fab-secondary" href="/inventar/easy-add" aria-label="Bestand hinzufügen">
-    <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+    <svg width="20" height="20" viewBox="0 0 18 18" fill="none" aria-hidden="true">
       <rect x="2" y="2" width="14" height="14" rx="3" stroke="currentColor" stroke-width="1.6"/>
       <path d="M9 6v6M6 9h6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
     </svg>
-    <span>Bestand hinzufügen</span>
+    <span class="fab-label">Bestand hinzufügen</span>
   </a>
   <button class="fab" type="button" aria-label="Neuer Artikel" onclick={openAddSheet}>
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -1286,10 +1286,9 @@ Das Produkt bleibt im Katalog.`,
     display: inline-flex;
     align-items: center;
     gap: var(--space-2);
-    height: 44px;
-    padding: 0 var(--space-4);
+    height: 48px;
+    padding: 0 var(--space-5);
     border-radius: var(--radius-full);
-    border: none;
     background-color: var(--color-surface-raised);
     color: var(--color-text-primary);
     font-family: var(--font-body);
@@ -1300,6 +1299,7 @@ Das Produkt bleibt im Katalog.`,
     box-shadow: var(--shadow-lg);
     border: 1px solid var(--color-border);
     white-space: nowrap;
+    flex-shrink: 0;
     transition: background-color var(--transition-fast), box-shadow var(--transition-fast), transform var(--transition-fast);
   }
 
@@ -1462,19 +1462,13 @@ Das Produkt bleibt im Katalog.`,
   /* ── Mobile ───────────────────────────────────────────────────────────── */
 
   /* FAB-Labels bereits ab Tablet-Breite ausblenden, damit die beiden FABs im
-     Bereich 481–680px nicht ueber den Rand laufen. */
+     Bereich 481–680px nicht ueber den Rand laufen. Beide werden gleich grosse
+     runde Icon-Buttons. */
   @media (max-width: 680px) {
-    .fab-secondary span {
-      display: none;
-    }
-    .fab-secondary {
-      width: 44px;
-      padding: 0;
-      justify-content: center;
-    }
     .fab-label {
       display: none;
     }
+    .fab-secondary,
     .fab {
       width: 56px;
       height: 56px;
@@ -1505,27 +1499,6 @@ Das Produkt bleibt im Katalog.`,
     .fab-group {
       right: var(--space-4);
       bottom: calc(var(--space-4) + env(safe-area-inset-bottom, 0px));
-    }
-
-    .fab-secondary span {
-      display: none;
-    }
-
-    .fab-secondary {
-      width: 44px;
-      padding: 0;
-      justify-content: center;
-    }
-
-    .fab-label {
-      display: none;
-    }
-
-    .fab {
-      width: 56px;
-      height: 56px;
-      padding: 0;
-      justify-content: center;
     }
 
     .toast-container {
