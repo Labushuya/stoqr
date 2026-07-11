@@ -112,7 +112,7 @@
   let formPlaceId = $state('')
   let formMhd = $state('')
   let formQuantity = $state('1')
-  let formUnit = $state('Stück')
+  let formUnit = $state('piece')
   let formNotes = $state('')
   let formSaving = $state(false)
 
@@ -279,7 +279,7 @@
     formPlaceId = ''
     formMhd = ''
     formQuantity = '1'
-    formUnit = 'Stück'
+    formUnit = 'piece'
     formNotes = ''
     showSheet = true
     await loadCategories()
@@ -343,6 +343,7 @@
           body: JSON.stringify({
             name: formProductName.trim(),
             categoryId: formCategoryId || undefined,
+            defaultUnit: unitValue || undefined,
             notes: formNotes.trim() || undefined,
           }),
         })
