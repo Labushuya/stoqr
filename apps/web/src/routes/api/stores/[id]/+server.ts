@@ -1,7 +1,7 @@
 import { json } from '@sveltejs/kit'
 import type { RequestHandler } from './$types'
 import { db } from '$lib/server/db'
-import { stores, productStores } from '@stoqr/db'
+import { stores, inventoryItems } from '@stoqr/db'
 import { eq, and, count } from 'drizzle-orm'
 import { requireHouseholdId } from '$lib/server/queries/households'
 
@@ -85,15 +85,15 @@ export const DELETE: RequestHandler = async ({ locals, params }) => {
     return json({ error: 'Not found' }, { status: 404 })
   }
 
-  // Check for product_stores references before deleting
+  // Check for inventory items still referencing this store before deleting
   const [{ value: refCount }] = await db
     .select({ value: count() })
-    .from(productStores)
-    .where(eq(productStores.storeId, params.id))
+    .from(inventoryItems)
+    .where(eq(inventoryItems.storeId, params.id))
 
   if (refCount > 0) {
     return json(
-      { error: 'Store is still referenced by product entries', count: refCount },
+      { error: 'Markt wird noch von Beständen verwendet', count: refCount },
       { status: 409 }
     )
   }

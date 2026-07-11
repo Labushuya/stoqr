@@ -7,7 +7,6 @@ import {
   locations,
   expiryConfig,
   stores,
-  productStores,
   products,
 } from '@stoqr/db'
 import { eq, and, asc } from 'drizzle-orm'
@@ -99,17 +98,10 @@ export const load: PageServerLoad = async ({ params, locals }) => {
     },
   });
 
-  // Fetch all stores for the household (for the add-store dropdown)
+  // Fetch all stores for the household (for the market dropdown)
   const availableStores = await db.query.stores.findMany({
     where: eq(stores.householdId, householdId),
     orderBy: asc(stores.name),
-  });
-
-  // Fetch product stores (Bezugsquellen) ordered by sortOrder
-  const productStoresList = await db.query.productStores.findMany({
-    where: eq(productStores.productId, item.productId),
-    with: { store: true },
-    orderBy: asc(productStores.sortOrder),
   });
 
   return {
@@ -118,7 +110,6 @@ export const load: PageServerLoad = async ({ params, locals }) => {
     allLocations,
     expirySettings,
     availableStores,
-    productStores: productStoresList,
   };
 };
 
@@ -252,7 +243,7 @@ export const actions: Actions = {
     redirect(302, '/inventar');
   },
 
-  // ── Delete all (product + all inventory items + product_stores) ───────────
+  // ── Delete all (product + all inventory items) ───────────────────────────
   deleteAll: async ({ params, locals }) => {
     if (!locals.user) return fail(401, { error: 'Nicht authentifiziert' });
     const householdId = await requireHouseholdId(locals.user.id);
@@ -275,15 +266,6 @@ export const actions: Actions = {
             and(
               eq(inventoryItems.productId, productId),
               eq(inventoryItems.householdId, householdId)
-            )
-          );
-
-        await tx
-          .delete(productStores)
-          .where(
-            and(
-              eq(productStores.productId, productId),
-              eq(productStores.householdId, householdId)
             )
           );
 

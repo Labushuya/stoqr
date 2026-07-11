@@ -180,7 +180,6 @@ export const productsRelations = relations(products, ({ one, many }) => ({
   nutrients: many(productNutrients),
   inventoryItems: many(inventoryItems),
   stockTargets: many(stockTargets),
-  productStores: many(productStores),
   shoppingListItems: many(shoppingListItems),
 }));
 
@@ -274,7 +273,6 @@ export const storesRelations = relations(stores, ({ one, many }) => ({
   }),
   inventoryItems: many(inventoryItems),
   stockTargets: many(stockTargets),
-  productStores: many(productStores),
   shoppingListItems: many(shoppingListItems),
   bringSync: many(bringSync),
 }));
@@ -292,6 +290,8 @@ export const inventoryItems = pgTable('inventory_items', {
   householdId: text('household_id')
     .notNull()
     .references(() => households.id),
+  // EAN/Barcode dieses konkreten Bestands (nicht des Artikels — siehe ROADMAP).
+  gtin: varchar('gtin', { length: 14 }),
   quantity: numeric('quantity', { precision: 10, scale: 3 }).notNull().default('1'),
   unit: varchar('unit', { length: 16 }).notNull().default('piece'),
   weightG: numeric('weight_g', { precision: 10, scale: 2 }),
@@ -402,53 +402,6 @@ export const stockTargetsRelations = relations(stockTargets, ({ one }) => ({
   preferredStore: one(stores, {
     fields: [stockTargets.preferredStoreId],
     references: [stores.id],
-  }),
-}));
-
-// ---------------------------------------------------------------------------
-// product_stores
-// ---------------------------------------------------------------------------
-
-export const productStores = pgTable(
-  'product_stores',
-  {
-    id: uuid('id').primaryKey().defaultRandom(),
-    productId: uuid('product_id')
-      .notNull()
-      .references(() => products.id, { onDelete: 'cascade' }),
-    storeId: uuid('store_id')
-      .notNull()
-      .references(() => stores.id, { onDelete: 'cascade' }),
-    householdId: text('household_id')
-      .notNull()
-      .references(() => households.id),
-    sortOrder: integer('sort_order').notNull().default(1),
-    storeSku: varchar('store_sku', { length: 64 }),
-    lastSeenPriceCt: integer('last_seen_price_ct'),
-    lastSeenAt: date('last_seen_at'),
-    notes: text('notes'),
-  },
-  (table) => ({
-    productStoreHouseholdUniq: uniqueIndex('product_stores_product_store_household_uniq').on(
-      table.productId,
-      table.storeId,
-      table.householdId
-    ),
-  })
-);
-
-export const productStoresRelations = relations(productStores, ({ one }) => ({
-  product: one(products, {
-    fields: [productStores.productId],
-    references: [products.id],
-  }),
-  store: one(stores, {
-    fields: [productStores.storeId],
-    references: [stores.id],
-  }),
-  household: one(households, {
-    fields: [productStores.householdId],
-    references: [households.id],
   }),
 }));
 
@@ -572,7 +525,6 @@ export const householdsRelations = relations(households, ({ many }) => ({
   inventoryItems: many(inventoryItems),
   expiryConfig: many(expiryConfig),
   stockTargets: many(stockTargets),
-  productStores: many(productStores),
   shoppingListItems: many(shoppingListItems),
   bringSync: many(bringSync),
   householdMembers: many(householdMembers),

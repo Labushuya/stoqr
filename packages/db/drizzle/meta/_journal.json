@@ -35,6 +35,13 @@
       "when": 1783700000000,
       "tag": "0004_stores_city",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1783800000000,
+      "tag": "0005_inventory_gtin_drop_product_stores",
+      "breakpoints": true
     }
   ]
 }

@@ -121,6 +121,7 @@ export async function createInventoryItem(data: {
 	purchaseDate?: string;
 	notes?: string;
 	storeId?: string;
+	gtin?: string;
 }) {
 	const [record] = await db
 		.insert(inventoryItems)
@@ -134,6 +135,7 @@ export async function createInventoryItem(data: {
 			purchaseDate: data.purchaseDate,
 			notes: data.notes,
 			storeId: data.storeId,
+			gtin: data.gtin,
 		})
 		.returning();
 	return record;
@@ -155,6 +157,7 @@ export async function updateInventoryItem(
 		purchaseDate: string | null;
 		notes: string | null;
 		storeId: string | null;
+		gtin: string | null;
 		status: 'available' | 'consumed' | 'expired' | 'donated' | 'discarded';
 		openedAt: Date | null;
 		openedExpiryDays: number | null;
@@ -175,6 +178,7 @@ export async function updateInventoryItem(
 	if (data.purchaseDate !== undefined) patch.purchaseDate = data.purchaseDate;
 	if (data.notes !== undefined) patch.notes = data.notes;
 	if (data.storeId !== undefined) patch.storeId = data.storeId;
+	if (data.gtin !== undefined) patch.gtin = data.gtin;
 	if (data.status !== undefined) patch.status = data.status;
 	if (data.openedAt !== undefined) patch.openedAt = data.openedAt;
 	if (data.openedExpiryDays !== undefined) patch.openedExpiryDays = data.openedExpiryDays;

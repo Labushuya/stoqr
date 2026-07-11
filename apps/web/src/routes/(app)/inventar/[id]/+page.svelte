@@ -18,12 +18,6 @@
     valuePer100: string
   }
 
-  type ProductStore = {
-    id: string
-    store: { id: string; name: string }
-    sortOrder: number
-  }
-
   // ── Derived item state ────────────────────────────────────────────────────
 
   // svelte-ignore state_referenced_locally
@@ -254,88 +248,6 @@
 
   // svelte-ignore state_referenced_locally
   let unitOptions = $state(data.units as { id: string; name: string; symbol: string }[])
-
-  // ── Bezugsquellen (product stores) ───────────────────────────────────────
-
-  // svelte-ignore state_referenced_locally
-  let productStores = $state<ProductStore[]>([...data.productStores])
-
-  // svelte-ignore state_referenced_locally
-  let selectedAddStoreId = $state('')
-
-  const unassignedStores = $derived(() =>
-    data.availableStores.filter(
-      (s: { id: string; name: string }) => !productStores.some((ps) => ps.store.id === s.id)
-    )
-  )
-
-  async function moveStore(index: number, direction: -1 | 1) {
-    const targetIndex = index + direction
-    if (targetIndex < 0 || targetIndex >= productStores.length) return
-
-    const current = productStores[index]
-    const adjacent = productStores[targetIndex]
-
-    // Swap sortOrder values
-    const currentNewOrder = adjacent.sortOrder
-    const adjacentNewOrder = current.sortOrder
-
-    const [resA, resB] = await Promise.all([
-      fetch(`/api/product-stores/${current.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sortOrder: currentNewOrder }),
-      }),
-      fetch(`/api/product-stores/${adjacent.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sortOrder: adjacentNewOrder }),
-      }),
-    ])
-
-    if (resA.ok && resB.ok) {
-      const updated = [...productStores]
-      updated[index] = { ...current, sortOrder: currentNewOrder }
-      updated[targetIndex] = { ...adjacent, sortOrder: adjacentNewOrder }
-      productStores = updated.sort((a, b) => a.sortOrder - b.sortOrder)
-      showToast('Reihenfolge gespeichert')
-    } else {
-      showToast('Fehler beim Speichern der Reihenfolge', 'error')
-    }
-  }
-
-  async function removeStore(ps: ProductStore) {
-    const res = await fetch(`/api/product-stores/${ps.id}`, { method: 'DELETE' })
-    if (res.ok) {
-      productStores = productStores.filter((p) => p.id !== ps.id)
-      showToast('Bezugsquelle entfernt')
-    } else {
-      showToast('Fehler beim Entfernen', 'error')
-    }
-  }
-
-  async function addStore() {
-    if (!selectedAddStoreId) return
-    const maxOrder = productStores.length > 0 ? Math.max(...productStores.map((p) => p.sortOrder)) : 0
-    const res = await fetch('/api/product-stores', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        productId: item.productId,
-        storeId: selectedAddStoreId,
-        householdId: item.householdId,
-        sortOrder: maxOrder + 1,
-      }),
-    })
-    if (res.ok) {
-      const newPs = await res.json()
-      productStores = [...productStores, newPs].sort((a, b) => a.sortOrder - b.sortOrder)
-      selectedAddStoreId = ''
-      showToast('Bezugsquelle hinzugefügt')
-    } else {
-      showToast('Fehler beim Hinzufügen', 'error')
-    }
-  }
 </script>
 
 <!-- ── Page ──────────────────────────────────────────────────────────────── -->
@@ -597,76 +509,6 @@
         </div>
       {/if}
     </div>
-  </div>
-
-  <!-- ── Bezugsquellen card ───────────────────────────────────────────── -->
-  <div class="card" id="bezugsquellen">
-    <div class="section-header">
-      <h2 class="section-title">Bezugsquellen</h2>
-    </div>
-
-    {#if productStores.length === 0}
-      <p class="stores-empty">Keine Bezugsquellen zugewiesen.</p>
-    {:else}
-      <ul class="stores-list">
-        {#each productStores as ps, i (ps.id)}
-          <li class="store-row">
-            <span class="store-order-badge">{ps.sortOrder}</span>
-            <span class="store-name">{ps.store.name}</span>
-            <div class="store-order-btns">
-              <button
-                class="btn-order"
-                type="button"
-                onclick={() => moveStore(i, -1)}
-                disabled={i === 0}
-                aria-label="Nach oben"
-                title="Nach oben"
-              >↑</button>
-              <button
-                class="btn-order"
-                type="button"
-                onclick={() => moveStore(i, 1)}
-                disabled={i === productStores.length - 1}
-                aria-label="Nach unten"
-                title="Nach unten"
-              >↓</button>
-            </div>
-            <button
-              class="btn-remove-store"
-              type="button"
-              onclick={() => removeStore(ps)}
-              aria-label="Bezugsquelle entfernen"
-              title="Entfernen"
-            >
-              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-                <path d="M2 2l8 8M10 2l-8 8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-              </svg>
-            </button>
-          </li>
-        {/each}
-      </ul>
-    {/if}
-
-    {#if unassignedStores().length > 0}
-      <div class="add-store-row">
-        <select class="input select input--sm add-store-select" bind:value={selectedAddStoreId}>
-          <option value="">+ Bezugsquelle wählen…</option>
-          {#each unassignedStores() as s (s.id)}
-            <option value={s.id}>{s.name}</option>
-          {/each}
-        </select>
-        <button
-          class="btn-save"
-          type="button"
-          onclick={addStore}
-          disabled={!selectedAddStoreId}
-        >
-          Hinzufügen
-        </button>
-      </div>
-    {:else if data.availableStores.length === 0}
-      <p class="stores-hint">Lege zuerst Geschäfte im Haushalt an.</p>
-    {/if}
   </div>
 
   <!-- ── Nährwerte card ─────────────────────────────────────────────────── -->

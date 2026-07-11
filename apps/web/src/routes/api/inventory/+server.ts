@@ -68,6 +68,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
     unit,
     bestBeforeDate,
     notes,
+    storeId,
   } = body as {
     productId?: string
     productName?: string
@@ -84,6 +85,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
     unit: string
     bestBeforeDate?: string
     notes?: string
+    storeId?: string
   }
 
   const qty = Number(quantity)
@@ -212,6 +214,8 @@ export const POST: RequestHandler = async ({ locals, request }) => {
     unit,
     bestBeforeDate: bestBeforeDate ?? undefined,
     notes: notes ?? undefined,
+    storeId: storeId ?? undefined,
+    gtin: gtin ?? undefined,
   })
 
   // Return the full item with product info (mirrors GET /api/inventory/[id])

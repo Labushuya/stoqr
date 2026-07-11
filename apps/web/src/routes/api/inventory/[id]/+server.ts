@@ -35,7 +35,7 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
     const {
       productName, quantity, unit, bestBeforeDate, purchaseDate, placeId, storeId,
       notes, status, openedAt, openedExpiryDays, purchasePriceCt,
-      lotNumber, weightG, volumeMl, categoryId,
+      lotNumber, weightG, volumeMl, categoryId, gtin,
     } = body
 
     const patch: Parameters<typeof updateInventoryItem>[2] = {}
@@ -45,6 +45,7 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
     if (purchaseDate !== undefined) patch.purchaseDate = purchaseDate
     if (placeId !== undefined) patch.placeId = placeId
     if (storeId !== undefined) patch.storeId = storeId
+    if (gtin !== undefined) patch.gtin = gtin
     if (notes !== undefined) patch.notes = notes
     if (status !== undefined) patch.status = status
     if (openedAt !== undefined) patch.openedAt = openedAt ? new Date(openedAt) : null
