@@ -30,10 +30,25 @@ export const POST: RequestHandler = async ({ locals, request }) => {
   const householdId = await requireHouseholdId(locals.user.id)
 
   const body = await request.json()
-  const { name, symbol } = body as { name?: string; symbol?: string }
+  const { name, symbol, dimension, toBaseFactor } = body as {
+    name?: string
+    symbol?: string
+    dimension?: string
+    toBaseFactor?: number | string
+  }
 
   if (!name?.trim() || !symbol?.trim()) {
     return json({ error: 'name and symbol are required' }, { status: 400 })
+  }
+
+  const dim = dimension ?? 'count'
+  if (!['mass', 'volume', 'count'].includes(dim)) {
+    return json({ error: 'dimension muss mass, volume oder count sein' }, { status: 400 })
+  }
+
+  const factorNum = toBaseFactor != null ? Number(toBaseFactor) : 1
+  if (!Number.isFinite(factorNum) || factorNum <= 0) {
+    return json({ error: 'toBaseFactor muss eine Zahl > 0 sein' }, { status: 400 })
   }
 
   const [newUnit] = await db
@@ -42,6 +57,8 @@ export const POST: RequestHandler = async ({ locals, request }) => {
       householdId,
       name: name.trim(),
       symbol: symbol.trim(),
+      dimension: dim as 'mass' | 'volume' | 'count',
+      toBaseFactor: String(factorNum),
       isSystem: false,
     })
     .returning()

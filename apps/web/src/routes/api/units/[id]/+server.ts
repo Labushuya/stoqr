@@ -74,13 +74,28 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
     return json({ error: 'Invalid request body' }, { status: 400 })
   }
 
-  const { name, symbol } = body as { name?: string; symbol?: string }
+  const { name, symbol, dimension, toBaseFactor } = body as {
+    name?: string
+    symbol?: string
+    dimension?: string
+    toBaseFactor?: number | string
+  }
 
   if (name !== undefined && typeof name !== 'string') {
     return json({ error: 'name muss ein String sein' }, { status: 400 })
   }
   if (symbol !== undefined && typeof symbol !== 'string') {
     return json({ error: 'symbol muss ein String sein' }, { status: 400 })
+  }
+  if (dimension !== undefined && !['mass', 'volume', 'count'].includes(dimension)) {
+    return json({ error: 'dimension muss mass, volume oder count sein' }, { status: 400 })
+  }
+  let factorNum: number | undefined
+  if (toBaseFactor !== undefined) {
+    factorNum = Number(toBaseFactor)
+    if (!Number.isFinite(factorNum) || factorNum <= 0) {
+      return json({ error: 'toBaseFactor muss eine Zahl > 0 sein' }, { status: 400 })
+    }
   }
 
   const trimmedName = name?.trim()
@@ -113,6 +128,8 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
   const updates: Partial<typeof unit> = {}
   if (trimmedName !== undefined) updates.name = trimmedName
   if (trimmedSymbol !== undefined) updates.symbol = trimmedSymbol
+  if (dimension !== undefined) updates.dimension = dimension as 'mass' | 'volume' | 'count'
+  if (factorNum !== undefined) updates.toBaseFactor = String(factorNum)
 
   if (Object.keys(updates).length === 0) {
     return json(unit)
