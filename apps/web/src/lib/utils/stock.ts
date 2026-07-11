@@ -142,3 +142,85 @@ function toDisplayGroup(
 function nameFor(symbol: string, metaMap: Map<string, UnitMeta>, fallback: string): string {
   return metaMap.get(symbol)?.name ?? fallback
 }
+
+// ---------------------------------------------------------------------------
+// Soll-Ist-Vergleich (Inkrement 2b)
+// ---------------------------------------------------------------------------
+
+export type TargetInput = {
+  targetQuantity: string | number
+  unit: string
+  minQuantity?: string | number | null
+}
+
+export type TargetStatus = {
+  status: 'ok' | 'below_target' | 'below_min' | 'not_comparable'
+  targetInBase: number // Soll in Basiseinheit
+  currentInBase: number // Ist in Basiseinheit (0 wenn keine passende Gruppe)
+  minInBase: number | null
+  unit: string // Soll-Einheit (Symbol)
+  dimension: Dimension
+}
+
+/**
+ * Vergleicht den aggregierten Ist-Bestand mit einem Soll (targetQuantity + unit + optional min).
+ *
+ * - mass/volume: passende Ist-Gruppe über die Dimension (via toBaseFactor umgerechnet).
+ * - count: passende Ist-Gruppe nur über exakt dasselbe Symbol (nicht ineinander umrechenbar).
+ * - Findet sich keine dimensionskompatible Ist-Gruppe → status 'not_comparable'.
+ * Vergleich immer auf totalInBase (nicht displayValue).
+ */
+export function compareToTarget(
+  totals: StockTotals,
+  target: TargetInput,
+  metaMap: Map<string, UnitMeta>
+): TargetStatus {
+  const meta =
+    metaMap.get(target.unit) ??
+    ({ symbol: target.unit, name: target.unit, dimension: 'count', toBaseFactor: 1 } as UnitMeta)
+
+  const targetQty = parseFloat(String(target.targetQuantity)) || 0
+  const targetInBase = targetQty * meta.toBaseFactor
+  const minQty =
+    target.minQuantity != null && target.minQuantity !== ''
+      ? parseFloat(String(target.minQuantity))
+      : null
+  const minInBase = minQty != null ? minQty * meta.toBaseFactor : null
+
+  // Passende Ist-Gruppe finden.
+  const group = totals.groups.find((g) => {
+    if (meta.dimension === 'count') {
+      return g.dimension === 'count' && g.displayUnit === meta.symbol
+    }
+    return g.dimension === meta.dimension
+  })
+
+  if (!group) {
+    // Kein Ist in dieser Dimension/Einheit vorhanden → currentInBase 0,
+    // aber vergleichbar (Bedarf = ganzes Soll), außer es gibt Ist in ANDEREN
+    // count-Symbolen, das wir nicht verrechnen können.
+    const hasIncompatibleCount =
+      meta.dimension === 'count' && totals.groups.some((g) => g.dimension === 'count')
+    if (hasIncompatibleCount) {
+      return {
+        status: 'not_comparable',
+        targetInBase,
+        currentInBase: 0,
+        minInBase,
+        unit: meta.symbol,
+        dimension: meta.dimension,
+      }
+    }
+    // Sonst: kein Bestand → unter Soll (bzw. unter Min).
+    const status = minInBase != null && 0 < minInBase ? 'below_min' : 'below_target'
+    return { status, targetInBase, currentInBase: 0, minInBase, unit: meta.symbol, dimension: meta.dimension }
+  }
+
+  const currentInBase = group.totalInBase
+  let status: TargetStatus['status']
+  if (minInBase != null && currentInBase < minInBase) status = 'below_min'
+  else if (currentInBase < targetInBase) status = 'below_target'
+  else status = 'ok'
+
+  return { status, targetInBase, currentInBase, minInBase, unit: meta.symbol, dimension: meta.dimension }
+}

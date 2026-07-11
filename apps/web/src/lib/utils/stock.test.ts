@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { buildUnitMetaMap, aggregateStock, type UnitRow } from './stock'
+import { buildUnitMetaMap, aggregateStock, compareToTarget, type UnitRow } from './stock'
 import { formatStockTotal } from './format'
 
 // Repräsentative System-Units (wie in Migration 0007 gebackfillt).
@@ -115,5 +115,46 @@ describe('formatStockTotal', () => {
 
   it('gibt — für leere Bestände zurück', () => {
     expect(formatStockTotal({ groups: [], itemCount: 0 })).toBe('—')
+  })
+})
+
+describe('compareToTarget', () => {
+  it('ok wenn Ist >= Soll (mass)', () => {
+    const totals = aggregateStock([{ quantity: '2', unit: 'kg', status: 'available' }], meta)
+    const r = compareToTarget(totals, { targetQuantity: '1', unit: 'kg' }, meta)
+    expect(r.status).toBe('ok')
+    expect(r.currentInBase).toBe(2000)
+    expect(r.targetInBase).toBe(1000)
+  })
+
+  it('below_target wenn Ist < Soll', () => {
+    const totals = aggregateStock([{ quantity: '500', unit: 'g', status: 'available' }], meta)
+    const r = compareToTarget(totals, { targetQuantity: '1', unit: 'kg' }, meta)
+    expect(r.status).toBe('below_target')
+  })
+
+  it('below_min wenn Ist < Min', () => {
+    const totals = aggregateStock([{ quantity: '100', unit: 'g', status: 'available' }], meta)
+    const r = compareToTarget(totals, { targetQuantity: '1', unit: 'kg', minQuantity: '0.5' }, meta)
+    expect(r.status).toBe('below_min')
+  })
+
+  it('kein Bestand -> below_target', () => {
+    const totals = aggregateStock([], meta)
+    const r = compareToTarget(totals, { targetQuantity: '3', unit: 'piece' }, meta)
+    expect(r.status).toBe('below_target')
+    expect(r.currentInBase).toBe(0)
+  })
+
+  it('count symbolgenau: Soll Packung, Ist nur Stück -> not_comparable', () => {
+    const totals = aggregateStock([{ quantity: '5', unit: 'piece', status: 'available' }], meta)
+    const r = compareToTarget(totals, { targetQuantity: '2', unit: 'Packung' }, meta)
+    expect(r.status).toBe('not_comparable')
+  })
+
+  it('count exakt: Soll Packung, Ist Packung -> ok', () => {
+    const totals = aggregateStock([{ quantity: '3', unit: 'Packung', status: 'available' }], meta)
+    const r = compareToTarget(totals, { targetQuantity: '2', unit: 'Packung' }, meta)
+    expect(r.status).toBe('ok')
   })
 })
