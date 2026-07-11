@@ -5,6 +5,47 @@ Neueste Einträge oben. Jeder Eintrag nennt den Commit-Kontext, damit andere LLM
 
 ---
 
+## [Unreleased] — Feedback-Runde 2: UI-Konsolidierung (implementiert, Test auf Pi ausstehend)
+
+Reaktion auf UI-Kohärenz-Findings nach Feedback-Runde 1.
+
+### Einheitliches Modal-Paradigma
+- Neu `lib/components/Modal.svelte` — generisches zentriertes Modal (Svelte 5 Snippets:
+  children + optional footer, size sm/md/lg, Escape + Backdrop schließen).
+- **Alle Overlays konsolidiert**: "Neuer Artikel" (vorher Bottom-Sheet), Lagerort-Picker
+  (vorher Custom-Dialog) und ConfirmModal nutzen jetzt dasselbe Modal.
+- Totes Overlay-CSS entfernt (Sheet, Custom-Dialog, redundantes ConfirmModal-CSS).
+
+### Inventar 3-Punkt-Menü vereinfacht
+- "Bearbeiten" + "Bezugsquellen bearbeiten" zu EINEM Punkt **"Bearbeiten"** gemergt
+  → führt zur Artikel-Detailseite. Toter `#bezugsquellen`-Hash entfernt.
+- Sheet-Edit-Modus entfernt: Bestände bearbeitet man auf der Detailseite (Superset).
+
+### Artikel-Verwaltung reduziert (Bestand ist führend)
+- Einstellungen → Artikel pflegt nur noch **Name + Kategorie**. Einheit/Beschreibung/
+  Notizen raus (Grund: Einheit kann pro Bestand variieren — der Bestand führt).
+- "Standard-Einheit"-Anzeige auf der Detailseite entfernt.
+- products.defaultUnit/description/notes-Spalten bleiben technisch (nicht mehr gepflegt).
+
+### Nährwert-Editor Politur
+- "+ Nährstoff"-Add-Zeile als placeholder-artiger Slot (gestrichelter Rahmen,
+  Hover/Fokus → primary).
+
+### Commits
+7c81cf7 (Modal-Fundament) · 6effef4 (Sheet→Modal + Menü-Merge) · edccb4f (Lagerort→Modal +
+Einheit-Anzeige raus) · b62b64d (Nährwert-Add-Zeile) · ec8acc7 (Artikel-Feldreduktion) ·
+f0e3a58 (ConfirmModal DRY)
+
+### Test-Steps (Pi)
+1. Einstellungen → Artikel: nur Name + Kategorie editierbar (add + edit + Anzeige).
+2. Inventar 3-Punkt → ein "Bearbeiten" → öffnet Detailseite (kein Sheet-Edit, kein toter Hash).
+3. Modal-Konsistenz: "Neuer Artikel", Lagerort-Auswahl, Bestätigungen = gleiches zentriertes
+   Modal; Escape + Backdrop schließen überall.
+4. Nährwert-"+"-Zeile klar als Add-Slot erkennbar; add/edit/delete unverändert funktional.
+5. Mobile 360–480px: Modals zentriert (bzw. bottom-aligned), kein Overflow.
+
+---
+
 ## [Unreleased] — Feedback-Runde 1 (implementiert, Test auf Pi ausstehend)
 
 Reaktion auf 5 Praxis-Findings nach Inkrement 1.

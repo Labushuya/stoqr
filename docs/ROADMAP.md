@@ -3,7 +3,7 @@
 > Kanonisches Datenmodell und Entwicklungsplan. Diese Datei ist führend für Absicht,
 > Logik und Ziel von stoqr. Bei Widersprüchen zwischen Code und dieser Datei gilt diese Datei.
 
-Letzte Aktualisierung: 2026-07-11 (Feedback-Runde 1)
+Letzte Aktualisierung: 2026-07-11 (Feedback-Runde 2)
 
 ---
 
@@ -119,6 +119,13 @@ Format: `Artikel: [Name]`, Beschreibung: `[Gesamtanzahl][Einheit] | [Notiz] | [M
 ---
 
 ## Offene Punkte / noch zu testen (nicht bestätigt)
+
+**Feedback-Runde 2 (Commits 7c81cf7, 6effef4, edccb4f, b62b64d, ec8acc7, f0e3a58) — Test auf Pi ausstehend:**
+- Einstellungen → Artikel: nur Name + Kategorie (add + edit + Anzeige)
+- Inventar 3-Punkt: ein „Bearbeiten" → Detailseite (kein Sheet-Edit, kein toter Hash)
+- Modal-Konsistenz: Neuer Artikel / Lagerort-Picker / Bestätigungen = gleiches Modal
+- Nährwert-„+"-Zeile als placeholder-artiger Slot
+- Mobile: Modals sauber, kein Overflow
 
 **Feedback-Runde 1 (Commits e4d4b4c, 3b79517, da07d91, 6d9bfa8, c83f1cc, ace56ed, 035b911, 5c382c2) — Test auf Pi ausstehend:**
 - Einheit: "Packung" bleibt "Packung" (Anzeige + Speichern); Feld = Dropdown
