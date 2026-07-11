@@ -265,6 +265,7 @@ export async function createProduct(data: {
 	gtin?: string;
 	categoryId?: string;
 	description?: string;
+	notes?: string;
 	imageUrl?: string;
 	defaultUnit?: string;
 	defaultQuantity?: number | string;
@@ -283,6 +284,7 @@ export async function createProduct(data: {
 			gtin: data.gtin,
 			categoryId: data.categoryId,
 			description: data.description,
+			notes: data.notes,
 			imageUrl: data.imageUrl,
 			defaultUnit: data.defaultUnit ?? 'piece',
 			defaultQuantity: data.defaultQuantity?.toString() ?? '1',
@@ -295,6 +297,59 @@ export async function createProduct(data: {
 		})
 		.returning({ id: products.id });
 	return record.id;
+}
+
+// ---------------------------------------------------------------------------
+// Products — list all (article catalog; products are global / shared)
+// ---------------------------------------------------------------------------
+
+export async function listProducts() {
+	return db.query.products.findMany({
+		orderBy: [asc(products.name)],
+		columns: {
+			id: true,
+			name: true,
+			brand: true,
+			description: true,
+			notes: true,
+			categoryId: true,
+			defaultUnit: true,
+			gtin: true,
+			imageUrl: true,
+		},
+		with: {
+			category: true,
+		},
+	});
+}
+
+// ---------------------------------------------------------------------------
+// Products — update master data
+// ---------------------------------------------------------------------------
+
+export async function updateProduct(
+	id: string,
+	data: Partial<{
+		name: string;
+		description: string | null;
+		notes: string | null;
+		categoryId: string | null;
+		defaultUnit: string;
+	}>
+) {
+	const patch: Record<string, unknown> = { updatedAt: new Date() };
+	if (data.name !== undefined) patch.name = data.name;
+	if (data.description !== undefined) patch.description = data.description;
+	if (data.notes !== undefined) patch.notes = data.notes;
+	if (data.categoryId !== undefined) patch.categoryId = data.categoryId;
+	if (data.defaultUnit !== undefined) patch.defaultUnit = data.defaultUnit;
+
+	const [record] = await db
+		.update(products)
+		.set(patch)
+		.where(eq(products.id, id))
+		.returning();
+	return record ?? null;
 }
 
 // ---------------------------------------------------------------------------
@@ -320,8 +375,11 @@ export async function getProductById(id: string) {
 			id: true,
 			name: true,
 			brand: true,
+			description: true,
+			notes: true,
 			imageUrl: true,
 			categoryId: true,
+			defaultUnit: true,
 		},
 	});
 	return product ?? null;

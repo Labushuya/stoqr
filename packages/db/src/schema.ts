@@ -152,6 +152,7 @@ export const products = pgTable('products', {
   brand: varchar('brand', { length: 128 }),
   categoryId: uuid('category_id').references(() => categories.id),
   description: text('description'),
+  notes: text('notes'),
   imageUrl: text('image_url'),
   defaultUnit: varchar('default_unit', { length: 16 }).notNull().default('piece'),
   defaultQuantity: numeric('default_quantity', { precision: 10, scale: 3 }).notNull().default('1'),

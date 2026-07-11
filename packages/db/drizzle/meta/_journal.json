@@ -42,6 +42,13 @@
       "when": 1783800000000,
       "tag": "0005_inventory_gtin_drop_product_stores",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1783800001000,
+      "tag": "0006_products_notes",
+      "breakpoints": true
     }
   ]
 }
