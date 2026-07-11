@@ -10,7 +10,6 @@
   // ── Types ────────────────────────────────────────────────────────────────
 
   type Category = { id: string; name: string }
-  type Unit = { id: string; name: string; symbol: string }
   type Product = {
     id: string
     name: string
@@ -32,29 +31,17 @@
   let pageLoadError = $state<string | null>(data.loadError ?? null)
 
   const categories = $derived(data.categories as Category[])
-  const units = $derived(data.units as Unit[])
 
-  // Map a stored unit symbol to its human label (falls back to the raw value)
-  function unitLabel(symbol: string): string {
-    return units.find((u) => u.symbol === symbol)?.name ?? symbol
-  }
-
-  // Add form
+  // Add form (nur Stammdaten: Name + Kategorie)
   let newName = $state('')
-  let newDescription = $state('')
   let newCategoryId = $state('')
-  let newUnit = $state('piece')
-  let newNotes = $state('')
   let adding = $state(false)
   let addError = $state<string | null>(null)
 
   // Inline edit
   let editingId = $state<string | null>(null)
   let editingName = $state('')
-  let editingDescription = $state('')
   let editingCategoryId = $state('')
-  let editingUnit = $state('')
-  let editingNotes = $state('')
   let editSaving = $state(false)
   let editError = $state<string | null>(null)
 
@@ -79,10 +66,7 @@
   function startEdit(p: Product) {
     editingId = p.id
     editingName = p.name
-    editingDescription = p.description ?? ''
     editingCategoryId = p.categoryId ?? ''
-    editingUnit = p.defaultUnit ?? ''
-    editingNotes = p.notes ?? ''
     editError = null
   }
 
@@ -107,10 +91,7 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name,
-          description: editingDescription.trim() || null,
           categoryId: editingCategoryId || null,
-          defaultUnit: editingUnit.trim() || 'piece',
-          notes: editingNotes.trim() || null,
         }),
       })
       const body = await res.json().catch(() => ({}))
@@ -192,10 +173,7 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name,
-          description: newDescription.trim() || undefined,
           categoryId: newCategoryId || undefined,
-          defaultUnit: newUnit.trim() || 'piece',
-          notes: newNotes.trim() || undefined,
         }),
       })
       const body = await res.json().catch(() => ({}))
@@ -207,10 +185,7 @@
 
       productRows = [...productRows, body as Product].sort((a, b) => a.name.localeCompare(b.name))
       newName = ''
-      newDescription = ''
       newCategoryId = ''
-      newUnit = 'piece'
-      newNotes = ''
       toast.success('Artikel angelegt')
     } catch {
       addError = 'Netzwerkfehler.'
@@ -296,37 +271,6 @@
                       <option value={cat.id}>{cat.name}</option>
                     {/each}
                   </select>
-                  <select
-                    class="input input--unit"
-                    bind:value={editingUnit}
-                    aria-label="Standard-Einheit"
-                  >
-                    {#each units as u (u.id)}
-                      <option value={u.symbol}>{u.name}</option>
-                    {/each}
-                  </select>
-                </div>
-                <div class="edit-fields">
-                  <input
-                    class="input input--wide"
-                    type="text"
-                    bind:value={editingDescription}
-                    placeholder="Beschreibung (optional)"
-                    maxlength="255"
-                    aria-label="Beschreibung"
-                    onkeydown={(e) => { if (e.key === 'Escape') cancelEdit() }}
-                  />
-                </div>
-                <div class="edit-fields">
-                  <input
-                    class="input input--wide"
-                    type="text"
-                    bind:value={editingNotes}
-                    placeholder="Notizen (optional)"
-                    maxlength="500"
-                    aria-label="Notizen"
-                    onkeydown={(e) => { if (e.key === 'Escape') cancelEdit() }}
-                  />
                 </div>
                 {#if editError}
                   <p class="field-error">{editError}</p>
@@ -361,11 +305,7 @@
                   {#if categoryName(product.categoryId)}
                     <span class="chain-badge">{categoryName(product.categoryId)}</span>
                   {/if}
-                  <span class="unit-badge">{unitLabel(product.defaultUnit)}</span>
                 </div>
-                {#if product.description}
-                  <span class="store-address">{product.description}</span>
-                {/if}
               </div>
               <div class="store-actions">
                 <button
@@ -445,37 +385,6 @@
             <option value={cat.id}>{cat.name}</option>
           {/each}
         </select>
-        <select
-          class="input input--unit"
-          bind:value={newUnit}
-          aria-label="Standard-Einheit"
-        >
-          {#each units as u (u.id)}
-            <option value={u.symbol}>{u.name}</option>
-          {/each}
-        </select>
-      </div>
-      <div class="add-fields">
-        <input
-          class="input input--wide"
-          type="text"
-          bind:value={newDescription}
-          placeholder="Beschreibung (optional) — z.B. Milch mit 3,5% Fett"
-          maxlength="255"
-          aria-label="Beschreibung"
-          onkeydown={(e) => { if (e.key === 'Enter') addProduct() }}
-        />
-      </div>
-      <div class="add-fields">
-        <input
-          class="input input--wide"
-          type="text"
-          bind:value={newNotes}
-          placeholder="Notizen (optional)"
-          maxlength="500"
-          aria-label="Notizen"
-          onkeydown={(e) => { if (e.key === 'Enter') addProduct() }}
-        />
       </div>
       <div class="add-footer">
         <button class="btn-primary" type="button" disabled={adding} onclick={addProduct}>
@@ -661,14 +570,6 @@
     flex-wrap: wrap;
   }
 
-  .store-address {
-    font-size: var(--text-xs);
-    color: var(--color-text-muted);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
   .store-name {
     font-size: var(--text-sm);
     font-weight: 600;
@@ -686,20 +587,6 @@
     border-radius: var(--radius-full);
     background-color: var(--color-primary-subtle);
     color: var(--color-primary);
-    font-size: 11px;
-    font-weight: 600;
-    white-space: nowrap;
-    flex-shrink: 0;
-  }
-
-  .unit-badge {
-    display: inline-flex;
-    align-items: center;
-    height: 20px;
-    padding: 0 var(--space-2);
-    border-radius: var(--radius-full);
-    background-color: var(--color-surface-sunken);
-    color: var(--color-text-muted);
     font-size: 11px;
     font-weight: 600;
     white-space: nowrap;
@@ -789,15 +676,6 @@
 
   .input--cat {
     flex: 1 1 180px;
-  }
-
-  .input--unit {
-    flex: 0 1 110px;
-    min-width: 90px;
-  }
-
-  .input--wide {
-    flex: 1 1 100%;
   }
 
   /* ── Alerts ───────────────────────────────────────────────────────────── */
