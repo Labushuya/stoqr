@@ -1,4 +1,5 @@
 import { format, differenceInCalendarDays, parseISO } from 'date-fns';
+import type { StockTotals } from './stock';
 
 function toDate(date: Date | string | null): Date | null {
   if (date === null) return null;
@@ -38,3 +39,18 @@ export function daysFromNow(date: Date | string | null): number | null {
   if (!d) return null;
   return differenceInCalendarDays(d, new Date());
 }
+
+/**
+ * Formatiert einen aggregierten Gesamtbestand, z.B. "2 Packung + 1,5 kg".
+ * Leere Gruppen → "—".
+ */
+export function formatStockTotal(totals: StockTotals): string {
+  if (!totals.groups.length) return '—';
+  return totals.groups
+    .map((g) => {
+      const value = g.displayValue.toLocaleString('de-DE', { maximumFractionDigits: 3 });
+      return `${value} ${g.displayName}`;
+    })
+    .join(' + ');
+}
+
