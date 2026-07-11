@@ -943,6 +943,12 @@
       padding: var(--space-4);
     }
 
+    .edit-fields .input,
+    .add-fields .input {
+      flex-basis: 100%;
+      min-width: 0;
+    }
+
     .store-row {
       flex-direction: column;
       align-items: flex-start;

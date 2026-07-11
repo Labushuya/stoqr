@@ -1902,6 +1902,28 @@ Das Produkt bleibt im Katalog.`,
 
   /* ── Mobile ───────────────────────────────────────────────────────────── */
 
+  /* FAB-Labels bereits ab Tablet-Breite ausblenden, damit die beiden FABs im
+     Bereich 481–680px nicht ueber den Rand laufen. */
+  @media (max-width: 680px) {
+    .fab-secondary span {
+      display: none;
+    }
+    .fab-secondary {
+      width: 44px;
+      padding: 0;
+      justify-content: center;
+    }
+    .fab-label {
+      display: none;
+    }
+    .fab {
+      width: 56px;
+      height: 56px;
+      padding: 0;
+      justify-content: center;
+    }
+  }
+
   @media (max-width: 480px) {
     .page {
       padding: var(--space-5) var(--space-3) calc(var(--space-5) + 80px);

@@ -1352,6 +1352,7 @@
     align-items: center;
     justify-content: space-between;
     gap: var(--space-3);
+    flex-wrap: wrap;
   }
 
   .field--unit-row .label {
@@ -1361,7 +1362,7 @@
 
   .input--unit {
     width: auto;
-    min-width: 140px;
+    min-width: 120px;
   }
 
   .label {

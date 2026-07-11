@@ -991,6 +991,13 @@
       padding: var(--space-4);
     }
 
+    /* Jedes Feld eine eigene Zeile — verhindert unsauberen Umbruch bei 3 Controls */
+    .edit-fields .input,
+    .add-fields .input {
+      flex-basis: 100%;
+      min-width: 0;
+    }
+
     .store-row {
       flex-direction: column;
       align-items: flex-start;
