@@ -1,6 +1,5 @@
 <script lang="ts">
   import ConfirmModal from '$lib/components/ConfirmModal.svelte'
-  import { goto } from '$app/navigation'
   import type { PageData } from './$types'
   import {
     getExpiryStatus,
@@ -396,7 +395,7 @@
                 bestBeforeDate: updated.bestBeforeDate,
                 placeId: updated.placeId,
                 notes: updated.notes,
-                product: { ...i.product, categoryId: formCategoryId || null, category: selectedCat },
+                product: { ...i.product, name: formProductName.trim() || i.product.name, categoryId: formCategoryId || null, category: selectedCat },
               }
             : i
         )
@@ -830,6 +829,41 @@ Das Produkt bleibt im Katalog.`,
           <button
             class="dropdown-item dropdown-item--danger"
             type="button"
+            onclick={() => {
+              const it = portalItem
+              closeMenu()
+              if (!it) return
+              showConfirm(
+                'Produkt aus Katalog entfernen?',
+                `"${it.product.name}" wird aus dem Katalog entfernt. Bestandseinträge bleiben erhalten.`,
+                async () => {
+                  closeConfirm()
+                  try {
+                    const res = await fetch(`/api/products/${it.product.id}`, { method: 'DELETE' })
+                    if (!res.ok) {
+                      const body = await res.json().catch(() => ({}))
+                      showToast(body.error ?? 'Fehler beim Entfernen', 'error')
+                      return
+                    }
+                    showToast(`"${it.product.name}" aus Katalog entfernt`)
+                  } catch { showToast('Fehler beim Entfernen', 'error') }
+                },
+                'Aus Katalog entfernen'
+              )
+            }}
+            title="Produkt aus dem Katalog entfernen (Bestand bleibt)"
+          >
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+              <circle cx="7" cy="7" r="5.5" stroke="currentColor" stroke-width="1.4"/>
+              <path d="M4.5 7h5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+            </svg>
+            Aus Katalog entfernen
+          </button>
+        </li>
+        <li role="menuitem">
+          <button
+            class="dropdown-item dropdown-item--danger"
+            type="button"
             onclick={() => { const it = portalItem; closeMenu(); if (it) deleteItem(it) }}
             title="Entfernt diesen Bestandseintrag. Das Produkt bleibt im Katalog."
           >
@@ -843,14 +877,31 @@ Das Produkt bleibt im Katalog.`,
           <button
             class="dropdown-item dropdown-item--danger"
             type="button"
-            onclick={() => { const it = portalItem; closeMenu(); if (it) goto('/inventar/' + it.id) }}
-            title="Artikel vollständig mit allen Bezügen löschen"
+            onclick={() => {
+              const it = portalItem
+              closeMenu()
+              if (!it) return
+              showConfirm(
+                'Artikel vollständig löschen?',
+                `Produkt, alle Bestandseinträge und Bezugsquellen von "${it.product.name}" werden dauerhaft gelöscht.`,
+                async () => {
+                  closeConfirm()
+                  try {
+                    await fetch(`/api/products/${it.product.id}`, { method: 'DELETE' })
+                    items = items.filter(i => i.product.id !== it.product.id)
+                    showToast(`"${it.product.name}" gelöscht`)
+                  } catch { showToast('Fehler beim Löschen', 'error') }
+                },
+                'Alles löschen'
+              )
+            }}
+            title="Artikel vollständig mit allen Bezügen dauerhaft löschen"
           >
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
               <path d="M1 3.5h12M4.5 3.5V2.5h5V3.5M3.5 3.5L4 11h6l.5-7.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
               <path d="M5.5 6v3M8.5 6v3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
             </svg>
-            Alles löschen…
+            Alles löschen
           </button>
         </li>
       </ul>
