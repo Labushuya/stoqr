@@ -1,5 +1,6 @@
 <script lang="ts">
   import ConfirmModal from '$lib/components/ConfirmModal.svelte'
+  import { goto } from '$app/navigation'
   import type { PageData } from './$types'
   import {
     getExpiryStatus,
@@ -373,12 +374,13 @@
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
+            productName: formProductName.trim() || undefined,
             placeId: formPlaceId || null,
             bestBeforeDate: formMhd || null,
             quantity: formQuantity,
             unit: unitValue,
             notes: formNotes.trim() || null,
-            categoryId: formCategoryId || undefined,
+            categoryId: formCategoryId || null,
           }),
         })
         if (!res.ok) throw new Error(await res.text())
@@ -835,6 +837,20 @@ Das Produkt bleibt im Katalog.`,
               <path d="M2 3.5h10M5.5 3.5V2.5h3V3.5M5 3.5V11h4V3.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
             Aus Inventar entfernen
+          </button>
+        </li>
+        <li role="menuitem">
+          <button
+            class="dropdown-item dropdown-item--danger"
+            type="button"
+            onclick={() => { const it = portalItem; closeMenu(); if (it) goto('/inventar/' + it.id) }}
+            title="Artikel vollständig mit allen Bezügen löschen"
+          >
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+              <path d="M1 3.5h12M4.5 3.5V2.5h5V3.5M3.5 3.5L4 11h6l.5-7.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M5.5 6v3M8.5 6v3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+            </svg>
+            Alles löschen…
           </button>
         </li>
       </ul>

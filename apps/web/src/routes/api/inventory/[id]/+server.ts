@@ -33,7 +33,7 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
     const householdId = await requireHouseholdId(locals.user.id)
     const body = await request.json()
     const {
-      quantity, unit, bestBeforeDate, purchaseDate, placeId, storeId,
+      productName, quantity, unit, bestBeforeDate, purchaseDate, placeId, storeId,
       notes, status, openedAt, openedExpiryDays, purchasePriceCt,
       lotNumber, weightG, volumeMl, categoryId,
     } = body
@@ -54,22 +54,28 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
     if (weightG !== undefined) patch.weightG = weightG
     if (volumeMl !== undefined) patch.volumeMl = volumeMl
 
-    if (Object.keys(patch).length === 0 && categoryId === undefined) {
+    if (Object.keys(patch).length === 0 && categoryId === undefined && !productName) {
       return json({ error: 'Keine Felder zum Aktualisieren' }, { status: 400 })
     }
 
     const updated = await updateInventoryItem(params.id, householdId, patch)
     if (!updated) return json({ error: 'Not found' }, { status: 404 })
 
-    // Update product's categoryId if provided (only on existing products, never overwrite with null unless explicit)
-    if (categoryId !== undefined) {
-      const item = await getInventoryItem(params.id, householdId)
-      if (item?.productId) {
-        await db.update(products)
-          .set({ categoryId: categoryId || null })
-          .where(eq(products.id, item.productId))
+    // Update product name and/or category if provided
+    if (productName || categoryId !== undefined) {
+      const itemForProduct = await getInventoryItem(params.id, householdId)
+      if (itemForProduct?.productId) {
+        const productPatch: Record<string, unknown> = {}
+        if (productName) productPatch.name = productName
+        if (categoryId !== undefined) productPatch.categoryId = categoryId || null
+        if (Object.keys(productPatch).length > 0) {
+          await db.update(products)
+            .set(productPatch)
+            .where(eq(products.id, itemForProduct.productId))
+        }
       }
     }
+
 
     return json(updated)
   } catch (err) {
