@@ -5,6 +5,36 @@ Neueste Einträge oben. Jeder Eintrag nennt den Commit-Kontext, damit andere LLM
 
 ---
 
+## [Unreleased] — Inkrement 2c: Einkaufsliste + Bestandskorrektur (implementiert, Test auf Pi ausstehend)
+
+Schließt den Kreislauf **Inventur → Bedarf → Einkaufsliste → Einbuchen** — Basis für (Semi-)Automatisierung.
+
+### Bestandskorrektur / Inventur
+- Artikel-Detailseite: „Bestand korrigieren" — tatsächlichen Gesamtbestand angeben; Differenz wird
+  **FIFO** (älteste MHD zuerst) auf die Bestände zurückgeschrieben. Erhöhung nur per „Bestand hinzufügen".
+- `planInventoryAdjustment` in stock.ts (+ Tests). API `/api/products/[id]/inventory-adjust`.
+
+### Einkaufsliste
+- Route ersetzt Platzhalter: **auto-Bedarf** (Soll−Ist, auffüllen bis Soll) + **manuelle Freitext-Einträge**,
+  abhaken, löschen. Button „Bedarf aus Beständen erzeugen". Dedup: ein auto-Eintrag pro Artikel.
+- `generateAutoNeeds` (auch automatisch bei Inventur getriggert). Query-Layer `shopping-list.ts`,
+  `getStockTargets`, API `/api/shopping-list` (GET/POST), `[id]` (PATCH/DELETE), `generate` (POST).
+
+### Einbuchen (virtueller → echter Bestand)
+- „Einbuchen"-Link je Einkaufslisten-Eintrag → easy-add mit Vorbelegung (Produkt/Menge/Einheit);
+  nach dem Anlegen wird der Listeneintrag entfernt und zur Einkaufsliste zurückgeleitet.
+
+### Commits
+442a48d (FIFO-Logik + Tests) · 1c65424 (shopping-list Query + Bedarf) · dc9de60 (shopping-list API) ·
+7a43b54 (Einkaufsliste-UI) · ab29d68 (Inventur-API + Modal) · ece8652 (Einbuchen)
+
+### Test-Steps (Pi)
+1. Artikel mit Soll → „Bestand korrigieren" auf niedrigeren Ist → Bestände FIFO reduziert, auto-Bedarf-Eintrag.
+2. Einkaufsliste: auto + manuell, abhaken; „Bedarf erzeugen" ohne Duplikate.
+3. „Einbuchen" → easy-add vorbelegt → speichern → Eintrag weg, neuer Bestand auf /inventar.
+
+---
+
 ## [Unreleased] — Einheiten-Verwaltung + Inkrement 2b (Soll/Bedarf) (implementiert, Test auf Pi ausstehend)
 
 ### Einheiten-Verwaltungsseite

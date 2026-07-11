@@ -3,7 +3,7 @@
 > Kanonisches Datenmodell und Entwicklungsplan. Diese Datei ist führend für Absicht,
 > Logik und Ziel von stoqr. Bei Widersprüchen zwischen Code und dieser Datei gilt diese Datei.
 
-Letzte Aktualisierung: 2026-07-12 (Einheiten-Seite + Inkrement 2b)
+Letzte Aktualisierung: 2026-07-12 (Inkrement 2c: Einkaufsliste + Inventur)
 
 ---
 
@@ -115,8 +115,16 @@ Kein Text-/Pipe-Export (existiert so in Bring! nicht).
   - [x] Soll-/Mindestbestand je Artikel (stock_targets-CRUD, API /api/products/[id]/target)
   - [x] Soll-Ist-Vergleich (compareToTarget: ok/below_target/below_min/not_comparable) + Tests
   - [x] Bedarf-Indikator auf der Artikel-Detailseite + Soll-Modal
-- **2c — Einkaufsliste-UI**: auto (aus Bedarf) + manuell, abhaken
+- **2c — Einkaufsliste + Inventur** (abgeschlossen, Test ausstehend):
+  - [x] Bestandskorrektur/Inventur pro Artikel (tatsächlichen Gesamtbestand angeben, FIFO-Rückschreibung)
+  - [x] Einkaufsliste-UI: auto-Bedarf (Soll−Ist, auffüllen bis Soll) + manuelle Einträge + abhaken
+  - [x] „Bedarf aus Beständen erzeugen" (Dedup: 1 auto-Eintrag/Artikel) + auto bei Inventur
+  - [x] Einbuchen: Einkaufslisten-Eintrag → echter Bestand (easy-add vorbelegt, Eintrag danach entfernt)
 - **2d — echte Bring!-API**: Login (verschlüsselte Credentials), Liste synchronisieren
+
+### Kreislauf (Zielbild)
+Inventur (Ist erfassen) → Soll-Ist-Bedarf → Einkaufsliste (virtuelle Bestände) → Einkauf → Einbuchen
+(echter Bestand mit Marke/MHD/Markt/Ort). Basis für (Semi-)Automatisierung.
 
 ### Einstellungen (Verwaltung)
 - [x] Einheiten-Verwaltungsseite mit Umrechnung (Dimension + Faktor) + Vorschlägen gängiger Einheiten
@@ -130,6 +138,11 @@ Kein Text-/Pipe-Export (existiert so in Bring! nicht).
 ---
 
 ## Offene Punkte / noch zu testen (nicht bestätigt)
+
+**Inkrement 2c (Commits 442a48d, 1c65424, dc9de60, 7a43b54, ab29d68, ece8652) — Test auf Pi ausstehend:**
+- Inventur: Artikel mit Soll → „Bestand korrigieren" auf niedrigeren Ist → Bestände FIFO reduziert, Bedarf-Eintrag entsteht
+- Einkaufsliste: auto-Eintrag sichtbar; manuell hinzufügen/abhaken/löschen; „Bedarf erzeugen" ohne Duplikate
+- Einbuchen: „Einbuchen" → easy-add vorbelegt → speichern → Listeneintrag weg, neuer Bestand auf /inventar
 
 **Einheiten-Seite + Inkrement 2b (Commits 34e4b4f, 4ff5490, 0b5b446, d0ee0ed, 0394380) — Test auf Pi ausstehend:**
 - Einstellungen → Einheiten: Custom-Einheit mit Dimension+Faktor anlegen/bearbeiten/löschen; Vorschlag (z.B. EL) per Klick übernehmen; System-Einheiten read-only; benutzte Einheit löschen → 409
