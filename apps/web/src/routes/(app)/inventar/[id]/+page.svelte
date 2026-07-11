@@ -1,6 +1,7 @@
 <script lang="ts">
   import { goto } from '$app/navigation'
   import ConfirmModal from '$lib/components/ConfirmModal.svelte'
+  import Modal from '$lib/components/Modal.svelte'
   import type { PageData } from './$types'
   import { formatDate } from '$lib/utils/format'
   import { getExpiryStatus, getDaysRemaining, getExpiryLabel, EXPIRY_CLASS } from '$lib/utils/expiry'
@@ -340,7 +341,6 @@
         <h1 class="product-name">{product.name}</h1>
         {#if product.brand}<span class="product-brand">{product.brand}</span>{/if}
         {#if product.category}<span class="product-category">{product.category.name}</span>{/if}
-        <span class="product-unit">Standard-Einheit: {unitLabel(product.defaultUnit)}</span>
       </div>
     </div>
     {#if product.description}
@@ -510,50 +510,35 @@
   </div>
 </div>
 
-<!-- ── Location picker dialog ────────────────────────────────────────────── -->
-{#if showLocationPicker}
-  <div class="dialog-backdrop" onclick={closeLocationPicker} onkeydown={(e) => e.key === 'Escape' && closeLocationPicker()} role="presentation">
-    <div class="dialog" role="dialog" aria-modal="true" aria-label="Lagerort auswählen" tabindex="-1"
-         onclick={(e) => e.stopPropagation()} onkeydown={(e) => e.stopPropagation()}>
-      <div class="dialog-header">
-        <h3 class="dialog-title">Lagerort auswählen</h3>
-        <button class="dialog-close" type="button" onclick={closeLocationPicker} aria-label="Schließen">
-          <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
-            <path d="M4 4l10 10M14 4L4 14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-          </svg>
-        </button>
+<!-- ── Location picker (Modal) ────────────────────────────────────────────── -->
+<Modal open={showLocationPicker} title="Lagerort auswählen" size="md" onClose={closeLocationPicker}>
+  {#if data.allLocations.length === 0}
+    <p class="empty-hint">Keine Lagerorte vorhanden. Lege zuerst Orte an.</p>
+  {:else}
+    {#each data.allLocations as loc (loc.id)}
+      <div class="picker-location">
+        <div class="picker-location-name"><span class="picker-icon">{loc.icon ?? '📍'}</span> {loc.name}</div>
+        {#each loc.storages as st (st.id)}
+          <div class="picker-storage">
+            <div class="picker-storage-name">{st.name}</div>
+            {#if st.places.length > 0}
+              <div class="picker-places">
+                {#each st.places as pl (pl.id)}
+                  <button class="picker-place-btn" type="button" onclick={() => selectPlace(pl.id)}>{pl.name}</button>
+                {/each}
+              </div>
+            {:else}
+              <p class="picker-no-places">Keine Fächer</p>
+            {/if}
+          </div>
+        {/each}
       </div>
-      <div class="dialog-body">
-        {#if data.allLocations.length === 0}
-          <p class="empty-hint">Keine Lagerorte vorhanden. Lege zuerst Orte an.</p>
-        {:else}
-          {#each data.allLocations as loc (loc.id)}
-            <div class="picker-location">
-              <div class="picker-location-name"><span class="picker-icon">{loc.icon ?? '📍'}</span> {loc.name}</div>
-              {#each loc.storages as st (st.id)}
-                <div class="picker-storage">
-                  <div class="picker-storage-name">{st.name}</div>
-                  {#if st.places.length > 0}
-                    <div class="picker-places">
-                      {#each st.places as pl (pl.id)}
-                        <button class="picker-place-btn" type="button" onclick={() => selectPlace(pl.id)}>{pl.name}</button>
-                      {/each}
-                    </div>
-                  {:else}
-                    <p class="picker-no-places">Keine Fächer</p>
-                  {/if}
-                </div>
-              {/each}
-            </div>
-          {/each}
-        {/if}
-      </div>
-      <div class="dialog-footer">
-        <button class="btn-link" type="button" onclick={closeLocationPicker}>Abbrechen</button>
-      </div>
-    </div>
-  </div>
-{/if}
+    {/each}
+  {/if}
+  {#snippet footer()}
+    <button class="btn-link" type="button" onclick={closeLocationPicker}>Abbrechen</button>
+  {/snippet}
+</Modal>
 
 <!-- ── Toasts ─────────────────────────────────────────────────────────────── -->
 {#if toasts.length > 0}
@@ -644,11 +629,10 @@
     margin: 0;
     word-break: break-word;
   }
-  .product-brand, .product-category, .product-unit {
+  .product-brand, .product-category {
     font-size: var(--text-sm);
     color: var(--color-text-secondary);
   }
-  .product-unit { font-size: var(--text-xs); color: var(--color-text-muted); }
   .product-desc {
     margin: var(--space-3) 0 0;
     font-size: var(--text-sm);
@@ -817,26 +801,7 @@
     background-color: var(--color-danger-subtle, #fee2e2);
   }
 
-  /* ── Dialog ──────────────────────────────────────────────────────────── */
-  .dialog-backdrop {
-    position: fixed; inset: 0; z-index: 300;
-    background: rgba(0,0,0,0.5);
-    display: flex; align-items: center; justify-content: center;
-    padding: var(--space-4);
-  }
-  .dialog {
-    background: var(--color-surface);
-    border-radius: var(--radius-xl);
-    width: 100%; max-width: 480px;
-    max-height: 80dvh;
-    display: flex; flex-direction: column;
-    box-shadow: var(--shadow-lg);
-  }
-  .dialog-header { display: flex; align-items: center; justify-content: space-between; padding: var(--space-4) var(--space-5); border-bottom: 1px solid var(--color-border-subtle); }
-  .dialog-title { font-family: var(--font-display); font-size: var(--text-lg); font-weight: 700; margin: 0; }
-  .dialog-close { border: none; background: transparent; color: var(--color-text-muted); cursor: pointer; padding: var(--space-1); }
-  .dialog-body { padding: var(--space-4) var(--space-5); overflow-y: auto; }
-  .dialog-footer { padding: var(--space-3) var(--space-5); border-top: 1px solid var(--color-border-subtle); display: flex; justify-content: flex-end; }
+  /* ── Location picker (im Modal) ──────────────────────────────────────── */
   .picker-location { margin-bottom: var(--space-4); }
   .picker-location-name { font-weight: 700; font-size: var(--text-sm); margin-bottom: var(--space-2); }
   .picker-storage { margin-left: var(--space-3); margin-bottom: var(--space-2); }
