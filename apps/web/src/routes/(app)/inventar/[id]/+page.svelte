@@ -722,8 +722,32 @@
   .nutrient-value { width: 96px; flex-shrink: 0; }
   .nutrient-unit { width: 36px; flex-shrink: 0; font-size: var(--text-xs); color: var(--color-text-muted); }
 
-  .nutrient-add { display: flex; gap: var(--space-2); flex-wrap: wrap; align-items: center; }
-  .nutrient-add .input { flex: 1 1 180px; }
+  /* Add-Zeile: placeholder-artiger, gestrichelter „Prognose"-Slot */
+  .nutrient-add {
+    display: flex;
+    gap: var(--space-2);
+    flex-wrap: wrap;
+    align-items: center;
+    padding: var(--space-2) var(--space-3);
+    border: 1.5px dashed var(--color-border-strong, var(--color-border));
+    border-radius: var(--radius-md);
+    background: var(--color-surface-sunken);
+    transition: border-color var(--transition-fast), background var(--transition-fast);
+  }
+  .nutrient-add:hover,
+  .nutrient-add:focus-within {
+    border-color: var(--color-primary);
+    background: var(--color-primary-subtle);
+  }
+  .nutrient-add .input {
+    flex: 1 1 180px;
+    border-color: transparent;
+    background: transparent;
+  }
+  .nutrient-add .input:focus {
+    background: var(--color-surface);
+    border-color: var(--color-border);
+  }
 
   .custom-nutrient { display: flex; gap: var(--space-2); flex-wrap: wrap; margin-top: var(--space-3); }
   .custom-nutrient .input { flex: 1 1 160px; }
