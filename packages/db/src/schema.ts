@@ -603,6 +603,13 @@ export const units = pgTable('units', {
   householdId: text('household_id').references(() => households.id, { onDelete: 'cascade' }),
   name: varchar('name', { length: 32 }).notNull(),
   symbol: varchar('symbol', { length: 8 }).notNull(),
+  // Dimension + Faktor für die Bestands-Aggregation (Umrechnungsschicht).
+  // count-artige Einheiten (Stück/Packung/…) sind nicht ineinander umrechenbar.
+  dimension: varchar('dimension', { length: 8 })
+    .notNull()
+    .default('count')
+    .$type<'mass' | 'volume' | 'count'>(),
+  toBaseFactor: numeric('to_base_factor', { precision: 12, scale: 4 }).notNull().default('1'),
   sortOrder: integer('sort_order').notNull().default(0),
   isSystem: boolean('is_system').notNull().default(false),
 });
