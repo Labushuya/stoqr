@@ -1,6 +1,6 @@
 import { json } from '@sveltejs/kit'
 import type { RequestHandler } from './$types'
-import { searchProducts, createProduct } from '$lib/server/queries/products'
+import { searchProducts, createProduct, getProductById } from '$lib/server/queries/products'
 
 export const GET: RequestHandler = async ({ locals, url }) => {
   if (!locals.user) {
@@ -29,6 +29,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
     gtin,
     categoryId,
     description,
+    notes,
     imageUrl,
     defaultUnit,
     defaultQuantity,
@@ -49,6 +50,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
     gtin: gtin ?? undefined,
     categoryId: categoryId ?? undefined,
     description: description ?? undefined,
+    notes: notes ?? undefined,
     imageUrl: imageUrl ?? undefined,
     defaultUnit: defaultUnit ?? undefined,
     defaultQuantity: defaultQuantity ?? undefined,
@@ -60,5 +62,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
     createdBy: locals.user.id,
   })
 
-  return json({ id: productId }, { status: 201 })
+  // Return the full product (with category) so callers can update UI without a reload
+  const product = await getProductById(productId)
+  return json(product ?? { id: productId }, { status: 201 })
 }

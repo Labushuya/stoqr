@@ -1,8 +1,55 @@
 import { json } from '@sveltejs/kit'
 import type { RequestHandler } from './$types'
-import { deleteProduct } from '$lib/server/queries/products'
+import { deleteProduct, updateProduct, getProductById } from '$lib/server/queries/products'
 import { requireHouseholdId } from '$lib/server/queries/households'
 import { db } from '$lib/server/db'
+
+/**
+ * PATCH /api/products/:id
+ *
+ * Updates an article's master data (name, description, category, default unit,
+ * notes). Products are global/shared across households, so no household scoping
+ * on the row itself — auth is still required.
+ */
+export const PATCH: RequestHandler = async ({ locals, params, request }) => {
+  if (!locals.user) {
+    return json({ error: 'Unauthorized' }, { status: 401 })
+  }
+  try {
+    // Enforce the caller belongs to a household (consistent with other routes)
+    await requireHouseholdId(locals.user.id)
+
+    const body = await request.json()
+    const { name, description, notes, categoryId, defaultUnit } = body as {
+      name?: string
+      description?: string | null
+      notes?: string | null
+      categoryId?: string | null
+      defaultUnit?: string
+    }
+
+    const patch: Parameters<typeof updateProduct>[1] = {}
+    if (name !== undefined) patch.name = name
+    if (description !== undefined) patch.description = description
+    if (notes !== undefined) patch.notes = notes
+    if (categoryId !== undefined) patch.categoryId = categoryId || null
+    if (defaultUnit !== undefined) patch.defaultUnit = defaultUnit
+
+    if (Object.keys(patch).length === 0) {
+      return json({ error: 'Keine Felder zum Aktualisieren' }, { status: 400 })
+    }
+
+    const updated = await updateProduct(params.id, patch)
+    if (!updated) return json({ error: 'Not found' }, { status: 404 })
+
+    // Return the full product (with category) for optimistic UI updates
+    const product = await getProductById(params.id)
+    return json(product ?? updated)
+  } catch (err) {
+    console.error('[PATCH /api/products/[id]]', err)
+    return json({ error: 'Fehler beim Speichern des Artikels' }, { status: 500 })
+  }
+}
 
 /**
  * DELETE /api/products/:id
