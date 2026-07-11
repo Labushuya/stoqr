@@ -10,6 +10,7 @@
   // ── Types ────────────────────────────────────────────────────────────────
 
   type Category = { id: string; name: string }
+  type Unit = { id: string; name: string; symbol: string }
   type Product = {
     id: string
     name: string
@@ -31,12 +32,18 @@
   let pageLoadError = $state<string | null>(data.loadError ?? null)
 
   const categories = $derived(data.categories as Category[])
+  const units = $derived(data.units as Unit[])
+
+  // Map a stored unit symbol to its human label (falls back to the raw value)
+  function unitLabel(symbol: string): string {
+    return units.find((u) => u.symbol === symbol)?.name ?? symbol
+  }
 
   // Add form
   let newName = $state('')
   let newDescription = $state('')
   let newCategoryId = $state('')
-  let newUnit = $state('Stück')
+  let newUnit = $state('piece')
   let newNotes = $state('')
   let adding = $state(false)
   let addError = $state<string | null>(null)
@@ -102,7 +109,7 @@
           name,
           description: editingDescription.trim() || null,
           categoryId: editingCategoryId || null,
-          defaultUnit: editingUnit.trim() || 'Stück',
+          defaultUnit: editingUnit.trim() || 'piece',
           notes: editingNotes.trim() || null,
         }),
       })
@@ -187,7 +194,7 @@
           name,
           description: newDescription.trim() || undefined,
           categoryId: newCategoryId || undefined,
-          defaultUnit: newUnit.trim() || 'Stück',
+          defaultUnit: newUnit.trim() || 'piece',
           notes: newNotes.trim() || undefined,
         }),
       })
@@ -202,7 +209,7 @@
       newName = ''
       newDescription = ''
       newCategoryId = ''
-      newUnit = 'Stück'
+      newUnit = 'piece'
       newNotes = ''
       toast.success('Artikel angelegt')
     } catch {
@@ -289,15 +296,15 @@
                       <option value={cat.id}>{cat.name}</option>
                     {/each}
                   </select>
-                  <input
+                  <select
                     class="input input--unit"
-                    type="text"
                     bind:value={editingUnit}
-                    placeholder="Einheit"
-                    maxlength="16"
                     aria-label="Standard-Einheit"
-                    onkeydown={(e) => { if (e.key === 'Escape') cancelEdit() }}
-                  />
+                  >
+                    {#each units as u (u.id)}
+                      <option value={u.symbol}>{u.name}</option>
+                    {/each}
+                  </select>
                 </div>
                 <div class="edit-fields">
                   <input
@@ -354,7 +361,7 @@
                   {#if categoryName(product.categoryId)}
                     <span class="chain-badge">{categoryName(product.categoryId)}</span>
                   {/if}
-                  <span class="unit-badge">{product.defaultUnit}</span>
+                  <span class="unit-badge">{unitLabel(product.defaultUnit)}</span>
                 </div>
                 {#if product.description}
                   <span class="store-address">{product.description}</span>
@@ -438,15 +445,15 @@
             <option value={cat.id}>{cat.name}</option>
           {/each}
         </select>
-        <input
+        <select
           class="input input--unit"
-          type="text"
           bind:value={newUnit}
-          placeholder="Einheit"
-          maxlength="16"
           aria-label="Standard-Einheit"
-          onkeydown={(e) => { if (e.key === 'Enter') addProduct() }}
-        />
+        >
+          {#each units as u (u.id)}
+            <option value={u.symbol}>{u.name}</option>
+          {/each}
+        </select>
       </div>
       <div class="add-fields">
         <input
