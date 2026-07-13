@@ -8,6 +8,7 @@ import {
   getOrCreateProductByGtin,
 } from '$lib/server/queries/products'
 import { requireHouseholdId } from '$lib/server/queries/households'
+import { writeAudit } from '$lib/server/queries/audit'
 import { db } from '$lib/server/db'
 import { places, storages, locations, nutrientTypes, productNutrients, products } from '@stoqr/db'
 import { eq, inArray } from 'drizzle-orm'
@@ -216,6 +217,23 @@ export const POST: RequestHandler = async ({ locals, request }) => {
     notes: notes ?? undefined,
     storeId: storeId ?? undefined,
     gtin: gtin ?? undefined,
+  })
+
+  // Audit-Log: neuer Bestandsartikel (nach erfolgreicher Mutation).
+  await writeAudit({
+    householdId,
+    userId: locals.user.id,
+    action: 'INSERT',
+    tableName: 'inventory_items',
+    recordId: item.id,
+    newValues: {
+      productId: resolvedProductId as string,
+      quantity: item.quantity,
+      unit: item.unit,
+      storeId: storeId ?? null,
+      placeId: placeId ?? null,
+      bestBeforeDate: bestBeforeDate ?? null,
+    },
   })
 
   // Return the full item with product info (mirrors GET /api/inventory/[id])

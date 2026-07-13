@@ -4,6 +4,7 @@ import { db } from '$lib/server/db'
 import { places, storages, locations } from '@stoqr/db'
 import { eq } from 'drizzle-orm'
 import { requireHouseholdId } from '$lib/server/queries/households'
+import { writeAudit } from '$lib/server/queries/audit'
 
 async function getPlaceForHousehold(placeId: string, householdId: string) {
   const [row] = await db
@@ -47,6 +48,16 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
     .where(eq(places.id, params.id))
     .returning()
 
+  await writeAudit({
+    householdId,
+    userId: locals.user.id,
+    action: 'UPDATE',
+    tableName: 'places',
+    recordId: params.id,
+    oldValues: { name: existing.name },
+    newValues: { name: updated.name },
+  })
+
   return json(updated)
 }
 
@@ -63,6 +74,15 @@ export const DELETE: RequestHandler = async ({ locals, params }) => {
   }
 
   await db.delete(places).where(eq(places.id, params.id))
+
+  await writeAudit({
+    householdId,
+    userId: locals.user.id,
+    action: 'DELETE',
+    tableName: 'places',
+    recordId: params.id,
+    oldValues: { name: existing.name },
+  })
 
   return new Response(null, { status: 204 })
 }

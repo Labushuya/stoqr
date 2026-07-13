@@ -1,6 +1,8 @@
 import { json } from '@sveltejs/kit'
 import type { RequestHandler } from './$types'
 import { searchProducts, createProduct, getProductById } from '$lib/server/queries/products'
+import { requireHouseholdId } from '$lib/server/queries/households'
+import { writeAudit } from '$lib/server/queries/audit'
 
 export const GET: RequestHandler = async ({ locals, url }) => {
   if (!locals.user) {
@@ -45,6 +47,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
   }
 
   try {
+    const householdId = await requireHouseholdId(locals.user.id)
     const productId = await createProduct({
       name,
       brand: brand ?? undefined,
@@ -65,6 +68,16 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 
     // Return the full product (with category) so callers can update UI without a reload
     const product = await getProductById(productId)
+
+    await writeAudit({
+      householdId,
+      userId: locals.user.id,
+      action: 'INSERT',
+      tableName: 'products',
+      recordId: productId,
+      newValues: { name, brand: brand ?? null, gtin: gtin ?? null, categoryId: categoryId ?? null },
+    })
+
     return json(product ?? { id: productId }, { status: 201 })
   } catch (err) {
     if (err && typeof err === 'object' && 'code' in err && (err as { code: string }).code === '23505') {

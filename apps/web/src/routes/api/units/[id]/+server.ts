@@ -1,6 +1,7 @@
 import { json } from '@sveltejs/kit'
 import type { RequestHandler } from './$types'
 import { requireHouseholdId } from '$lib/server/queries/households'
+import { writeAudit } from '$lib/server/queries/audit'
 import { db } from '$lib/server/db'
 import { units, inventoryItems } from '@stoqr/db'
 import { eq, and, count } from 'drizzle-orm'
@@ -54,6 +55,15 @@ export const DELETE: RequestHandler = async ({ locals, params }) => {
   }
 
   await db.delete(units).where(eq(units.id, params.id))
+
+  await writeAudit({
+    householdId,
+    userId: locals.user.id,
+    action: 'DELETE',
+    tableName: 'units',
+    recordId: params.id,
+    oldValues: { name: unit.name, symbol: unit.symbol },
+  })
 
   return json({ ok: true })
 }
@@ -151,6 +161,23 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
         eq(inventoryItems.unit, oldSymbol)
       ))
   }
+
+  const oldValues: Record<string, unknown> = {}
+  const newValues: Record<string, unknown> = {}
+  for (const key of Object.keys(updates) as (keyof typeof updates)[]) {
+    oldValues[key] = unit[key]
+    newValues[key] = updated[key]
+  }
+
+  await writeAudit({
+    householdId,
+    userId: locals.user.id,
+    action: 'UPDATE',
+    tableName: 'units',
+    recordId: params.id,
+    oldValues,
+    newValues,
+  })
 
   return json(updated)
 }

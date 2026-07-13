@@ -3,6 +3,7 @@ import type { RequestHandler } from './$types'
 import { requireHouseholdId, getUnits } from '$lib/server/queries/households'
 import { listInventoryForProduct, updateInventoryItem } from '$lib/server/queries/products'
 import { generateAutoNeeds } from '$lib/server/queries/shopping-list'
+import { writeAudit } from '$lib/server/queries/audit'
 import { buildUnitMetaMap, planInventoryAdjustment, type Dimension } from '$lib/utils/stock'
 
 // ---------------------------------------------------------------------------
@@ -56,6 +57,22 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
 
     // Bedarf neu berechnen (auto-Einträge aktualisieren).
     await generateAutoNeeds(householdId)
+
+    // Audit-Log: EIN zusammenfassender Eintrag pro Bestandskorrektur (statt
+    // eines Eintrags je FIFO-berührtem Item), da die Korrektur fachlich eine
+    // einzige Aktion auf den Produkt-Gesamtbestand ist. recordId = productId.
+    await writeAudit({
+      householdId,
+      userId: locals.user.id,
+      action: 'UPDATE',
+      tableName: 'inventory_items',
+      recordId: params.id,
+      newValues: {
+        adjustedTo: newQuantity,
+        unit,
+        itemsTouched: plan.updates.length,
+      },
+    })
 
     return json({
       ok: true,

@@ -6,6 +6,7 @@ import {
   deleteInventoryItem,
 } from '$lib/server/queries/products'
 import { requireHouseholdId } from '$lib/server/queries/households'
+import { writeAudit } from '$lib/server/queries/audit'
 import { db } from '$lib/server/db'
 import { products } from '@stoqr/db'
 import { eq } from 'drizzle-orm'
@@ -59,6 +60,11 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
       return json({ error: 'Keine Felder zum Aktualisieren' }, { status: 400 })
     }
 
+    // Vorher-Zustand des Items holen (fuer Audit old/new-Vergleich).
+    const before = await db.query.inventoryItems.findFirst({
+      where: (i, { and, eq }) => and(eq(i.id, params.id), eq(i.householdId, householdId)),
+    })
+
     const updated = await updateInventoryItem(params.id, householdId, patch)
     if (!updated) return json({ error: 'Not found' }, { status: 404 })
 
@@ -78,6 +84,25 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
     }
 
 
+    // Audit-Log: nur die tatsaechlich gepatchten Felder in old/new abbilden.
+    if (before && Object.keys(patch).length > 0) {
+      const oldValues: Record<string, unknown> = {}
+      const newValues: Record<string, unknown> = {}
+      for (const key of Object.keys(patch)) {
+        oldValues[key] = (before as Record<string, unknown>)[key]
+        newValues[key] = (updated as Record<string, unknown>)[key]
+      }
+      await writeAudit({
+        householdId,
+        userId: locals.user.id,
+        action: 'UPDATE',
+        tableName: 'inventory_items',
+        recordId: params.id,
+        oldValues,
+        newValues,
+      })
+    }
+
     return json(updated)
   } catch (err) {
     console.error('[PATCH /api/inventory/[id]]', err)
@@ -91,8 +116,25 @@ export const DELETE: RequestHandler = async ({ locals, params }) => {
   }
   try {
     const householdId = await requireHouseholdId(locals.user.id)
+    // Vorher-Zustand fuer Audit holen, bevor geloescht wird.
+    const before = await db.query.inventoryItems.findFirst({
+      where: (i, { and, eq }) => and(eq(i.id, params.id), eq(i.householdId, householdId)),
+    })
     const deleted = await deleteInventoryItem(params.id, householdId)
     if (!deleted) return json({ error: 'Not found' }, { status: 404 })
+
+    // Audit-Log: geloeschter Bestandsartikel.
+    await writeAudit({
+      householdId,
+      userId: locals.user.id,
+      action: 'DELETE',
+      tableName: 'inventory_items',
+      recordId: params.id,
+      oldValues: before
+        ? { quantity: before.quantity, unit: before.unit, productId: before.productId }
+        : null,
+    })
+
     return new Response(null, { status: 204 })
   } catch (err) {
     console.error('[DELETE /api/inventory/[id]]', err)

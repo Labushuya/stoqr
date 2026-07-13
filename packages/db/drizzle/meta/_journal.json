@@ -63,6 +63,13 @@
       "when": 1783800003000,
       "tag": "0008_product_stores_mn",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1783800004000,
+      "tag": "0009_audit_log_household",
+      "breakpoints": true
     }
   ]
 }

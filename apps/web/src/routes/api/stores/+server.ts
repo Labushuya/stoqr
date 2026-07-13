@@ -4,6 +4,7 @@ import { db } from '$lib/server/db'
 import { stores } from '@stoqr/db'
 import { eq, asc } from 'drizzle-orm'
 import { requireHouseholdId } from '$lib/server/queries/households'
+import { writeAudit } from '$lib/server/queries/audit'
 
 // ---------------------------------------------------------------------------
 // GET /api/stores
@@ -52,6 +53,15 @@ export const POST: RequestHandler = async ({ locals, request }) => {
       city: city ?? null,
     })
     .returning()
+
+  await writeAudit({
+    householdId,
+    userId: locals.user.id,
+    action: 'INSERT',
+    tableName: 'stores',
+    recordId: store.id,
+    newValues: { name: store.name, chain: store.chain },
+  })
 
   return json(store, { status: 201 })
 }

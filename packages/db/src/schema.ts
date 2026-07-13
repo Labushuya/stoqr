@@ -538,6 +538,7 @@ export const bringSyncRelations = relations(bringSync, ({ one }) => ({
 
 export const auditLog = pgTable('audit_log', {
   id: bigserial('id', { mode: 'bigint' }).primaryKey(),
+  householdId: text('household_id').references(() => households.id, { onDelete: 'cascade' }),
   userId: text('user_id').references(() => users.id),
   action: varchar('action', { length: 16 })
     .notNull()
@@ -556,6 +557,10 @@ export const auditLogRelations = relations(auditLog, ({ one }) => ({
   user: one(users, {
     fields: [auditLog.userId],
     references: [users.id],
+  }),
+  household: one(households, {
+    fields: [auditLog.householdId],
+    references: [households.id],
   }),
 }));
 

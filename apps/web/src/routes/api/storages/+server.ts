@@ -4,6 +4,7 @@ import { db } from '$lib/server/db'
 import { storages, locations } from '@stoqr/db'
 import { eq } from 'drizzle-orm'
 import { requireHouseholdId } from '$lib/server/queries/households'
+import { writeAudit } from '$lib/server/queries/audit'
 
 export const POST: RequestHandler = async ({ locals, request }) => {
   if (!locals.user) {
@@ -40,6 +41,15 @@ export const POST: RequestHandler = async ({ locals, request }) => {
       sortOrder: sortOrder ?? 0,
     })
     .returning()
+
+  await writeAudit({
+    householdId,
+    userId: locals.user.id,
+    action: 'INSERT',
+    tableName: 'storages',
+    recordId: storage.id,
+    newValues: { name: storage.name, locationId: storage.locationId },
+  })
 
   return json(storage, { status: 201 })
 }

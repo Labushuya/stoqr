@@ -4,6 +4,7 @@ import { db } from '$lib/server/db'
 import { stores, inventoryItems } from '@stoqr/db'
 import { eq, and, count } from 'drizzle-orm'
 import { requireHouseholdId } from '$lib/server/queries/households'
+import { writeAudit } from '$lib/server/queries/audit'
 
 // ---------------------------------------------------------------------------
 // GET /api/stores/[id]
@@ -51,6 +52,11 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
     return json({ error: 'No fields to update' }, { status: 400 })
   }
 
+  const [existing] = await db
+    .select()
+    .from(stores)
+    .where(and(eq(stores.id, params.id), eq(stores.householdId, householdId)))
+
   const [updated] = await db
     .update(stores)
     .set(patch)
@@ -60,6 +66,23 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
   if (!updated) {
     return json({ error: 'Not found' }, { status: 404 })
   }
+
+  const oldValues: Record<string, unknown> = {}
+  const newValues: Record<string, unknown> = {}
+  for (const key of Object.keys(patch) as (keyof typeof patch)[]) {
+    oldValues[key] = existing[key]
+    newValues[key] = updated[key]
+  }
+
+  await writeAudit({
+    householdId,
+    userId: locals.user.id,
+    action: 'UPDATE',
+    tableName: 'stores',
+    recordId: params.id,
+    oldValues,
+    newValues,
+  })
 
   return json(updated)
 }
@@ -77,7 +100,7 @@ export const DELETE: RequestHandler = async ({ locals, params }) => {
 
   // Verify store belongs to this household
   const [store] = await db
-    .select({ id: stores.id })
+    .select({ id: stores.id, name: stores.name, chain: stores.chain })
     .from(stores)
     .where(and(eq(stores.id, params.id), eq(stores.householdId, householdId)))
 
@@ -99,6 +122,15 @@ export const DELETE: RequestHandler = async ({ locals, params }) => {
   }
 
   await db.delete(stores).where(eq(stores.id, params.id))
+
+  await writeAudit({
+    householdId,
+    userId: locals.user.id,
+    action: 'DELETE',
+    tableName: 'stores',
+    recordId: params.id,
+    oldValues: { name: store.name, chain: store.chain },
+  })
 
   return json({ ok: true })
 }

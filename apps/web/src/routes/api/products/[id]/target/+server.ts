@@ -2,6 +2,7 @@ import { json } from '@sveltejs/kit'
 import type { RequestHandler } from './$types'
 import { upsertStockTarget, deleteStockTarget } from '$lib/server/queries/stock-targets'
 import { requireHouseholdId } from '$lib/server/queries/households'
+import { writeAudit } from '$lib/server/queries/audit'
 
 // ---------------------------------------------------------------------------
 // Soll-/Mindestbestand eines Produkts. Upsert (unique householdId+productId).
@@ -36,6 +37,22 @@ export const PUT: RequestHandler = async ({ locals, params, request }) => {
       unit,
       minQuantity,
     })
+
+    // Audit-Log: Soll-/Mindestbestand gesetzt (upsert => action UPDATE).
+    await writeAudit({
+      householdId,
+      userId: locals.user.id,
+      action: 'UPDATE',
+      tableName: 'stock_targets',
+      recordId: params.id,
+      newValues: {
+        targetQuantity: row?.targetQuantity ?? String(targetQuantity),
+        unit,
+        minQuantity: row?.minQuantity ?? minQuantity,
+        notes: row?.notes ?? null,
+      },
+    })
+
     return json(row)
   } catch (err) {
     console.error('[PUT /api/products/[id]/target]', err)
@@ -50,6 +67,16 @@ export const DELETE: RequestHandler = async ({ locals, params }) => {
     const householdId = await requireHouseholdId(locals.user.id)
     const { deleted } = await deleteStockTarget(params.id, householdId)
     if (!deleted) return json({ error: 'Not found' }, { status: 404 })
+
+    // Audit-Log: Soll-/Mindestbestand entfernt.
+    await writeAudit({
+      householdId,
+      userId: locals.user.id,
+      action: 'DELETE',
+      tableName: 'stock_targets',
+      recordId: params.id,
+    })
+
     return new Response(null, { status: 204 })
   } catch (err) {
     console.error('[DELETE /api/products/[id]/target]', err)

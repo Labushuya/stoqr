@@ -2,6 +2,7 @@ import { json } from '@sveltejs/kit'
 import type { RequestHandler } from './$types'
 import { deleteProduct, updateProduct, getProductById } from '$lib/server/queries/products'
 import { requireHouseholdId } from '$lib/server/queries/households'
+import { writeAudit } from '$lib/server/queries/audit'
 import { db } from '$lib/server/db'
 
 /**
@@ -17,7 +18,7 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
   }
   try {
     // Enforce the caller belongs to a household (consistent with other routes)
-    await requireHouseholdId(locals.user.id)
+    const householdId = await requireHouseholdId(locals.user.id)
 
     const body = await request.json()
     const { name, description, notes, categoryId, defaultUnit, gtin } = body as {
@@ -42,11 +43,27 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
       return json({ error: 'Keine Felder zum Aktualisieren' }, { status: 400 })
     }
 
+    // Vorher-Zustand fuer Audit-Diff (nur die potenziell geaenderten Felder)
+    const before = await getProductById(params.id)
+
     const updated = await updateProduct(params.id, patch)
     if (!updated) return json({ error: 'Not found' }, { status: 404 })
 
     // Return the full product (with category) for optimistic UI updates
     const product = await getProductById(params.id)
+
+    const auditKeys = Object.keys(patch)
+    const beforeRow = before as Record<string, unknown> | null
+    await writeAudit({
+      householdId,
+      userId: locals.user.id,
+      action: 'UPDATE',
+      tableName: 'products',
+      recordId: params.id,
+      oldValues: beforeRow ? Object.fromEntries(auditKeys.map((k) => [k, beforeRow[k]])) : null,
+      newValues: patch as Record<string, unknown>,
+    })
+
     return json(product ?? updated)
   } catch (err) {
     // Unique-Konflikt auf gtin → verstaendliche Meldung
@@ -90,8 +107,20 @@ export const DELETE: RequestHandler = async ({ locals, params }) => {
       )
     }
 
+    const before = await getProductById(params.id)
+
     const deleted = await deleteProduct(params.id)
     if (!deleted) return json({ error: 'Not found' }, { status: 404 })
+
+    const beforeRow = before as Record<string, unknown> | null
+    await writeAudit({
+      householdId,
+      userId: locals.user.id,
+      action: 'DELETE',
+      tableName: 'products',
+      recordId: params.id,
+      oldValues: beforeRow ? { name: beforeRow.name, gtin: beforeRow.gtin } : null,
+    })
 
     return new Response(null, { status: 204 })
   } catch (err) {

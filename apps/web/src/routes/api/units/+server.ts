@@ -1,6 +1,7 @@
 import { json } from '@sveltejs/kit'
 import type { RequestHandler } from './$types'
 import { requireHouseholdId, getUnits } from '$lib/server/queries/households'
+import { writeAudit } from '$lib/server/queries/audit'
 import { db } from '$lib/server/db'
 import { units } from '@stoqr/db'
 
@@ -62,6 +63,20 @@ export const POST: RequestHandler = async ({ locals, request }) => {
       isSystem: false,
     })
     .returning()
+
+  await writeAudit({
+    householdId,
+    userId: locals.user.id,
+    action: 'INSERT',
+    tableName: 'units',
+    recordId: newUnit.id,
+    newValues: {
+      name: newUnit.name,
+      symbol: newUnit.symbol,
+      dimension: newUnit.dimension,
+      toBaseFactor: newUnit.toBaseFactor,
+    },
+  })
 
   return json(newUnit, { status: 201 })
 }
