@@ -82,10 +82,8 @@
     dimension: 'mass' | 'volume' | 'count'
   } | null
 
-  // svelte-ignore state_referenced_locally
-  let stockTarget = $state<TargetRow>(data.stockTarget as TargetRow)
-  // svelte-ignore state_referenced_locally
-  let targetStatus = $state<TargetStatusData>(data.targetStatus as TargetStatusData)
+  const stockTarget = $derived(data.stockTarget as TargetRow)
+  const targetStatus = $derived(data.targetStatus as TargetStatusData)
 
   let showTargetModal = $state(false)
   let targetQtyInput = $state('')
@@ -127,7 +125,7 @@
         body: JSON.stringify({
           targetQuantity: qty,
           unit: targetUnitInput,
-          minQuantity: targetMinInput.trim() || undefined,
+          minQuantity: String(targetMinInput ?? '').trim() || undefined,
         }),
       })
       if (!res.ok) {
@@ -135,13 +133,13 @@
         targetError = String(body?.error ?? `Fehler ${res.status}`)
         return
       }
-      // Reload für frischen Soll-Ist-Vergleich (serverseitig berechnet)
+      // Reload für frischen Soll-Ist-Vergleich (serverseitig berechnet).
+      // stockTarget/targetStatus sind $derived(data.…) und folgen automatisch.
       showTargetModal = false
       await invalidateAll()
-      stockTarget = data.stockTarget as TargetRow
-      targetStatus = data.targetStatus as TargetStatusData
       showToast('Soll-Bestand gespeichert')
-    } catch {
+    } catch (err) {
+      console.error('[saveTarget]', err)
       targetError = 'Netzwerkfehler.'
     } finally {
       targetSaving = false
@@ -152,8 +150,7 @@
     const res = await fetch(`/api/products/${product.id}/target`, { method: 'DELETE' })
     if (!res.ok && res.status !== 204) { showToast('Fehler beim Entfernen', 'error'); return }
     showTargetModal = false
-    stockTarget = null
-    targetStatus = null
+    await invalidateAll()
     showToast('Soll-Bestand entfernt')
   }
 
