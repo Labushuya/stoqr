@@ -5,6 +5,7 @@
   let { data }: { data: PageData } = $props()
 
   type Unit = { id: string; name: string; symbol: string }
+  type StoreOpt = { id: string; name: string; chain: string | null }
   type Item = {
     id: string
     productId: string | null
@@ -14,6 +15,7 @@
     source: 'manual' | 'auto' | 'bring'
     isChecked: boolean
     notes: string | null
+    preferredStoreId: string | null
     product: { id: string; name: string } | null
     preferredStore: { id: string; name: string } | null
   }
@@ -23,6 +25,10 @@
   // svelte-ignore state_referenced_locally
   let pageLoadError = $state<string | null>(data.loadError ?? null)
   const units = $derived(data.units as Unit[])
+  const stores = $derived(data.stores as StoreOpt[])
+
+  // Markt-Auswahl: '' = Alle. Ein Einkauf = ein Markt (Einzelauswahl).
+  let selectedStore = $state('')
 
   function unitLabel(symbol: string): string {
     return units.find((u) => u.symbol === symbol)?.name ?? symbol
@@ -34,8 +40,14 @@
     return `${Number(i.quantity).toLocaleString('de-DE', { maximumFractionDigits: 3 })} ${unitLabel(i.unit)}`
   }
 
-  const openItems = $derived(items.filter((i) => !i.isChecked))
-  const checkedItems = $derived(items.filter((i) => i.isChecked))
+  // Markt-Filter: bei gewähltem Markt X → Einträge dieses Markts PLUS ohne Markt ('egal').
+  function matchesStore(i: Item): boolean {
+    if (!selectedStore) return true
+    return i.preferredStoreId === selectedStore || i.preferredStoreId == null
+  }
+
+  const openItems = $derived(items.filter((i) => !i.isChecked && matchesStore(i)))
+  const checkedItems = $derived(items.filter((i) => i.isChecked && matchesStore(i)))
 
   // ── Manueller Eintrag ────────────────────────────────────────────────────
   let newName = $state('')
@@ -115,6 +127,10 @@
     params.set('qty', i.quantity)
     params.set('unit', i.unit)
     params.set('fromShoppingItem', i.id)
+    // Markt vorbelegen: aktiver Listen-Markt (markt-gesteuert) hat Vorrang,
+    // sonst der am Eintrag hinterlegte Markt.
+    const storeId = selectedStore || i.preferredStoreId
+    if (storeId) params.set('storeId', storeId)
     return `/inventar/easy-add?${params.toString()}`
   }
 </script>
@@ -133,10 +149,24 @@
   {/if}
 
   <div class="toolbar">
+    {#if stores.length > 0}
+      <label class="store-filter">
+        <span class="store-filter-label">Einkauf bei</span>
+        <select class="input input--store" bind:value={selectedStore}>
+          <option value="">Alle Märkte</option>
+          {#each stores as s (s.id)}
+            <option value={s.id}>{s.name}{s.chain ? ` (${s.chain})` : ''}</option>
+          {/each}
+        </select>
+      </label>
+    {/if}
     <button class="btn-ghost" type="button" disabled={generating} onclick={generateNeeds}>
       {generating ? 'Wird berechnet…' : '↻ Bedarf aus Beständen erzeugen'}
     </button>
   </div>
+  {#if selectedStore}
+    <p class="filter-hint">Zeigt Artikel für diesen Markt + Einträge ohne Markt. Kein Mischen mehrerer Märkte.</p>
+  {/if}
 
   <!-- ── Offene Einträge ─────────────────────────────────────────────────── -->
   <section class="card">
@@ -209,7 +239,11 @@
   .alert { padding: var(--space-3) var(--space-4); border-radius: var(--radius-md); font-size: var(--text-sm); margin-bottom: var(--space-4); }
   .alert--error { background: var(--color-danger-subtle, #fee2e2); color: var(--color-danger, #dc2626); }
 
-  .toolbar { margin-bottom: var(--space-4); }
+  .toolbar { margin-bottom: var(--space-4); display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: center; }
+  .store-filter { display: inline-flex; align-items: center; gap: var(--space-2); }
+  .store-filter-label { font-size: var(--text-sm); color: var(--color-text-muted); }
+  .input--store { height: 38px; }
+  .filter-hint { font-size: var(--text-xs); color: var(--color-text-muted); margin: 0 0 var(--space-3); }
   .btn-ghost { border: 1px solid var(--color-border); background: transparent; color: var(--color-primary); border-radius: var(--radius-md); height: 38px; padding: 0 var(--space-4); font-size: var(--text-sm); font-weight: 600; cursor: pointer; }
   .btn-ghost:hover:not(:disabled) { background: var(--color-primary-subtle); border-color: var(--color-primary); }
   .btn-ghost:disabled { opacity: 0.5; cursor: not-allowed; }
