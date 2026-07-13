@@ -218,7 +218,44 @@
     }
   }
 
-  // ── Expiry helpers (per sibling) ────────────────────────────────────────────
+  // ── Markt-Zuordnung (M:N, Planung — M1) ─────────────────────────────────────
+
+  type StoreOpt = { id: string; name: string; chain: string | null }
+
+  // svelte-ignore state_referenced_locally
+  let productStoreIds = $state<string[]>([...(data.productStoreIds as string[])])
+  let storeSaving = $state(false)
+
+  function isStoreLinked(id: string): boolean {
+    return productStoreIds.includes(id)
+  }
+
+  async function toggleStore(id: string) {
+    const next = productStoreIds.includes(id)
+      ? productStoreIds.filter((s) => s !== id)
+      : [...productStoreIds, id]
+    // optimistisch
+    const prev = productStoreIds
+    productStoreIds = next
+    storeSaving = true
+    try {
+      const res = await fetch(`/api/products/${product.id}/stores`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ storeIds: next }),
+      })
+      if (!res.ok) {
+        productStoreIds = prev
+        showToast('Fehler beim Speichern der Markt-Zuordnung', 'error')
+      }
+    } catch {
+      productStoreIds = prev
+      showToast('Netzwerkfehler.', 'error')
+    } finally {
+      storeSaving = false
+    }
+  }
+
 
   function expiryOf(bestBeforeDate: string | null) {
     if (!bestBeforeDate) return { label: 'Kein MHD', cls: 'mhd-fresh' }
@@ -573,6 +610,31 @@
     {/if}
   </div>
 
+  <!-- ── Märkte (Planung: wo einkaufbar) ────────────────────────────────── -->
+  <div class="card">
+    <div class="section-header">
+      <h2 class="section-title">Märkte <span class="section-subtitle">wo einkaufbar</span></h2>
+    </div>
+    <p class="scope-hint">Bestimmt, in welchem Markt-Einkauf dieser Artikel auftaucht, wenn Bedarf besteht.</p>
+    {#if (data.availableStores as StoreOpt[]).length === 0}
+      <p class="empty-hint">Keine Märkte angelegt. Unter Einstellungen → Märkte hinzufügen.</p>
+    {:else}
+      <div class="store-chips">
+        {#each data.availableStores as s (s.id)}
+          <button
+            class="store-chip"
+            class:store-chip--on={isStoreLinked(s.id)}
+            type="button"
+            disabled={storeSaving}
+            onclick={() => toggleStore(s.id)}
+          >
+            {isStoreLinked(s.id) ? '✓ ' : ''}{s.name}{s.chain ? ` (${s.chain})` : ''}
+          </button>
+        {/each}
+      </div>
+    {/if}
+  </div>
+
   <!-- ── Stock entries (siblings) ───────────────────────────────────────── -->
   <div class="card">
     <div class="section-header">
@@ -839,6 +901,22 @@
     color: var(--color-text-muted);
     margin: var(--space-1) 0;
   }
+
+  .store-chips { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+  .store-chip {
+    border: 1px solid var(--color-border);
+    background: var(--color-surface);
+    color: var(--color-text-secondary);
+    border-radius: var(--radius-full);
+    padding: var(--space-1) var(--space-3);
+    font-size: var(--text-sm);
+    font-weight: 500;
+    cursor: pointer;
+    transition: border-color var(--transition-fast), background var(--transition-fast), color var(--transition-fast);
+  }
+  .store-chip:hover:not(:disabled) { border-color: var(--color-primary); }
+  .store-chip--on { border-color: var(--color-primary); background: var(--color-primary-subtle); color: var(--color-primary); font-weight: 600; }
+  .store-chip:disabled { opacity: 0.6; cursor: not-allowed; }
 
   /* ── Product header ─────────────────────────────────────────────────── */
   .product-hero { display: flex; gap: var(--space-4); align-items: flex-start; }

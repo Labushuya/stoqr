@@ -16,6 +16,7 @@ import { requireHouseholdId, getUnits } from '$lib/server/queries/households'
 import { deleteProduct, listInventoryForProduct } from '$lib/server/queries/products'
 import { getNutrientTypes } from '$lib/server/queries/nutrients'
 import { getStockTargetForProduct } from '$lib/server/queries/stock-targets'
+import { listStoresForProduct } from '$lib/server/queries/product-stores'
 import { buildUnitMetaMap, aggregateStock, compareToTarget } from '$lib/utils/stock'
 
 // ---------------------------------------------------------------------------
@@ -133,6 +134,10 @@ export const load: PageServerLoad = async ({ params, locals }) => {
       )
     : null;
 
+  // Markt-Zuordnung des Artikels (M:N, Planung).
+  const productStoreRows = await listStoresForProduct(item.productId, householdId);
+  const productStoreIds = productStoreRows.map((r) => r.storeId);
+
   return {
     item,
     product: item.product,
@@ -140,6 +145,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
     nutrientTypes,
     units,
     availableStores,
+    productStoreIds,
     allLocations,
     expirySettings,
     stockTotals,
