@@ -674,8 +674,8 @@
               id="mhd-qty-{row.id}"
               class="input"
               type="number"
-              min="0.01"
-              step="0.01"
+              min="0"
+              step="0.25"
               value={row.quantity}
               oninput={(e) => updateRow(row.id, 'quantity', (e.target as HTMLInputElement).value)}
               disabled={selectedProduct === null}

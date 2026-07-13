@@ -651,7 +651,7 @@
                 <div class="stock-edit-fields">
                   <label class="mini-field">
                     <span class="mini-label">Menge</span>
-                    <input class="input" type="number" min="0" step="0.01" bind:value={draftQuantity} />
+                    <input class="input" type="number" min="0" step="0.25" bind:value={draftQuantity} />
                   </label>
                   <label class="mini-field">
                     <span class="mini-label">Einheit</span>
@@ -795,7 +795,7 @@
     {/if}
     <label class="tf-field">
       <span class="tf-label">Tatsächlicher Bestand ({unitLabel(invUnit)})</span>
-      <input class="input" type="number" min="0" step="0.001" bind:value={invValue} />
+      <input class="input" type="number" min="0" step="0.25" bind:value={invValue} />
     </label>
   </div>
   {#snippet footer()}
@@ -810,7 +810,7 @@
   <div class="target-form">
     <label class="tf-field">
       <span class="tf-label">Soll-Menge</span>
-      <input class="input" type="number" min="0" step="0.001" bind:value={targetQtyInput} />
+      <input class="input" type="number" min="0" step="0.25" bind:value={targetQtyInput} />
     </label>
     <label class="tf-field">
       <span class="tf-label">Einheit</span>
@@ -820,7 +820,7 @@
     </label>
     <label class="tf-field">
       <span class="tf-label">Mindestbestand (optional)</span>
-      <input class="input" type="number" min="0" step="0.001" bind:value={targetMinInput} placeholder="z.B. 1" />
+      <input class="input" type="number" min="0" step="0.25" bind:value={targetMinInput} placeholder="z.B. 1" />
     </label>
   </div>
   {#snippet footer()}

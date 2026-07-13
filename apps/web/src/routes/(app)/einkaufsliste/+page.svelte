@@ -199,7 +199,7 @@
     <div class="add-row">
       <input class="input" type="text" bind:value={newName} placeholder="Eintrag hinzufügen…" maxlength="255"
              onkeydown={(e) => { if (e.key === 'Enter') addItem() }} aria-label="Bezeichnung" />
-      <input class="input input--qty" type="number" min="0" step="0.01" bind:value={newQty} aria-label="Menge" />
+      <input class="input input--qty" type="number" min="0" step="0.25" bind:value={newQty} aria-label="Menge" />
       <select class="input input--unit" bind:value={newUnit} aria-label="Einheit">
         {#each units as u (u.id)}<option value={u.symbol}>{u.name}</option>{/each}
       </select>
