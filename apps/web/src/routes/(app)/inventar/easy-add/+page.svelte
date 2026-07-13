@@ -1,5 +1,6 @@
 <script lang="ts">
   import { goto } from '$app/navigation'
+  import { onMount } from 'svelte'
   import type { PageData } from './$types'
 
   // ── Types ──────────────────────────────────────────────────────────────────
@@ -180,7 +181,40 @@
     if (!unitTouched && p.defaultUnit && unitOptions.some((u) => u.symbol === p.defaultUnit)) {
       formUnit = p.defaultUnit
     }
+    // Block C: Ort/Markt aus vorhandenen Bestaenden desselben Artikels vererben.
+    void applyInventoryHints(p.id)
   }
+
+  // Vererbt haeufigsten Ort/Markt vorhandener Bestaende — nur in noch leere Felder.
+  async function applyInventoryHints(productId: string) {
+    try {
+      const res = await fetch(`/api/products/${encodeURIComponent(productId)}/inventory-hints`)
+      if (!res.ok) return
+      const hints = (await res.json()) as {
+        locationId: string | null
+        storageId: string | null
+        placeId: string | null
+        storeId: string | null
+      }
+      // Artikel koennte inzwischen abgewaehlt/gewechselt sein.
+      if (!selectedProduct || selectedProduct.id !== productId) return
+
+      if (!formStoreId && hints.storeId) formStoreId = hints.storeId
+      // Ort nur vererben, wenn Nutzer noch keinen Lagerort begonnen hat.
+      if (!formLocationId && hints.locationId && locationTree.some((l) => l.id === hints.locationId)) {
+        formLocationId = hints.locationId
+        if (hints.storageId) formStorageId = hints.storageId
+        if (hints.placeId) formPlaceId = hints.placeId
+      }
+    } catch {
+      // Vorbelegung ist optional — bei Fehler einfach ohne Hints fortfahren.
+    }
+  }
+
+  // Vorausgewaehlter Artikel (?productId=): Ort/Markt-Hints ebenfalls laden.
+  onMount(() => {
+    if (selectedProduct) void applyInventoryHints(selectedProduct.id)
+  })
 
   function clearProduct() {
     selectedProduct = null
@@ -189,6 +223,11 @@
     scannedGtin = ''
     scannerNotFound = false
     unitTouched = false
+    // Vererbte Vorbelegung zuruecksetzen, damit der naechste Artikel frisch startet.
+    formStoreId = ''
+    formLocationId = ''
+    formStorageId = ''
+    formPlaceId = ''
   }
 
   // ── EAN / barcode scanner (this stock entry's EAN) ─────────────────────────

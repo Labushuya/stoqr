@@ -106,6 +106,47 @@ export async function listInventoryForProduct(productId: string, householdId: st
 }
 
 // ---------------------------------------------------------------------------
+// Inventory — Vorbelegungs-Hinweise: haeufigster Ort/Markt vorhandener Bestaende
+// (Block C: neue Bestaende erben bekannte Werte desselben Artikels)
+// ---------------------------------------------------------------------------
+
+export async function suggestStorePlaceForProduct(productId: string, householdId: string) {
+	const items = await listInventoryForProduct(productId, householdId);
+
+	// Haeufigsten Wert bestimmen; bei Gleichstand gewinnt der zuerst gesehene
+	// (Liste ist nach createdAt desc sekundaer sortiert → juengster zuerst).
+	function mostFrequent<T>(values: (T | null | undefined)[]): T | null {
+		const counts = new Map<T, number>();
+		let best: T | null = null;
+		let bestCount = 0;
+		for (const v of values) {
+			if (v == null) continue;
+			const c = (counts.get(v) ?? 0) + 1;
+			counts.set(v, c);
+			if (c > bestCount) {
+				best = v;
+				bestCount = c;
+			}
+		}
+		return best;
+	}
+
+	const placeId = mostFrequent(items.map((i) => i.place?.id));
+	const storeId = mostFrequent(items.map((i) => i.store?.id));
+
+	// Ort-Kette (location → storage → place) fuer den vorgeschlagenen Platz auffuellen
+	let locationId: string | null = null;
+	let storageId: string | null = null;
+	if (placeId) {
+		const item = items.find((i) => i.place?.id === placeId);
+		storageId = item?.place?.storage?.id ?? null;
+		locationId = item?.place?.storage?.location?.id ?? null;
+	}
+
+	return { locationId, storageId, placeId, storeId };
+}
+
+// ---------------------------------------------------------------------------
 // Inventory — aggregated stock totals for one product (Umrechnungsschicht)
 // ---------------------------------------------------------------------------
 
