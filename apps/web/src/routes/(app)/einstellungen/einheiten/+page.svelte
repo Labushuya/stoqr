@@ -26,7 +26,6 @@
   const DIM_LABEL: Record<Dimension, string> = { mass: 'Masse', volume: 'Volumen', count: 'Stückzahl' }
 
   const existingSymbols = $derived(new Set(unitRows.map((u) => u.symbol)))
-
   // ── Add form ────────────────────────────────────────────────────────────
   let newName = $state('')
   let newSymbol = $state('')
@@ -57,19 +56,42 @@
 
   type Suggestion = { name: string; symbol: string; dimension: Dimension; toBaseFactor: number }
   const SUGGESTIONS: Suggestion[] = [
+    // Masse
     { name: 'Milligramm', symbol: 'mg', dimension: 'mass', toBaseFactor: 0.001 },
     { name: 'Dekagramm', symbol: 'dag', dimension: 'mass', toBaseFactor: 10 },
     { name: 'Pfund', symbol: 'Pfd', dimension: 'mass', toBaseFactor: 500 },
+    { name: 'Prise', symbol: 'Prise', dimension: 'mass', toBaseFactor: 0.5 },
+    { name: 'Messerspitze', symbol: 'Msp', dimension: 'mass', toBaseFactor: 0.5 },
+    // Volumen
     { name: 'Zentiliter', symbol: 'cl', dimension: 'volume', toBaseFactor: 10 },
+    { name: 'Deziliter', symbol: 'dl', dimension: 'volume', toBaseFactor: 100 },
     { name: 'Esslöffel', symbol: 'EL', dimension: 'volume', toBaseFactor: 15 },
     { name: 'Teelöffel', symbol: 'TL', dimension: 'volume', toBaseFactor: 5 },
-    { name: 'Prise', symbol: 'Prise', dimension: 'mass', toBaseFactor: 0.5 },
+    { name: 'Tasse', symbol: 'Tasse', dimension: 'volume', toBaseFactor: 250 },
+    { name: 'Schuss', symbol: 'Schuss', dimension: 'volume', toBaseFactor: 10 },
+    { name: 'Tropfen', symbol: 'Trpf', dimension: 'volume', toBaseFactor: 0.05 },
+    // Stückzahl / Gebinde
     { name: 'Bund', symbol: 'Bund', dimension: 'count', toBaseFactor: 1 },
     { name: 'Beutel', symbol: 'Beutel', dimension: 'count', toBaseFactor: 1 },
     { name: 'Glas', symbol: 'Glas', dimension: 'count', toBaseFactor: 1 },
     { name: 'Rolle', symbol: 'Rolle', dimension: 'count', toBaseFactor: 1 },
     { name: 'Becher', symbol: 'Becher', dimension: 'count', toBaseFactor: 1 },
+    { name: 'Portion', symbol: 'Port', dimension: 'count', toBaseFactor: 1 },
+    { name: 'Scheibe', symbol: 'Scheib', dimension: 'count', toBaseFactor: 1 },
+    { name: 'Riegel', symbol: 'Riegel', dimension: 'count', toBaseFactor: 1 },
+    { name: 'Tafel', symbol: 'Tafel', dimension: 'count', toBaseFactor: 1 },
+    { name: 'Tube', symbol: 'Tube', dimension: 'count', toBaseFactor: 1 },
+    { name: 'Kanister', symbol: 'Kanist', dimension: 'count', toBaseFactor: 1 },
+    { name: 'Sack', symbol: 'Sack', dimension: 'count', toBaseFactor: 1 },
+    { name: 'Karton', symbol: 'Karton', dimension: 'count', toBaseFactor: 1 },
+    { name: 'Netz', symbol: 'Netz', dimension: 'count', toBaseFactor: 1 },
+    { name: 'Kiste', symbol: 'Kiste', dimension: 'count', toBaseFactor: 1 },
+    { name: 'Bündel', symbol: 'Bündel', dimension: 'count', toBaseFactor: 1 },
+    { name: 'Paar', symbol: 'Paar', dimension: 'count', toBaseFactor: 1 },
   ]
+
+  // Vorschläge, die noch nicht als Einheit existieren.
+  const availableSuggestions = $derived(SUGGESTIONS.filter((s) => !existingSymbols.has(s.symbol)))
 
   // ── Helpers ────────────────────────────────────────────────────────────
   function factorDisplay(u: Unit): string {
@@ -223,7 +245,9 @@
   <section class="settings-section">
     <div class="section-header section-header--row">
       <h2 class="section-title">Meine Einheiten</h2>
-      <button class="btn-ghost" type="button" onclick={() => (showSuggestions = true)}>+ Vorschläge</button>
+      {#if availableSuggestions.length > 0}
+        <button class="btn-ghost" type="button" onclick={() => (showSuggestions = true)}>+ Vorschläge</button>
+      {/if}
     </div>
 
     <div class="unit-list" role="list">
