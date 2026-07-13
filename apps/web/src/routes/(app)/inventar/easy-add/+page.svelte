@@ -557,13 +557,13 @@
           2
         {/if}
       </div>
-      <h2 class="step-title">Ort wählen</h2>
+      <h2 class="step-title">Lagerplatz wählen</h2>
     </div>
 
     <div class="field-group">
       <!-- Location -->
       <div class="field">
-        <label class="label" for="ea-loc">Ort</label>
+        <label class="label" for="ea-loc">Raum</label>
         <select
           id="ea-loc"
           class="input"
@@ -571,7 +571,7 @@
           onchange={onLocationChange}
           disabled={selectedProduct === null}
         >
-          <option value="">Kein Ort</option>
+          <option value="">Kein Raum</option>
           {#each locationTree as loc (loc.id)}
             <option value={loc.id}>{loc.icon ? loc.icon + ' ' : ''}{loc.name}</option>
           {/each}

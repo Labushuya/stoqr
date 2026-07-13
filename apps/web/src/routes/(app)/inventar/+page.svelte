@@ -368,9 +368,9 @@ Das Produkt bleibt im Katalog.`,
     <select
       class="filter-select"
       bind:value={filterPlaceId}
-      aria-label="Ort filtern"
+      aria-label="Lagerplatz filtern"
     >
-      <option value="">Alle Orte</option>
+      <option value="">Alle Lagerplätze</option>
       {#each allPlaces() as place (place.id)}
         <option value={place.id}>{place.label}</option>
       {/each}

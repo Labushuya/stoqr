@@ -739,7 +739,7 @@
 <!-- ── Location picker (Modal) ────────────────────────────────────────────── -->
 <Modal open={showLocationPicker} title="Lagerort auswählen" size="md" onClose={closeLocationPicker}>
   {#if data.allLocations.length === 0}
-    <p class="empty-hint">Keine Lagerorte vorhanden. Lege zuerst Orte an.</p>
+    <p class="empty-hint">Keine Lagerorte vorhanden. Lege zuerst Räume an.</p>
   {:else}
     {#each data.allLocations as loc (loc.id)}
       <div class="picker-location">

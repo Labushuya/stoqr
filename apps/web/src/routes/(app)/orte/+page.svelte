@@ -173,7 +173,7 @@
         const created: Location = await res.json()
         locations = [...locations, { ...created, storages: [] }]
         openLocations = new Set([...openLocations, created.id])
-        showToast(`Ort "${name}" hinzugefügt`)
+        showToast(`Raum "${name}" hinzugefügt`)
       } else if (adding.kind === 'storage') {
         const res = await fetch('/api/storages', {
           method: 'POST',
@@ -253,7 +253,7 @@
         locations = locations.map((loc) =>
           loc.id === editing!.id ? { ...loc, name, icon } : loc
         )
-        showToast('Ort umbenannt')
+        showToast('Raum umbenannt')
       } else if (editing.kind === 'storage') {
         const icon = editing.icon.trim() || null
         const res = await fetch(`/api/storages/${editing.id}`, {
@@ -307,12 +307,12 @@
   // ── DELETE mutations ──────────────────────────────────────────────────────
 
   async function deleteLocation(loc: Location) {
-    if (!window.confirm(`Ort "${loc.name}" wirklich löschen? Alle darin enthaltenen Lagerorte und Fächer werden ebenfalls gelöscht.`)) return
+    if (!window.confirm(`Raum "${loc.name}" wirklich löschen? Alle darin enthaltenen Lagerorte und Fächer werden ebenfalls gelöscht.`)) return
     try {
       const res = await fetch(`/api/locations/${loc.id}`, { method: 'DELETE' })
       if (!res.ok) throw new Error(await res.text())
       locations = locations.filter((l) => l.id !== loc.id)
-      showToast(`Ort "${loc.name}" gelöscht`)
+      showToast(`Raum "${loc.name}" gelöscht`)
     } catch {
       showToast('Fehler beim Löschen', 'error')
     }
@@ -369,7 +369,7 @@
 <div class="page">
   <!-- Header -->
   <div class="page-header">
-    <h1 class="page-title">Orte</h1>
+    <h1 class="page-title">Räume</h1>
     <button
       class="btn-primary"
       type="button"
@@ -378,7 +378,7 @@
       <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
         <path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
       </svg>
-      Ort hinzufügen
+      Raum hinzufügen
     </button>
   </div>
 
@@ -433,7 +433,7 @@
         <input
           class="input"
           type="text"
-          placeholder="Name des Ortes"
+          placeholder="Name des Raums"
           autofocus
           bind:value={addName}
           onkeydown={onAddKeydown}
@@ -456,7 +456,7 @@
           <circle cx="36" cy="32" r="5" stroke="var(--color-primary)" stroke-width="2.5" fill="none"/>
         </svg>
       </div>
-      <p class="empty-title">Noch keine Orte angelegt</p>
+      <p class="empty-title">Noch keine Räume angelegt</p>
       <p class="empty-sub">Erstelle deinen ersten Ort, um dein Inventar zu organisieren.</p>
       <button
         class="btn-primary btn-primary--lg"
@@ -466,7 +466,7 @@
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
           <path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
         </svg>
-        Ersten Ort anlegen
+        Ersten Raum anlegen
       </button>
     </div>
 

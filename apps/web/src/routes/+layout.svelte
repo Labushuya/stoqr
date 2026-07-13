@@ -29,7 +29,7 @@
   const navLinks = [
     { href: '/',          label: 'Dashboard' },
     { href: '/inventar',  label: 'Inventar'  },
-    { href: '/orte',      label: 'Orte'      },
+    { href: '/orte',      label: 'Räume'     },
     { href: '/einkaufsliste', label: 'Einkaufsliste' },
     { href: '/einstellungen', label: 'Einstellungen' },
   ]

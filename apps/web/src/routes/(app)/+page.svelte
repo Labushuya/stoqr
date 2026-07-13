@@ -182,7 +182,7 @@
       </div>
       <div class="stat-body">
         <span class="stat-value">{data.stats.locationCount}</span>
-        <span class="stat-label">Orte</span>
+        <span class="stat-label">Räume</span>
       </div>
     </div>
   </div>
@@ -200,7 +200,7 @@
         <path d="M8 2C5.24 2 3 4.24 3 7c0 4 5 7 5 7s5-3 5-7c0-2.76-2.24-5-5-5Z" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linejoin="round"/>
         <circle cx="8" cy="7" r="1.8" stroke="currentColor" stroke-width="1.6" fill="none"/>
       </svg>
-      Orte verwalten
+      Räume verwalten
     </a>
   </div>
 
