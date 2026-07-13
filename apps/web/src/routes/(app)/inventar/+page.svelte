@@ -169,7 +169,7 @@
     hasDate: boolean
   } {
     if (!item.bestBeforeDate) {
-      return { cssClass: 'mhd-fresh', label: 'Kein MHD', hasDate: false }
+      return { cssClass: 'mhd-none', label: '⚠ Kein MHD', hasDate: false }
     }
     const date = new Date(item.bestBeforeDate)
     const status = getExpiryStatus(date, TOLERANCE_DAYS, {
@@ -469,6 +469,8 @@ Das Produkt bleibt im Katalog.`,
             <!-- MHD badge -->
             {#if expiry.hasDate}
               <span class="mhd-badge {expiry.cssClass}">{expiry.label}</span>
+            {:else}
+              <span class="mhd-badge mhd-none">{expiry.label}</span>
             {/if}
 
             <!-- Breadcrumb -->
@@ -1060,6 +1062,13 @@ Das Produkt bleibt im Katalog.`,
   :global(.mhd-badge.mhd-expired) {
     background-color: #fce7f3;
     color: #9d174d;
+  }
+
+  /* Bestand ohne MHD: neutral-auffällig (Handlungsbedarf, nicht 'frisch') */
+  :global(.mhd-badge.mhd-none) {
+    background-color: #fff7ed;
+    color: #c2410c;
+    border: 1px dashed #fdba74;
   }
 
   /* ── Status badge ─────────────────────────────────────────────────────── */

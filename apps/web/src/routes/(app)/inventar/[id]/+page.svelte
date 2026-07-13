@@ -255,7 +255,7 @@
 
 
   function expiryOf(bestBeforeDate: string | null) {
-    if (!bestBeforeDate) return { label: 'Kein MHD', cls: 'mhd-fresh' }
+    if (!bestBeforeDate) return { label: '⚠ Kein MHD', cls: 'mhd-none' }
     const d = new Date(bestBeforeDate)
     const st = getExpiryStatus(d, data.expirySettings.graceDaysAfter, {
       yellowDaysBefore: data.expirySettings.yellowDaysBefore,
@@ -1164,6 +1164,7 @@
   :global(.mhd-soon) { background: #fef9c3; color: #ca8a04; }
   :global(.mhd-critical) { background: #ffedd5; color: #ea580c; }
   :global(.mhd-expired) { background: var(--color-danger-subtle, #fee2e2); color: var(--color-danger, #dc2626); }
+  :global(.mhd-none) { background: #fff7ed; color: #c2410c; border: 1px dashed #fdba74; }
 
   /* ── Actions card ────────────────────────────────────────────────────── */
   .actions-card { display: flex; flex-direction: column; gap: var(--space-2); }
