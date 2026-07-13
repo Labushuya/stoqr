@@ -31,6 +31,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
   const fromShoppingItem = url.searchParams.get('fromShoppingItem')
   const prefillQty = url.searchParams.get('qty')
   const prefillUnit = url.searchParams.get('unit')
+  const prefillStore = url.searchParams.get('storeId')
 
   return {
     categories,
@@ -41,5 +42,6 @@ export const load: PageServerLoad = async ({ locals, url }) => {
     fromShoppingItem,
     prefillQty,
     prefillUnit,
+    prefillStore,
   }
 }

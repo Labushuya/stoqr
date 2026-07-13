@@ -67,7 +67,8 @@
   let formPlaceId = $state('')
   // svelte-ignore state_referenced_locally
   let formUnit = $state((data.prefillUnit as string | null) || unitOptions[0]?.symbol || 'Stück')
-  let formStoreId = $state('')
+  // svelte-ignore state_referenced_locally
+  let formStoreId = $state((data.prefillStore as string | null) ?? '')
   let formNotes = $state('')
 
   // svelte-ignore state_referenced_locally
