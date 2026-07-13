@@ -3,6 +3,7 @@ import { shoppingListItems } from '@stoqr/db'
 import { and, eq, asc, desc } from 'drizzle-orm'
 import { getStockTargets } from './stock-targets'
 import { getProductStockTotals } from './products'
+import { listStoresForProduct } from './product-stores'
 import { getUnits } from './households'
 import { buildUnitMetaMap, compareToTarget } from '$lib/utils/stock'
 
@@ -83,13 +84,16 @@ export async function generateAutoNeeds(householdId: string): Promise<{ created:
   const [targets, units] = await Promise.all([getStockTargets(householdId), getUnits(householdId)])
   const metaMap = buildUnitMetaMap(units)
 
-  // Bestehende offene auto-Einträge (nicht abgehakt) nach productId.
+  // Bestehende offene auto-Einträge (nicht abgehakt), gekeyed nach (productId|storeId).
   const existing = await db.query.shoppingListItems.findMany({
     where: (s, { and, eq }) =>
       and(eq(s.householdId, householdId), eq(s.source, 'auto'), eq(s.isChecked, false)),
   })
-  const openByProduct = new Map<string, (typeof existing)[number]>()
-  for (const e of existing) if (e.productId) openByProduct.set(e.productId, e)
+  const key = (productId: string | null, storeId: string | null) => `${productId ?? ''}::${storeId ?? ''}`
+  const openByKey = new Map<string, (typeof existing)[number]>()
+  for (const e of existing) openByKey.set(key(e.productId, e.preferredStoreId), e)
+  // Alle offenen auto-Einträge, die in diesem Lauf bestätigt werden — der Rest wird bereinigt.
+  const stillNeeded = new Set<string>()
 
   let created = 0
   let updated = 0
@@ -103,45 +107,48 @@ export async function generateAutoNeeds(householdId: string): Promise<{ created:
       metaMap
     )
 
+    // Kein sinnvoller Bedarf → alle offenen auto-Einträge dieses Artikels laufen aus.
+    if (cmp.status === 'not_comparable' || cmp.status === 'ok') continue
+
     const meta = metaMap.get(t.unit)
     const factor = meta ? meta.toBaseFactor : 1
-    const open = openByProduct.get(t.productId)
-
-    // Kein sinnvoller Bedarf: nicht vergleichbar oder Ist >= Soll.
-    if (cmp.status === 'not_comparable' || cmp.status === 'ok') {
-      if (open) {
-        await db.delete(shoppingListItems).where(eq(shoppingListItems.id, open.id))
-        removed++
-      }
-      continue
-    }
-
-    // Fehlmenge in Soll-Einheit (auffüllen bis Soll).
     const shortfallInBase = cmp.targetInBase - cmp.currentInBase
     const qty = shortfallInBase / (factor || 1)
-    if (qty <= 0) {
-      if (open) {
-        await db.delete(shoppingListItems).where(eq(shoppingListItems.id, open.id))
-        removed++
-      }
-      continue
-    }
+    if (qty <= 0) continue
 
-    if (open) {
-      await db
-        .update(shoppingListItems)
-        .set({ quantity: String(qty), unit: t.unit, updatedAt: new Date() })
-        .where(eq(shoppingListItems.id, open.id))
-      updated++
-    } else {
-      await db.insert(shoppingListItems).values({
-        householdId,
-        productId: t.productId,
-        quantity: String(qty),
-        unit: t.unit,
-        source: 'auto',
-      })
-      created++
+    // Zielmärkte: alle zugeordneten Märkte des Artikels (M:N); ohne Zuordnung → ein Eintrag ohne Markt.
+    const storeRows = await listStoresForProduct(t.productId, householdId)
+    const storeIds: (string | null)[] = storeRows.length > 0 ? storeRows.map((r) => r.storeId) : [null]
+
+    for (const storeId of storeIds) {
+      const k = key(t.productId, storeId)
+      stillNeeded.add(k)
+      const open = openByKey.get(k)
+      if (open) {
+        await db
+          .update(shoppingListItems)
+          .set({ quantity: String(qty), unit: t.unit, updatedAt: new Date() })
+          .where(eq(shoppingListItems.id, open.id))
+        updated++
+      } else {
+        await db.insert(shoppingListItems).values({
+          householdId,
+          productId: t.productId,
+          quantity: String(qty),
+          unit: t.unit,
+          source: 'auto',
+          preferredStoreId: storeId,
+        })
+        created++
+      }
+    }
+  }
+
+  // Verwaiste offene auto-Einträge entfernen (Bedarf gedeckt / Markt-Zuordnung geändert).
+  for (const [k, item] of openByKey) {
+    if (!stillNeeded.has(k)) {
+      await db.delete(shoppingListItems).where(eq(shoppingListItems.id, item.id))
+      removed++
     }
   }
 
