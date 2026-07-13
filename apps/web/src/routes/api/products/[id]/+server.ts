@@ -20,12 +20,13 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
     await requireHouseholdId(locals.user.id)
 
     const body = await request.json()
-    const { name, description, notes, categoryId, defaultUnit } = body as {
+    const { name, description, notes, categoryId, defaultUnit, gtin } = body as {
       name?: string
       description?: string | null
       notes?: string | null
       categoryId?: string | null
       defaultUnit?: string
+      gtin?: string | null
     }
 
     const patch: Parameters<typeof updateProduct>[1] = {}
@@ -34,6 +35,8 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
     if (notes !== undefined) patch.notes = notes
     if (categoryId !== undefined) patch.categoryId = categoryId || null
     if (defaultUnit !== undefined) patch.defaultUnit = defaultUnit
+    // EAN/GTIN: leerer String → null (Feld leeren)
+    if (gtin !== undefined) patch.gtin = gtin ? String(gtin).trim() : null
 
     if (Object.keys(patch).length === 0) {
       return json({ error: 'Keine Felder zum Aktualisieren' }, { status: 400 })
@@ -46,6 +49,10 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
     const product = await getProductById(params.id)
     return json(product ?? updated)
   } catch (err) {
+    // Unique-Konflikt auf gtin → verstaendliche Meldung
+    if (err && typeof err === 'object' && 'code' in err && (err as { code: string }).code === '23505') {
+      return json({ error: 'Diese EAN ist bereits einem anderen Artikel zugeordnet.' }, { status: 409 })
+    }
     console.error('[PATCH /api/products/[id]]', err)
     return json({ error: 'Fehler beim Speichern des Artikels' }, { status: 500 })
   }

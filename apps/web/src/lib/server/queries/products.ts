@@ -381,6 +381,7 @@ export async function updateProduct(
 		notes: string | null;
 		categoryId: string | null;
 		defaultUnit: string;
+		gtin: string | null;
 	}>
 ) {
 	const patch: Record<string, unknown> = { updatedAt: new Date() };
@@ -389,6 +390,7 @@ export async function updateProduct(
 	if (data.notes !== undefined) patch.notes = data.notes;
 	if (data.categoryId !== undefined) patch.categoryId = data.categoryId;
 	if (data.defaultUnit !== undefined) patch.defaultUnit = data.defaultUnit;
+	if (data.gtin !== undefined) patch.gtin = data.gtin;
 
 	const [record] = await db
 		.update(products)

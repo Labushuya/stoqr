@@ -44,25 +44,33 @@ export const POST: RequestHandler = async ({ locals, request }) => {
     return json({ error: 'name is required' }, { status: 400 })
   }
 
-  const productId = await createProduct({
-    name,
-    brand: brand ?? undefined,
-    gtin: gtin ?? undefined,
-    categoryId: categoryId ?? undefined,
-    description: description ?? undefined,
-    notes: notes ?? undefined,
-    imageUrl: imageUrl ?? undefined,
-    defaultUnit: defaultUnit ?? undefined,
-    defaultQuantity: defaultQuantity ?? undefined,
-    defaultWeightG: defaultWeightG ?? undefined,
-    defaultVolumeMl: defaultVolumeMl ?? undefined,
-    expiryToleranceDays: expiryToleranceDays ?? undefined,
-    bringItemId: bringItemId ?? undefined,
-    offData: offData ?? undefined,
-    createdBy: locals.user.id,
-  })
+  try {
+    const productId = await createProduct({
+      name,
+      brand: brand ?? undefined,
+      gtin: gtin ? String(gtin).trim() : undefined,
+      categoryId: categoryId ?? undefined,
+      description: description ?? undefined,
+      notes: notes ?? undefined,
+      imageUrl: imageUrl ?? undefined,
+      defaultUnit: defaultUnit ?? undefined,
+      defaultQuantity: defaultQuantity ?? undefined,
+      defaultWeightG: defaultWeightG ?? undefined,
+      defaultVolumeMl: defaultVolumeMl ?? undefined,
+      expiryToleranceDays: expiryToleranceDays ?? undefined,
+      bringItemId: bringItemId ?? undefined,
+      offData: offData ?? undefined,
+      createdBy: locals.user.id,
+    })
 
-  // Return the full product (with category) so callers can update UI without a reload
-  const product = await getProductById(productId)
-  return json(product ?? { id: productId }, { status: 201 })
+    // Return the full product (with category) so callers can update UI without a reload
+    const product = await getProductById(productId)
+    return json(product ?? { id: productId }, { status: 201 })
+  } catch (err) {
+    if (err && typeof err === 'object' && 'code' in err && (err as { code: string }).code === '23505') {
+      return json({ error: 'Diese EAN ist bereits einem anderen Artikel zugeordnet.' }, { status: 409 })
+    }
+    console.error('[POST /api/products]', err)
+    return json({ error: 'Fehler beim Anlegen des Artikels' }, { status: 500 })
+  }
 }

@@ -32,9 +32,10 @@
 
   const categories = $derived(data.categories as Category[])
 
-  // Add form (nur Stammdaten: Name + Kategorie)
+  // Add form (nur Stammdaten: Name + Kategorie + EAN)
   let newName = $state('')
   let newCategoryId = $state('')
+  let newGtin = $state('')
   let adding = $state(false)
   let addError = $state<string | null>(null)
 
@@ -42,6 +43,7 @@
   let editingId = $state<string | null>(null)
   let editingName = $state('')
   let editingCategoryId = $state('')
+  let editingGtin = $state('')
   let editSaving = $state(false)
   let editError = $state<string | null>(null)
 
@@ -67,6 +69,7 @@
     editingId = p.id
     editingName = p.name
     editingCategoryId = p.categoryId ?? ''
+    editingGtin = p.gtin ?? ''
     editError = null
   }
 
@@ -92,6 +95,7 @@
         body: JSON.stringify({
           name,
           categoryId: editingCategoryId || null,
+          gtin: editingGtin.trim() || null,
         }),
       })
       const body = await res.json().catch(() => ({}))
@@ -174,6 +178,7 @@
         body: JSON.stringify({
           name,
           categoryId: newCategoryId || undefined,
+          gtin: newGtin.trim() || undefined,
         }),
       })
       const body = await res.json().catch(() => ({}))
@@ -186,6 +191,7 @@
       productRows = [...productRows, body as Product].sort((a, b) => a.name.localeCompare(b.name))
       newName = ''
       newCategoryId = ''
+      newGtin = ''
       toast.success('Artikel angelegt')
     } catch {
       addError = 'Netzwerkfehler.'
@@ -271,6 +277,16 @@
                       <option value={cat.id}>{cat.name}</option>
                     {/each}
                   </select>
+                  <input
+                    class="input input--ean"
+                    type="text"
+                    inputmode="numeric"
+                    bind:value={editingGtin}
+                    placeholder="EAN / Barcode (optional)"
+                    maxlength="14"
+                    aria-label="EAN / Barcode"
+                    onkeydown={(e) => { if (e.key === 'Escape') cancelEdit() }}
+                  />
                 </div>
                 {#if editError}
                   <p class="field-error">{editError}</p>
@@ -306,6 +322,14 @@
                     <span class="chain-badge">{categoryName(product.categoryId)}</span>
                   {/if}
                 </div>
+                {#if product.gtin}
+                  <span class="ean-line" title="EAN / Barcode">
+                    <svg width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                      <path d="M2 3v10M4.5 3v10M6 3v10M9 3v10M11 3v10M13.5 3v10" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+                    </svg>
+                    {product.gtin}
+                  </span>
+                {/if}
               </div>
               <div class="store-actions">
                 <button
@@ -385,6 +409,16 @@
             <option value={cat.id}>{cat.name}</option>
           {/each}
         </select>
+        <input
+          class="input input--ean"
+          type="text"
+          inputmode="numeric"
+          bind:value={newGtin}
+          placeholder="EAN / Barcode (optional)"
+          maxlength="14"
+          aria-label="EAN / Barcode des neuen Artikels"
+          onkeydown={(e) => { if (e.key === 'Enter') addProduct() }}
+        />
       </div>
       <div class="add-footer">
         <button class="btn-primary" type="button" disabled={adding} onclick={addProduct}>
@@ -600,6 +634,16 @@
     flex-shrink: 0;
   }
 
+  .ean-line {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    font-size: 11px;
+    font-family: var(--font-mono, monospace);
+    color: var(--color-text-muted);
+    letter-spacing: 0.02em;
+  }
+
   /* ── Inline edit form ─────────────────────────────────────────────────── */
 
   .store-edit-form {
@@ -675,6 +719,10 @@
   }
 
   .input--cat {
+    flex: 1 1 180px;
+  }
+
+  .input--ean {
     flex: 1 1 180px;
   }
 
