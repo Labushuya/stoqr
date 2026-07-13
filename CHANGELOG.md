@@ -5,6 +5,37 @@ Neueste Einträge oben. Jeder Eintrag nennt den Commit-Kontext, damit andere LLM
 
 ---
 
+## [Unreleased] — Inkrement M1: markt-gesteuerter Einkauf (implementiert, Test auf Pi ausstehend)
+
+**Architektur-Klärung:** Markt liegt jetzt auf zwei Ebenen — am **Artikel** (Planung: „wo einkaufbar",
+M:N via product_stores) UND am **Bestand** (Ist-Herkunft: inventory_items.storeId, unverändert). Kein
+Rückbau bestehender Logik; rein additiv.
+
+### Markt am Artikel (M:N)
+- `product_stores` neu (schlank: productId↔storeId↔household, Migration 0008). Bewusste Wiedereinführung
+  der in Inkr.1 entfernten Tabelle in klarer Rolle „hier planbar erhältlich" (kein Preis/sort_order).
+- Query-Layer `product-stores.ts`, API `/api/products/[id]/stores` (GET/PUT).
+- Artikel-Detailseite: „Märkte"-Card mit Markt-Chips (Mehrfachauswahl).
+
+### Markt-gesteuerte Einkaufsliste
+- `generateAutoNeeds`: Markt aus product_stores — pro zugeordnetem Markt ein auto-Eintrag
+  (Dedup jetzt (productId, storeId)); Artikel ohne Zuordnung → „egal". Verwaiste Einträge werden bereinigt.
+- Einkaufsliste: Markt-Auswahl „Einkauf bei" (ein Markt) → zeigt dessen Bedarf + markt-lose Einträge; kein Mischen.
+- Einbuchen belegt den aktiven Listen-Markt im Bestandsformular vor (storeId-Param an easy-add).
+
+### Commits
+903350c (product_stores Schema+Migration) · 6706fa4 (Query-Layer) · 4f7db1a (API+Markt-Chips) ·
+46a59e4 (Bedarf-Markt) · 27c5bff (Markt-Filter Einkaufsliste) · 6744f65 (Einbuchen-Vorbelegung)
+
+### Ausblick (geplant): M2 Einkauf-Status-Entität, M3 Preise+Estimate, M4 Rezepte+Personen (siehe ROADMAP)
+
+### Test-Steps (Pi)
+1. Artikel-Detailseite → Märkte „Globus" + „Penny" zuordnen.
+2. „Bedarf erzeugen" → auto-Einträge je Markt; Einkaufsliste Markt=Globus zeigt nur Globus + markt-lose.
+3. „Einbuchen" bei Globus → easy-add hat Markt Globus vorbelegt.
+
+---
+
 ## [Unreleased] — Inkrement 2c: Einkaufsliste + Bestandskorrektur (implementiert, Test auf Pi ausstehend)
 
 Schließt den Kreislauf **Inventur → Bedarf → Einkaufsliste → Einbuchen** — Basis für (Semi-)Automatisierung.

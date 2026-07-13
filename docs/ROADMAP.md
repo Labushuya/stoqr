@@ -3,7 +3,7 @@
 > Kanonisches Datenmodell und Entwicklungsplan. Diese Datei ist führend für Absicht,
 > Logik und Ziel von stoqr. Bei Widersprüchen zwischen Code und dieser Datei gilt diese Datei.
 
-Letzte Aktualisierung: 2026-07-12 (Inkrement 2c: Einkaufsliste + Inventur)
+Letzte Aktualisierung: 2026-07-13 (Inkrement M1: markt-gesteuerter Einkauf)
 
 ---
 
@@ -122,6 +122,20 @@ Kein Text-/Pipe-Export (existiert so in Bring! nicht).
   - [x] Einbuchen: Einkaufslisten-Eintrag → echter Bestand (easy-add vorbelegt, Eintrag danach entfernt)
 - **2d — echte Bring!-API**: Login (verschlüsselte Credentials), Liste synchronisieren
 
+### Markt-Fahrplan (M1–M4) — markt-gesteuerter Einkauf, Preise, Rezepte
+- **M1 — Markt am Artikel (M:N)** (abgeschlossen, Test ausstehend):
+  - [x] product_stores neu (M:N Artikel↔Markt „wo einkaufbar"), Migration 0008
+  - [x] Query-Layer product-stores + API /api/products/[id]/stores
+  - [x] Markt-Zuordnung (Chips) auf der Artikel-Detailseite
+  - [x] auto-Bedarf nutzt product_stores (pro zugeordnetem Markt ein Eintrag; ohne = „egal")
+  - [x] Einkaufsliste: Markt-Auswahl (dieser + „egal", kein Mischen); Einbuchen belegt aktiven Markt vor
+- **M2 — Einkauf-Entität mit Status** (geplant): shopping_trips (begonnen/pausiert/beendet), mehrere parallel,
+  nur einer aktiv, Cross-Trip-Dedup, Ausverkauf-Korrektur. Eigene Planungsrunde vor dem Bau.
+- **M3 — Preise je Artikel+Markt** (geplant): product_prices + Historie, Estimate „ca. ~X €" + Warnhinweis,
+  realer Kaufpreis vor Einbuchen korrigierbar; opt-in Online-Abruf (Globus/Penny, Best-Effort).
+- **M4 — Rezepte + Personen/Portionen** (geplant): recipes/recipe_ingredients/recipe_steps, persons,
+  Zutaten-Ampel via aggregateStock/compareToTarget, fehlende Zutaten → Einkaufsliste.
+
 ### Kreislauf (Zielbild)
 Inventur (Ist erfassen) → Soll-Ist-Bedarf → Einkaufsliste (virtuelle Bestände) → Einkauf → Einbuchen
 (echter Bestand mit Marke/MHD/Markt/Ort). Basis für (Semi-)Automatisierung.
@@ -138,6 +152,12 @@ Inventur (Ist erfassen) → Soll-Ist-Bedarf → Einkaufsliste (virtuelle Bestän
 ---
 
 ## Offene Punkte / noch zu testen (nicht bestätigt)
+
+**Inkrement M1 — markt-gesteuerter Einkauf (Commits 903350c, 6706fa4, 4f7db1a, 46a59e4, 27c5bff, 6744f65) — Test auf Pi ausstehend:**
+- Migration 0008 (product_stores neu) läuft; Artikel-Detailseite → Märkte-Chips zuordnen
+- „Bedarf erzeugen" legt pro zugeordnetem Markt einen auto-Eintrag an; Artikel ohne Markt = „egal"
+- Einkaufsliste: Markt „Globus" wählen → nur Globus-Bedarf + markt-lose sichtbar; Penny ausgeblendet
+- „Einbuchen" bei gewähltem Globus → easy-add hat Markt „Globus" vorbelegt
 
 **Inkrement 2c (Commits 442a48d, 1c65424, dc9de60, 7a43b54, ab29d68, ece8652) — Test auf Pi ausstehend:**
 - Inventur: Artikel mit Soll → „Bestand korrigieren" auf niedrigeren Ist → Bestände FIFO reduziert, Bedarf-Eintrag entsteht
