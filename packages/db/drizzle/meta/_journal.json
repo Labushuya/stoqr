@@ -56,6 +56,13 @@
       "when": 1783800002000,
       "tag": "0007_units_dimension_factor",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1783800003000,
+      "tag": "0008_product_stores_mn",
+      "breakpoints": true
     }
   ]
 }

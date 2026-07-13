@@ -182,6 +182,55 @@ export const productsRelations = relations(products, ({ one, many }) => ({
   inventoryItems: many(inventoryItems),
   stockTargets: many(stockTargets),
   shoppingListItems: many(shoppingListItems),
+  productStores: many(productStores),
+}));
+
+// ---------------------------------------------------------------------------
+// product_stores (M:N Artikel<->Markt — "hier planbar erhältlich")
+//
+// Wiedereinführung (in Inkr.1 als überladene Bezugsquellen-Tabelle entfernt).
+// Jetzt schlank: nur die Zuordnung, welche Artikel bei welchem Markt einkaufbar
+// sind (Planung). Der Herkunfts-Markt eines konkreten Bestands bleibt an
+// inventory_items.storeId. Preise liegen (später) in product_prices.
+// ---------------------------------------------------------------------------
+
+export const productStores = pgTable(
+  'product_stores',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    productId: uuid('product_id')
+      .notNull()
+      .references(() => products.id, { onDelete: 'cascade' }),
+    storeId: uuid('store_id')
+      .notNull()
+      .references(() => stores.id, { onDelete: 'cascade' }),
+    householdId: text('household_id')
+      .notNull()
+      .references(() => households.id),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+  },
+  (table) => ({
+    productStoreHouseholdUniq: uniqueIndex('product_stores_product_store_household_uniq').on(
+      table.productId,
+      table.storeId,
+      table.householdId
+    ),
+  })
+);
+
+export const productStoresRelations = relations(productStores, ({ one }) => ({
+  product: one(products, {
+    fields: [productStores.productId],
+    references: [products.id],
+  }),
+  store: one(stores, {
+    fields: [productStores.storeId],
+    references: [stores.id],
+  }),
+  household: one(households, {
+    fields: [productStores.householdId],
+    references: [households.id],
+  }),
 }));
 
 // ---------------------------------------------------------------------------
@@ -276,6 +325,7 @@ export const storesRelations = relations(stores, ({ one, many }) => ({
   stockTargets: many(stockTargets),
   shoppingListItems: many(shoppingListItems),
   bringSync: many(bringSync),
+  productStores: many(productStores),
 }));
 
 // ---------------------------------------------------------------------------
@@ -531,6 +581,7 @@ export const householdsRelations = relations(households, ({ many }) => ({
   householdMembers: many(householdMembers),
   units: many(units),
   invites: many(invites),
+  productStores: many(productStores),
 }));
 
 // ---------------------------------------------------------------------------
