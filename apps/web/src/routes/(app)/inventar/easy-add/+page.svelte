@@ -18,6 +18,7 @@
     imageUrl: string | null
     categoryId: string | null
     category: Category | null
+    defaultUnit?: string | null
   }
 
   type LocationTree = {
@@ -66,7 +67,15 @@
   let formStorageId = $state('')
   let formPlaceId = $state('')
   // svelte-ignore state_referenced_locally
-  let formUnit = $state((data.prefillUnit as string | null) || unitOptions[0]?.symbol || 'Stück')
+  let formUnit = $state(
+    (data.prefillUnit as string | null) ||
+      (data.preselectedProduct as ProductResult | null)?.defaultUnit ||
+      unitOptions[0]?.symbol ||
+      'Stück',
+  )
+  // true, sobald der Nutzer die Einheit selbst geaendert hat → Artikel-Vorbelegung ueberschreibt dann nicht mehr.
+  // svelte-ignore state_referenced_locally
+  let unitTouched = $state(!!data.prefillUnit)
   // svelte-ignore state_referenced_locally
   let formStoreId = $state((data.prefillStore as string | null) ?? '')
   let formNotes = $state('')
@@ -166,6 +175,11 @@
     selectedProduct = p
     searchQuery = p.name
     searchResults = []
+    // Einheit-Vorauswahl: Standard-Einheit des Artikels uebernehmen,
+    // solange der Nutzer die Einheit nicht selbst gesetzt hat und sie existiert.
+    if (!unitTouched && p.defaultUnit && unitOptions.some((u) => u.symbol === p.defaultUnit)) {
+      formUnit = p.defaultUnit
+    }
   }
 
   function clearProduct() {
@@ -174,6 +188,7 @@
     searchResults = []
     scannedGtin = ''
     scannerNotFound = false
+    unitTouched = false
   }
 
   // ── EAN / barcode scanner (this stock entry's EAN) ─────────────────────────
@@ -258,6 +273,7 @@
               imageUrl: product.imageUrl ?? null,
               categoryId: product.categoryId ?? null,
               category: null,
+              defaultUnit: product.defaultUnit ?? null,
             })
           } else {
             searchQuery = product.name
@@ -617,6 +633,7 @@
         id="ea-unit"
         class="input input--unit"
         bind:value={formUnit}
+        onchange={() => (unitTouched = true)}
         disabled={selectedProduct === null}
       >
         {#each unitOptions as u (u.id)}
