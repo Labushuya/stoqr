@@ -3,7 +3,7 @@
 > Kanonisches Datenmodell und Entwicklungsplan. Diese Datei ist führend für Absicht,
 > Logik und Ziel von stoqr. Bei Widersprüchen zwischen Code und dieser Datei gilt diese Datei.
 
-Letzte Aktualisierung: 2026-07-13 (Inkrement M1: markt-gesteuerter Einkauf)
+Letzte Aktualisierung: 2026-07-14 (M1-Feedback: Fixes, EAN am Artikel, Vererbung, Audit-Log)
 
 ---
 
@@ -32,7 +32,11 @@ Beschreibt EIN Lebensmittel-Konzept, existiert genau einmal (z.B. "Vollmilch").
 - nutrients       (Nährwerte, EAV)
 - notes
 ```
-**NICHT im Artikel:** EAN/Barcode, Markt, Lagerort, MHD, Menge.
+**EAN/Barcode:** primär am **Artikel** (`products.gtin`, im UI pflegbar). Markt, Lagerort, MHD, Menge NICHT im Artikel.
+
+> **Aktualisiert (2026-07-14, M1-Feedback):** EAN ist jetzt **primär am Artikel** (`products.gtin`, UI-pflegbar).
+> Bestand-EAN (`inventory_items.gtin`) bleibt **sekundär** für Ausreißer/Chargen. Fallback bei Bedarf: Bestandsanalyse.
+> Damit ist `products.gtin` nicht mehr nur interner OFF-Cache, sondern das primäre Artikel-EAN.
 
 ### BESTAND (Transaktion) — konkrete physische Menge
 Referenziert einen Artikel. Ein Artikel kann viele Bestände mit unterschiedlichen
@@ -62,10 +66,11 @@ Raum (location) > Lagerort (storage) > Fach (place)
 ### Entscheidungen (2026-07-11)
 | Frage | Entscheidung |
 |---|---|
-| EAN + Markt | am **Bestand** (universeller Master-Artikel) |
+| EAN | **primär am Artikel** (products.gtin, UI-pflegbar); sekundär am Bestand (Ausreißer) — *aktualisiert 2026-07-14* |
+| Markt | am **Artikel** (M:N „wo einkaufbar", product_stores) UND am **Bestand** (Ist-Herkunft, store_id) |
 | Lagerort | am **Bestand** (gleiches Produkt an mehreren Orten möglich) |
 | Migration | Neue Migration + Testdaten-Reset |
-| products.gtin | bleibt als **interner Open-Food-Facts Cache-Schlüssel** (nicht im UI, nicht das Bestand-EAN) |
+| products.gtin | **primäres Artikel-EAN** (UI-pflegbar) — war zuvor nur interner OFF-Cache — *aktualisiert 2026-07-14* |
 | products (Katalog) | **global/geteilt** (kein household_id) — ein Artikel für alle Haushalte |
 | Artikelverwaltung | eigene Seite unter **Einstellungen → Artikel** (anlegen/ändern/löschen) |
 
@@ -129,8 +134,17 @@ Kein Text-/Pipe-Export (existiert so in Bring! nicht).
   - [x] Markt-Zuordnung (Chips) auf der Artikel-Detailseite
   - [x] auto-Bedarf nutzt product_stores (pro zugeordnetem Markt ein Eintrag; ohne = „egal")
   - [x] Einkaufsliste: Markt-Auswahl (dieser + „egal", kein Mischen); Einbuchen belegt aktiven Markt vor
-- **M2 — Einkauf-Entität mit Status** (geplant): shopping_trips (begonnen/pausiert/beendet), mehrere parallel,
-  nur einer aktiv, Cross-Trip-Dedup, Ausverkauf-Korrektur. Eigene Planungsrunde vor dem Bau.
+- **M1-Feedback — Fixes, EAN am Artikel, Vererbung, Audit** (abgeschlossen, Test ausstehend):
+  - [x] A1 Soll-Bestand-„Netzwerkfehler" behoben ($derived statt $state); A2 0,25er-Stepper; A3 „Orte"→„Räume"
+  - [x] A4 mehr Einheiten-Vorschläge + Button-Ausblendung; A5 MHD-fehlt auffällig markiert; A6 Einheit-Vorauswahl aus Artikel
+  - [x] B EAN/Barcode am Artikel (products.gtin UI-pflegbar, Unique-Konflikt → 409)
+  - [x] C Markt/Ort-Vererbung: neuer Bestand erbt häufigsten Ort/Markt vorhandener Bestände (inventory-hints)
+  - [x] D vollständiges Audit-Log (writeAudit in allen Schreib-Routen, Migration 0009 audit_log.household_id) + Seite /aktivitaet
+- **M2 — Einkauf-Entität mit Status** (geplant, eigene Feinplanung vor Bau): shopping_trips (begonnen/pausiert/beendet),
+  mehrere parallel, nur einer aktiv. **Behebt den M1-Architektur-Fehler:** generateAutoNeeds erzeugt aktuell pro
+  zugeordnetem Markt einen Eintrag → Milch bei Globus+Penny gelistet und 2× gebraucht = 2×2. Ziel: **ein Bedarf pro
+  Artikel, genau EINEM Run zugewiesen** (reserviert; andere Runs sehen ihn nicht). Zusätzlich „nach EKL X verschieben"
+  (Ausverkauf), Split beim Einbuchen (N Zeilen, je eigenes MHD).
 - **M3 — Preise je Artikel+Markt** (geplant): product_prices + Historie, Estimate „ca. ~X €" + Warnhinweis,
   realer Kaufpreis vor Einbuchen korrigierbar; opt-in Online-Abruf (Globus/Penny, Best-Effort).
 - **M4 — Rezepte + Personen/Portionen** (geplant): recipes/recipe_ingredients/recipe_steps, persons,
@@ -152,6 +166,14 @@ Inventur (Ist erfassen) → Soll-Ist-Bedarf → Einkaufsliste (virtuelle Bestän
 ---
 
 ## Offene Punkte / noch zu testen (nicht bestätigt)
+
+**M1-Feedback A–D (Commits 77b3e6e, 97a3462, 40798b6, 4d3a374, 832dfee, 9000b61, cc1674f, c094739, 82ce904) — Test auf Pi ausstehend:**
+- Migration 0009 läuft (audit_log.household_id)
+- A1: Soll mit Mindestbestand speichern → kein „Netzwerkfehler"; A2: Stepper 0,25, freie Eingabe „1,3"; A3: „Räume" überall
+- A4: neue Einheiten-Vorschläge; Button weg wenn alle da; A5: Bestand ohne MHD orange/gestrichelt; A6: Einheit aus Artikel-defaultUnit vorbelegt
+- B: Artikel mit EAN anlegen/ansehen/bearbeiten; doppelte EAN → 409-Meldung
+- C: zweiter Bestand desselben Artikels → Markt/Ort vorbelegt
+- D: Änderung an Artikel/Bestand/Soll → /aktivitaet zeigt Vorher→Nachher, User, Zeit
 
 **Inkrement M1 — markt-gesteuerter Einkauf (Commits 903350c, 6706fa4, 4f7db1a, 46a59e4, 27c5bff, 6744f65) — Test auf Pi ausstehend:**
 - Migration 0008 (product_stores neu) läuft; Artikel-Detailseite → Märkte-Chips zuordnen

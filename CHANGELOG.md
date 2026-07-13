@@ -5,6 +5,57 @@ Neueste Einträge oben. Jeder Eintrag nennt den Commit-Kontext, damit andere LLM
 
 ---
 
+## [Unreleased] — M1-Feedback: Fixes, EAN am Artikel, Vererbung, Audit-Log (implementiert, Test auf Pi ausstehend)
+
+Testing von M1 deckte einen Bug, mehrere Konsistenz-Lücken und einen Architektur-Fehler auf.
+Blöcke A–D abgearbeitet (risikoarm/additiv). Block E (Einkauf-Entität M2, behebt das 2×2-Milch-Problem)
+und F (Preise) folgen mit eigener Feinplanung.
+
+### Block A — Fixes & Konsistenz
+- **A1 Bugfix Soll-Bestand „Netzwerkfehler":** `stockTarget`/`targetStatus` von `$state` auf `$derived(data.…)`
+  umgestellt, manuelle Zuweisungen entfernt, `catch` loggt jetzt den echten Fehler. Trat nur mit gesetztem
+  Mindestbestand auf. (77b3e6e)
+- **A2 0,25er-Stepper:** alle Mengenfelder `step="0.25"` (Faktor/Nährwerte unverändert); freie Eingabe bleibt. (97a3462)
+- **A3 „Orte" → „Räume":** UI-Texte umbenannt (Nav, Dashboard, /orte, Filter, easy-add); Route/interne Namen bleiben. (40798b6)
+- **A4 Einheiten-Vorschläge:** SUGGESTIONS 12 → 28 (dl, Tasse, Schuss, Tropfen, Msp, Portion, Scheibe, Riegel,
+  Tafel, Tube, Kanister, Sack, Karton, Netz, Kiste, Bündel, Paar); „+ Vorschläge"-Button verschwindet, wenn alle vorhanden. (4d3a374)
+- **A5 MHD-fehlt hervorheben:** „Kein MHD" nicht mehr grün, sondern eigene auffällige `.mhd-none`-Klasse (Übersicht + Detail). (832dfee)
+- **A6 Einheit-Vorauswahl merken:** easy-add übernimmt die `defaultUnit` des gewählten Artikels (solange nicht manuell
+  geändert); Detailseite belegte bereits korrekt vor. (9000b61)
+
+### Block B — EAN/Barcode am Artikel (primär)
+- `products.gtin` im UI pflegbar (Anlegen/Ansicht/Bearbeiten in /einstellungen/artikel); `updateProduct` + POST/PATCH
+  reichen gtin durch; Unique-Konflikt (23505) → 409 „EAN bereits einem anderen Artikel zugeordnet". (cc1674f)
+
+### Block C — Markt/Ort-Vererbung bei neuem Bestand
+- easy-add belegt beim Artikel-Wählen häufigsten Lagerort + Markt vorhandener Bestände desselben Artikels vor
+  (nur leere Felder). `suggestStorePlaceForProduct()` + neue Route `/api/products/[id]/inventory-hints`. (c094739)
+
+### Block D — Vollständiges Audit-Log + Aktivitäts-Seite
+- `audit_log.household_id` ergänzt (Migration 0009, additiv/idempotent) + Index.
+- Helper `writeAudit()` (best-effort) + `diffFields()` + `listAuditLog()` in `queries/audit.ts`.
+- Eingehängt in ALLE Schreib-Routen: products, inventory_items (inkl. consume/inventory-adjust), stock_targets,
+  units, stores, locations/storages/places (jeweils INSERT/UPDATE/DELETE, Vorher/Nachher).
+- Neue Seite `/aktivitaet` (chronologisch nach Tag, Aktion-Badge, Vorher→Nachher-Diff, dt. Labels), verlinkt aus /einstellungen. (82ce904)
+
+### Commits
+77b3e6e (A1) · 97a3462 (A2) · 40798b6 (A3) · 4d3a374 (A4) · 832dfee (A5) · 9000b61 (A6) ·
+cc1674f (B) · c094739 (C) · 82ce904 (D)
+
+### Test-Steps (Pi)
+1. **Migration:** Container-Neustart → `audit_log.household_id` vorhanden (Migration 0009 lief).
+2. **A1:** Soll-Bestand mit Mindestbestand speichern → kein „Netzwerkfehler", Wert bleibt.
+3. **A2:** Mengen-Stepper springt in 0,25; Tastatur erlaubt frei „1,3".
+4. **A3:** Menü/Seiten zeigen „Räume".
+5. **A4:** Einheiten-Vorschläge zeigen neue Einträge; Button weg, wenn alle angelegt.
+6. **A5:** Bestand ohne MHD ist orange/gestrichelt markiert (nicht grün).
+7. **A6:** Artikel mit `defaultUnit` = „Packung" in easy-add wählen → Einheit vorbelegt.
+8. **B:** Artikel mit EAN anlegen; EAN in Liste sichtbar; bearbeiten; zweite gleiche EAN → Fehlermeldung.
+9. **C:** Zweiten Bestand desselben Artikels anlegen → Markt/Ort aus erstem Bestand vorbelegt.
+10. **D:** Beliebige Änderung (Artikel umbenennen, Bestand buchen, Soll ändern) → /aktivitaet zeigt Eintrag mit Vorher→Nachher, User, Zeit.
+
+---
+
 ## [Unreleased] — Inkrement M1: markt-gesteuerter Einkauf (implementiert, Test auf Pi ausstehend)
 
 **Architektur-Klärung:** Markt liegt jetzt auf zwei Ebenen — am **Artikel** (Planung: „wo einkaufbar",
