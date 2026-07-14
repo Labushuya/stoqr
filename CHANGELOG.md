@@ -5,6 +5,37 @@ Neueste Einträge oben. Jeder Eintrag nennt den Commit-Kontext, damit andere LLM
 
 ---
 
+## [Unreleased] — M1-Feedback Nachbesserung: A6 + B behoben (implementiert, Test auf Pi ausstehend)
+
+Zweite Testrunde deckte auf, dass A6 und B nicht vollständig erfüllt waren. Ursachenanalyse via
+Diagnose-Workflow (4 parallele Leser), dann gezielte Fixes.
+
+### A6 — Einheit-Vorauswahl (war: „Blihn" statt „Packung")
+- **Primär:** `products.defaultUnit` wurde beim Artikel-Anlegen nie gesetzt (FAB-Dialog sendete nur name+categoryId)
+  → Standard-Einheit-Selektor in FAB-Dialog ergänzt; `defaultUnit` wird nun gespeichert. Zusätzlich zieht easy-add
+  beim ersten Bestand `defaultUnit` nach, falls der Artikel noch auf `piece` steht. (4789229, 08cf639)
+- **Sekundär:** Custom-Einheiten wurden mit `sortOrder=0` vor die System-Einheiten sortiert → als Fallback
+  vorbelegt. Fix: Custom-Einheiten `sortOrder=100`; easy-add-Fallback wählt gezielt `piece`. (08cf639)
+
+### B — EAN am Artikel
+- **B-b/B-a:** `getProductById` selektierte `gtin` nicht → EAN-Änderung erst nach Reload sichtbar, Konflikt-Meldung
+  wirkte unklar. Fix: `gtin` in columns-Allowlist. (99bed3b)
+- **B-c:** FAB-„Neuer Artikel"-Dialog hatte kein EAN-Feld → EAN dort nicht erfassbar. Fix: EAN-Feld ergänzt;
+  Fehlerbehandlung zeigt jetzt die Server-Meldung (z.B. EAN-Konflikt 409). (4789229)
+
+### Commits
+99bed3b (B-b getProductById.gtin) · 08cf639 (A6 Einheiten-Sortierung + Fallback + defaultUnit-Nachzug) ·
+4789229 (B-c + A6-primär: EAN + Einheit im FAB-Dialog)
+
+### Test-Steps (Pi)
+1. **A6:** FAB „Neuer Artikel" → Name + Einheit „Packung" wählen → anlegen. „Bestand hinzufügen" für diesen
+   Artikel → Einheit „Packung" ist vorbelegt (nicht mehr eine Custom-Einheit).
+2. **B-c:** FAB „Neuer Artikel" hat jetzt ein EAN-Feld; EAN eingeben → in Einstellungen→Artikel sichtbar.
+3. **B-b:** EAN eines Artikels bearbeiten → sofort in der Liste sichtbar (kein Reload nötig).
+4. **B-a:** Zweiten Artikel mit gleicher EAN anlegen → klare Meldung „Diese EAN ist bereits einem anderen Artikel zugeordnet."
+
+---
+
 ## [Unreleased] — M1-Feedback: Fixes, EAN am Artikel, Vererbung, Audit-Log (implementiert, Test auf Pi ausstehend)
 
 Testing von M1 deckte einen Bug, mehrere Konsistenz-Lücken und einen Architektur-Fehler auf.
