@@ -464,6 +464,7 @@ export async function getProductById(id: string) {
 			id: true,
 			name: true,
 			brand: true,
+			gtin: true,
 			description: true,
 			notes: true,
 			imageUrl: true,
