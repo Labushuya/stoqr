@@ -61,6 +61,9 @@ export const POST: RequestHandler = async ({ locals, request }) => {
       dimension: dim as 'mass' | 'volume' | 'count',
       toBaseFactor: String(factorNum),
       isSystem: false,
+      // Custom-Einheiten nach die System-Einheiten (sort_order 1..9) einsortieren,
+      // damit die Standard-Vorauswahl nicht auf einer Custom-Einheit landet.
+      sortOrder: 100,
     })
     .returning()
 

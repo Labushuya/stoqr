@@ -71,6 +71,9 @@
   let formUnit = $state(
     (data.prefillUnit as string | null) ||
       (data.preselectedProduct as ProductResult | null)?.defaultUnit ||
+      // Gezielt die Standard-Einheit 'piece' bevorzugen (nicht blind unitOptions[0],
+      // sonst gewinnt eine Custom-Einheit mit niedrigem sortOrder).
+      unitOptions.find((u) => u.symbol === 'piece')?.symbol ||
       unitOptions[0]?.symbol ||
       'Stück',
   )
@@ -406,6 +409,18 @@
       const succeeded = results.length - failed
 
       if (failed === 0) {
+        // A6: Standard-Einheit des Artikels nachziehen — wenn der Artikel noch auf
+        // dem DB-Default 'piece' steht und hier eine andere Einheit gebucht wurde,
+        // wird formUnit als products.defaultUnit übernommen (Vorbelegung künftig korrekt).
+        const prodDefault = selectedProduct!.defaultUnit
+        if (formUnit && formUnit !== prodDefault && (!prodDefault || prodDefault === 'piece')) {
+          await fetch(`/api/products/${selectedProduct!.id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ defaultUnit: formUnit }),
+          }).catch(() => {})
+        }
+
         // Einbuchen aus der Einkaufsliste (2c-3): virtuellen Eintrag entfernen,
         // da er jetzt als echter Bestand existiert.
         const fromItem = data.fromShoppingItem as string | null
