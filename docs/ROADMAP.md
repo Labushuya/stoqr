@@ -227,3 +227,11 @@ Da EAN jetzt am Bestand liegt und Artikel universell sind:
 - Beim Artikel-Anlegen: Fuzzy-Name-Suche → "Ähnlicher Artikel existiert: Vollmilch. Trotzdem neu anlegen?"
 - Kein harter EAN-Dedup mehr auf Artikel-Ebene (EAN ist ja am Bestand)
 - Bestände können optional per EAN einem Artikel vorgeschlagen werden
+
+## Bekannte Design-Schulden (später, wenn relevant)
+- **EAN global unique:** `products.gtin` hat einen globalen Unique-Constraint (`products_gtin_unique`, Migr. 0000)
+  über ALLE Haushalte. Artikel sind bewusst global/geteilt (kein household_id). Solange nur ein Haushalt real
+  genutzt wird, unkritisch. Sobald mehrere Haushalte relevant werden: eine von A anzulegende EAN, die B schon
+  nutzt, wird blockiert („Diese EAN ist bereits einem anderen Artikel zugeordnet."). Optionen dann: household-scoped
+  products + `unique(gtin, householdId)`, oder EAN-Konflikt nur innerhalb des eigenen Haushalts prüfen (Query statt
+  DB-Constraint). Entscheidung offen. (vermerkt 2026-07-14)
