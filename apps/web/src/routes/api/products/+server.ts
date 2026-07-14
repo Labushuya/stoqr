@@ -3,6 +3,7 @@ import type { RequestHandler } from './$types'
 import { searchProducts, createProduct, getProductById } from '$lib/server/queries/products'
 import { requireHouseholdId } from '$lib/server/queries/households'
 import { writeAudit } from '$lib/server/queries/audit'
+import { isUniqueViolation } from '$lib/server/db-errors'
 
 export const GET: RequestHandler = async ({ locals, url }) => {
   if (!locals.user) {
@@ -80,7 +81,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 
     return json(product ?? { id: productId }, { status: 201 })
   } catch (err) {
-    if (err && typeof err === 'object' && 'code' in err && (err as { code: string }).code === '23505') {
+    if (isUniqueViolation(err)) {
       return json({ error: 'Diese EAN ist bereits einem anderen Artikel zugeordnet.' }, { status: 409 })
     }
     console.error('[POST /api/products]', err)

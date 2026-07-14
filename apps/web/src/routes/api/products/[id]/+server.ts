@@ -3,6 +3,7 @@ import type { RequestHandler } from './$types'
 import { deleteProduct, updateProduct, getProductById } from '$lib/server/queries/products'
 import { requireHouseholdId } from '$lib/server/queries/households'
 import { writeAudit } from '$lib/server/queries/audit'
+import { isUniqueViolation } from '$lib/server/db-errors'
 import { db } from '$lib/server/db'
 
 /**
@@ -67,7 +68,7 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
     return json(product ?? updated)
   } catch (err) {
     // Unique-Konflikt auf gtin → verstaendliche Meldung
-    if (err && typeof err === 'object' && 'code' in err && (err as { code: string }).code === '23505') {
+    if (isUniqueViolation(err)) {
       return json({ error: 'Diese EAN ist bereits einem anderen Artikel zugeordnet.' }, { status: 409 })
     }
     console.error('[PATCH /api/products/[id]]', err)
