@@ -103,9 +103,16 @@
   let categories = $state<Category[]>(data.categories as Category[])
   let categoriesLoaded = $state(true)
 
-  // Add form fields (article master data only: name + category)
+  // Add form fields (article master data only: name + category + EAN + default unit)
   let formProductName = $state('')
   let formCategoryId = $state('')
+  let formGtin = $state('')
+  // Einheiten-Optionen für die Standard-Einheit des Artikels.
+  // svelte-ignore state_referenced_locally
+  const unitOptions = (data.units as { id: string; name: string; symbol: string }[]) ?? []
+  let formDefaultUnit = $state(
+    unitOptions.find((u) => u.symbol === 'piece')?.symbol || unitOptions[0]?.symbol || 'piece',
+  )
   let formSaving = $state(false)
 
   // Expiry config defaults (fallback values — ideally server-loaded)
@@ -247,6 +254,9 @@
   async function openAddSheet() {
     formProductName = ''
     formCategoryId = ''
+    formGtin = ''
+    formDefaultUnit =
+      unitOptions.find((u) => u.symbol === 'piece')?.symbol || unitOptions[0]?.symbol || 'piece'
     showSheet = true
     await loadCategories()
   }
@@ -268,13 +278,20 @@
         body: JSON.stringify({
           name: formProductName.trim(),
           categoryId: formCategoryId || undefined,
+          gtin: formGtin.trim() || undefined,
+          defaultUnit: formDefaultUnit || undefined,
         }),
       })
-      if (!res.ok) throw new Error(await res.text())
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        // Server-Meldung zeigen (z.B. EAN-Konflikt 409), nicht generisch verschlucken.
+        showToast(String(body?.error ?? `Fehler ${res.status}`), 'error')
+        return
+      }
       showToast('Artikel angelegt — Bestand über „Bestand hinzufügen"')
       closeSheet()
     } catch {
-      showToast('Fehler beim Speichern', 'error')
+      showToast('Netzwerkfehler beim Speichern', 'error')
     } finally {
       formSaving = false
     }
@@ -683,9 +700,33 @@ Das Produkt bleibt im Katalog.`,
       </select>
     </div>
 
+    <!-- Standard-Einheit (wird beim Bestand-Anlegen vorbelegt) -->
+    <div class="field">
+      <label class="label" for="f-unit">Standard-Einheit</label>
+      <select id="f-unit" class="input" bind:value={formDefaultUnit}>
+        {#each unitOptions as u (u.id)}
+          <option value={u.symbol}>{u.name}</option>
+        {/each}
+      </select>
+    </div>
+
+    <!-- EAN / Barcode (am Artikel, primär) -->
+    <div class="field">
+      <label class="label" for="f-gtin">EAN / Barcode</label>
+      <input
+        id="f-gtin"
+        class="input"
+        type="text"
+        inputmode="numeric"
+        bind:value={formGtin}
+        placeholder="optional — z.B. 4001234567890"
+        maxlength="14"
+      />
+    </div>
+
     <p class="article-hint">
-      Ein Artikel beschreibt nur das Lebensmittel. Bestände (Menge, MHD, EAN, Markt, Ort)
-      fügst du danach über „Bestand hinzufügen" hinzu.
+      Ein Artikel beschreibt das Lebensmittel (inkl. EAN und Standard-Einheit). Konkrete
+      Bestände (Menge, MHD, Markt, Ort) fügst du danach über „Bestand hinzufügen" hinzu.
     </p>
   </div>
 
