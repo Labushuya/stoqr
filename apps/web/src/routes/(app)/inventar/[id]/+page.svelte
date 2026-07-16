@@ -430,6 +430,18 @@
     showToast('Als verbraucht markiert')
   }
 
+  // Spenden / Entsorgen — analog consumeRow, anderer Zielstatus.
+  async function setRowStatus(row: Sibling, status: 'donated' | 'discarded', label: string) {
+    const res = await fetch(`/api/inventory/${row.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status }),
+    })
+    if (!res.ok) { showToast('Fehler', 'error'); return }
+    siblings = siblings.map((s) => (s.id === row.id ? { ...s, status } : s))
+    showToast(label)
+  }
+
   async function deleteRow(row: Sibling) {
     const res = await fetch(`/api/inventory/${row.id}`, { method: 'DELETE' })
     if (!res.ok && res.status !== 204) { showToast('Fehler beim Entfernen', 'error'); return }
@@ -697,6 +709,8 @@
                 <button class="btn-link" type="button" onclick={() => startRowEdit(row)}>Bearbeiten</button>
                 {#if row.status === 'available'}
                   <button class="btn-link" type="button" onclick={() => consumeRow(row)}>Verbraucht</button>
+                  <button class="btn-link" type="button" onclick={() => setRowStatus(row, 'donated', 'Als gespendet markiert')}>Gespendet</button>
+                  <button class="btn-link" type="button" onclick={() => setRowStatus(row, 'discarded', 'Als entsorgt markiert')}>Entsorgt</button>
                 {/if}
                 <button class="btn-link btn-link--danger" type="button" onclick={() => deleteRow(row)}>Entfernen</button>
               </div>

@@ -315,6 +315,23 @@
     }
   }
 
+  // Status-Änderung (Spenden / Entsorgen) — analog consume, aber anderer Zielstatus.
+  async function setItemStatus(item: InventoryItem, status: 'donated' | 'discarded', label: string) {
+    closeMenu()
+    try {
+      const res = await fetch(`/api/inventory/${item.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status }),
+      })
+      if (!res.ok) throw new Error(await res.text())
+      items = items.map((i) => (i.id === item.id ? { ...i, status } : i))
+      showToast(`"${item.product.name}" ${label}`)
+    } catch {
+      showToast('Fehler', 'error')
+    }
+  }
+
   // ── Delete item ────────────────────────────────────────────────────────────
 
   async function deleteItem(item: InventoryItem) {
@@ -505,7 +522,7 @@ Das Produkt bleibt im Katalog.`,
                     : item.status === 'expired'
                       ? 'Abgelaufen'
                       : item.status === 'donated'
-                        ? 'Verschenkt'
+                        ? 'Gespendet'
                         : 'Entsorgt'}
                 </span>
               {/if}
@@ -567,6 +584,30 @@ Das Produkt bleibt im Katalog.`,
                 <path d="M2 7l3.5 3.5L12 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
               </svg>
               Verbraucht
+            </button>
+          </li>
+          <li role="menuitem">
+            <button
+              class="dropdown-item"
+              type="button"
+              onclick={() => { const it = portalItem; if (it) setItemStatus(it, 'donated', 'als gespendet markiert') }}
+            >
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                <path d="M7 12s-5-3.3-5-6.5A2.5 2.5 0 0 1 7 4a2.5 2.5 0 0 1 5 1.5C12 8.7 7 12 7 12Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>
+              </svg>
+              Gespendet
+            </button>
+          </li>
+          <li role="menuitem">
+            <button
+              class="dropdown-item"
+              type="button"
+              onclick={() => { const it = portalItem; if (it) setItemStatus(it, 'discarded', 'als entsorgt markiert') }}
+            >
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                <path d="M2 4h10M5 4V3h4v1M4.5 4v7h5V4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              Entsorgt
             </button>
           </li>
         {/if}
