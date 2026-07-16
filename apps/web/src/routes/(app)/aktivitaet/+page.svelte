@@ -32,6 +32,8 @@
     places: 'Lagerplatz',
     shopping_list_items: 'Einkaufsliste',
     product_stores: 'Artikel-Markt-Zuordnung',
+    shopping_trips: 'Einkauf',
+    shopping_trip_items: 'Einkauf-Position',
   }
 
   const ACTION_LABELS: Record<Entry['action'], string> = {
@@ -65,6 +67,9 @@
     consumedAmount: 'Verbraucht',
     locationId: 'Raum',
     storageId: 'Lagerort',
+    status: 'Status',
+    realStatus: 'Kaufstatus',
+    tripId: 'Einkauf',
   }
 
   function tableLabel(t: string): string {
