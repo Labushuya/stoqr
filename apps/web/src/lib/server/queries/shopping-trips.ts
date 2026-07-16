@@ -1,5 +1,5 @@
 import { db } from '$lib/server/db'
-import { shoppingTrips, shoppingTripItems } from '@stoqr/db'
+import { shoppingTrips, shoppingTripItems, shoppingListItems } from '@stoqr/db'
 import { and, eq, desc } from 'drizzle-orm'
 
 // ---------------------------------------------------------------------------
@@ -176,4 +176,145 @@ export async function deleteTrip(id: string, householdId: string) {
     .where(and(eq(shoppingTrips.id, id), eq(shoppingTrips.householdId, householdId)))
     .returning({ id: shoppingTrips.id })
   return { deleted: !!row }
+}
+
+// ---------------------------------------------------------------------------
+// Positionen (Reservierung eines Bedarfs für einen Run)
+// ---------------------------------------------------------------------------
+
+/**
+ * Reserviert einen Bedarf (shopping_list_item) für einen Run: legt eine
+ * shopping_trip_items-Position an und kopiert die Bedarf-Felder (denormalisiert).
+ * Der Unique-Index auf shopping_list_item_id erzwingt "1 Bedarf = 1 Run" —
+ * eine Doppel-Reservierung wirft (23505), vom API-Layer als 409 gemeldet.
+ */
+export async function reserveNeed(shoppingListItemId: string, tripId: string, householdId: string) {
+  const need = await db.query.shoppingListItems.findFirst({
+    where: (s, { and, eq }) => and(eq(s.id, shoppingListItemId), eq(s.householdId, householdId)),
+  })
+  if (!need) return null
+
+  // Trip muss demselben Haushalt gehoeren.
+  const trip = await db.query.shoppingTrips.findFirst({
+    where: (t, { and, eq }) => and(eq(t.id, tripId), eq(t.householdId, householdId)),
+    columns: { id: true },
+  })
+  if (!trip) return null
+
+  const [row] = await db
+    .insert(shoppingTripItems)
+    .values({
+      tripId,
+      householdId,
+      shoppingListItemId,
+      productId: need.productId ?? null,
+      freeTextName: need.freeTextName ?? null,
+      quantity: need.quantity,
+      unit: need.unit,
+      realStatus: 'offen',
+    })
+    .returning()
+  return row
+}
+
+/**
+ * Reserviert alle offenen Bedarfe eines Marktes (plus markt-lose) für einen Run,
+ * die noch nicht reserviert sind. Gibt die Anzahl neu reservierter Positionen zurück.
+ */
+export async function reserveAllForStore(tripId: string, storeId: string | null, householdId: string) {
+  const trip = await db.query.shoppingTrips.findFirst({
+    where: (t, { and, eq }) => and(eq(t.id, tripId), eq(t.householdId, householdId)),
+    columns: { id: true },
+  })
+  if (!trip) return { reserved: 0 }
+
+  // Offene Bedarfe des Haushalts (nicht abgehakt).
+  const needs = await db.query.shoppingListItems.findMany({
+    where: (s, { and, eq }) => and(eq(s.householdId, householdId), eq(s.isChecked, false)),
+  })
+  // Bereits reservierte Bedarfe ausschliessen.
+  const reserved = await db.query.shoppingTripItems.findMany({
+    where: (i, { eq }) => eq(i.householdId, householdId),
+    columns: { shoppingListItemId: true },
+  })
+  const reservedIds = new Set(reserved.map((r) => r.shoppingListItemId))
+
+  const matching = needs.filter(
+    (n) => !reservedIds.has(n.id) && (n.preferredStoreId === storeId || n.preferredStoreId == null),
+  )
+  if (matching.length === 0) return { reserved: 0 }
+
+  await db.insert(shoppingTripItems).values(
+    matching.map((n) => ({
+      tripId,
+      householdId,
+      shoppingListItemId: n.id,
+      productId: n.productId ?? null,
+      freeTextName: n.freeTextName ?? null,
+      quantity: n.quantity,
+      unit: n.unit,
+      realStatus: 'offen' as const,
+    })),
+  )
+  return { reserved: matching.length }
+}
+
+/** Verschiebt eine Position in einen anderen Run desselben Haushalts. */
+export async function moveTripItem(tripItemId: string, toTripId: string, householdId: string) {
+  const target = await db.query.shoppingTrips.findFirst({
+    where: (t, { and, eq }) => and(eq(t.id, toTripId), eq(t.householdId, householdId)),
+    columns: { id: true },
+  })
+  if (!target) return null
+  const [row] = await db
+    .update(shoppingTripItems)
+    .set({ tripId: toTripId, updatedAt: new Date() })
+    .where(and(eq(shoppingTripItems.id, tripItemId), eq(shoppingTripItems.householdId, householdId)))
+    .returning()
+  return row ?? null
+}
+
+/** Aktualisiert eine Position (realStatus / Menge / Notiz). */
+export async function updateTripItem(
+  tripItemId: string,
+  householdId: string,
+  data: Partial<{ realStatus: 'offen' | 'gekauft' | 'ausverkauft'; quantity: number | string; notes: string | null }>,
+) {
+  const patch: Record<string, unknown> = { updatedAt: new Date() }
+  if (data.realStatus !== undefined) patch.realStatus = data.realStatus
+  if (data.quantity !== undefined) patch.quantity = String(data.quantity)
+  if (data.notes !== undefined) patch.notes = data.notes
+  const [row] = await db
+    .update(shoppingTripItems)
+    .set(patch)
+    .where(and(eq(shoppingTripItems.id, tripItemId), eq(shoppingTripItems.householdId, householdId)))
+    .returning()
+  return row ?? null
+}
+
+/** Loest eine Reservierung (Position weg, Bedarf bleibt im Backlog). */
+export async function releaseTripItem(tripItemId: string, householdId: string) {
+  const [row] = await db
+    .delete(shoppingTripItems)
+    .where(and(eq(shoppingTripItems.id, tripItemId), eq(shoppingTripItems.householdId, householdId)))
+    .returning({ id: shoppingTripItems.id })
+  return { deleted: !!row }
+}
+
+/**
+ * Bucht eine Position ein: loescht den zugehoerigen Bedarf (shopping_list_item),
+ * wodurch die Trip-Position via cascade mitgeht. Wird nach erfolgreichem Anlegen
+ * des echten Bestands (easy-add) aufgerufen. Gibt den geloeschten Bedarf-Verweis zurueck.
+ */
+export async function bookInTripItem(tripItemId: string, householdId: string) {
+  const item = await db.query.shoppingTripItems.findFirst({
+    where: (i, { and, eq }) => and(eq(i.id, tripItemId), eq(i.householdId, householdId)),
+    columns: { id: true, shoppingListItemId: true },
+  })
+  if (!item) return { booked: false }
+  // Bedarf loeschen → cascade entfernt die Trip-Position.
+  await db
+    .delete(shoppingListItems)
+    .where(and(eq(shoppingListItems.id, item.shoppingListItemId), eq(shoppingListItems.householdId, householdId)))
+  return { booked: true }
 }
