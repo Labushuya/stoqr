@@ -1,11 +1,20 @@
 <script lang="ts">
   import type { PageData } from './$types'
+  import { invalidateAll } from '$app/navigation'
   import { toast } from '$lib/stores/toast'
 
   let { data }: { data: PageData } = $props()
 
   type Unit = { id: string; name: string; symbol: string }
   type StoreOpt = { id: string; name: string; chain: string | null }
+  type Trip = {
+    id: string
+    name: string | null
+    storeId: string | null
+    status: 'begonnen' | 'pausiert' | 'beendet'
+    startedAt: string
+    store: { id: string; name: string; chain: string | null } | null
+  }
   type Item = {
     id: string
     productId: string | null
@@ -18,14 +27,21 @@
     preferredStoreId: string | null
     product: { id: string; name: string } | null
     preferredStore: { id: string; name: string } | null
+    reservedTripItemId: string | null
+    reservedTripId: string | null
+    reservedTripName: string | null
+    reservedTripStatus: 'begonnen' | 'pausiert' | 'beendet' | null
+    reservedTripStoreId: string | null
   }
 
-  // svelte-ignore state_referenced_locally
-  let items = $state<Item[]>(data.items as Item[])
+  const items = $derived((data.items as Item[]) ?? [])
   // svelte-ignore state_referenced_locally
   let pageLoadError = $state<string | null>(data.loadError ?? null)
   const units = $derived(data.units as Unit[])
   const stores = $derived(data.stores as StoreOpt[])
+  const trips = $derived((data.trips as Trip[]) ?? [])
+  // Aktive/pausierte Runs (Ziele fürs Zuweisen/Verschieben).
+  const openTrips = $derived(trips.filter((t) => t.status !== 'beendet'))
 
   // Markt-Auswahl: '' = Alle. Ein Einkauf = ein Markt (Einzelauswahl).
   let selectedStore = $state('')
@@ -38,6 +54,17 @@
   }
   function qtyDisplay(i: Item): string {
     return `${Number(i.quantity).toLocaleString('de-DE', { maximumFractionDigits: 3 })} ${unitLabel(i.unit)}`
+  }
+  function tripTitle(t: Trip): string {
+    if (t.name) return t.name
+    const store = t.store?.name ?? 'Einkauf'
+    const d = new Date(t.startedAt).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' })
+    return `${store} · ${d}`
+  }
+  function reservedName(i: Item): string {
+    const t = openTrips.find((x) => x.id === i.reservedTripId)
+    if (t) return tripTitle(t)
+    return i.reservedTripName ?? 'Einkauf'
   }
 
   // Markt-Filter: bei gewähltem Markt X → Einträge dieses Markts PLUS ohne Markt ('egal').
@@ -67,10 +94,10 @@
       })
       const body = await res.json().catch(() => ({}))
       if (!res.ok) { toast.error(body?.error ?? `Fehler ${res.status}`); return }
-      items = [...items, body as Item]
       newName = ''
       newQty = '1'
       newUnit = 'piece'
+      await invalidateAll()
     } catch {
       toast.error('Netzwerkfehler.')
     } finally {
@@ -80,23 +107,24 @@
 
   async function toggle(i: Item) {
     const next = !i.isChecked
-    // optimistisch
-    items = items.map((x) => (x.id === i.id ? { ...x, isChecked: next } : x))
     const res = await fetch(`/api/shopping-list/${i.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ isChecked: next }),
     })
-    if (!res.ok) {
-      items = items.map((x) => (x.id === i.id ? { ...x, isChecked: !next } : x))
-      toast.error('Fehler beim Abhaken.')
-    }
+    if (!res.ok) { toast.error('Fehler beim Abhaken.'); return }
+    await invalidateAll()
   }
 
   async function removeItem(i: Item) {
     const res = await fetch(`/api/shopping-list/${i.id}`, { method: 'DELETE' })
+    if (res.status === 409) {
+      const b = await res.json().catch(() => ({}))
+      toast.error(b?.error ?? 'Bedarf ist einem Einkauf zugewiesen.')
+      return
+    }
     if (!res.ok && res.status !== 204) { toast.error('Fehler beim Löschen.'); return }
-    items = items.filter((x) => x.id !== i.id)
+    await invalidateAll()
   }
 
   let generating = $state(false)
@@ -106,10 +134,8 @@
       const res = await fetch('/api/shopping-list/generate', { method: 'POST' })
       const body = await res.json().catch(() => ({}))
       if (!res.ok) { toast.error(body?.error ?? 'Fehler'); return }
-      // Liste neu laden
-      const listRes = await fetch('/api/shopping-list')
-      if (listRes.ok) items = await listRes.json()
       toast.success(`Bedarf aktualisiert (${body.created} neu, ${body.updated} aktualisiert, ${body.removed} entfernt)`)
+      await invalidateAll()
     } catch {
       toast.error('Netzwerkfehler.')
     } finally {
@@ -117,7 +143,78 @@
     }
   }
 
+  // ── In Einkauf legen / verschieben (Reservierung) ────────────────────────
+
+  // Findet/erzeugt einen aktiven Run zum gegebenen Markt (null = markt-los).
+  async function ensureTripForStore(storeId: string | null): Promise<Trip | null> {
+    const existing = openTrips.find((t) => (t.storeId ?? null) === (storeId ?? null))
+    if (existing) return existing
+    const res = await fetch('/api/shopping-trips', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ storeId: storeId || null }),
+    })
+    if (!res.ok) { toast.error('Einkauf konnte nicht angelegt werden.'); return null }
+    return (await res.json()) as Trip
+  }
+
+  // Einzelner Bedarf → in Einkauf legen (Run passend zum Eintrag-/gewählten Markt).
+  async function bookToTrip(i: Item) {
+    const storeId = i.preferredStoreId ?? (selectedStore || null)
+    const trip = await ensureTripForStore(storeId)
+    if (!trip) return
+    const res = await fetch(`/api/shopping-trips/${trip.id}/items`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ shoppingListItemId: i.id }),
+    })
+    if (!res.ok) {
+      const b = await res.json().catch(() => ({}))
+      toast.error(b?.error ?? 'Zuweisen fehlgeschlagen.')
+      return
+    }
+    toast.success('In den Einkauf gelegt.')
+    await invalidateAll()
+  }
+
+  // Sammel-Aktion: alle offenen (markt-passenden) Bedarfe des gewählten Markts.
+  let bulking = $state(false)
+  async function bookAllForStore() {
+    const storeId = selectedStore || null
+    bulking = true
+    try {
+      const trip = await ensureTripForStore(storeId)
+      if (!trip) return
+      const res = await fetch(`/api/shopping-trips/${trip.id}/items`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reserveAllForStore: storeId }),
+      })
+      const b = await res.json().catch(() => ({}))
+      if (!res.ok) { toast.error(b?.error ?? 'Fehler.'); return }
+      toast.success(`${b.reserved ?? 0} Bedarf(e) in den Einkauf gelegt.`)
+      await invalidateAll()
+    } finally {
+      bulking = false
+    }
+  }
+
+  // Reservierten Bedarf in einen anderen Run verschieben.
+  async function moveTo(i: Item, toTripId: string) {
+    if (!i.reservedTripItemId || !i.reservedTripId) return
+    const res = await fetch(`/api/shopping-trips/${i.reservedTripId}/items/${i.reservedTripItemId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ toTripId }),
+    })
+    if (!res.ok) { toast.error('Verschieben fehlgeschlagen.'); return }
+    toast.success('Verschoben.')
+    await invalidateAll()
+  }
+
+
   // Einbuchen: zum Bestand-anlegen-Flow mit Vorbelegung (2c-3).
+  // Direktes Einbuchen aus der Liste (ohne Run) — Fallback für markt-lose/schnelle Fälle.
   function bookInHref(i: Item): string {
     const params = new URLSearchParams()
     if (i.productId) {
@@ -127,8 +224,6 @@
     params.set('qty', i.quantity)
     params.set('unit', i.unit)
     params.set('fromShoppingItem', i.id)
-    // Markt vorbelegen: aktiver Listen-Markt (markt-gesteuert) hat Vorrang,
-    // sonst der am Eintrag hinterlegte Markt.
     const storeId = selectedStore || i.preferredStoreId
     if (storeId) params.set('storeId', storeId)
     return `/inventar/easy-add?${params.toString()}`
@@ -163,6 +258,9 @@
     <button class="btn-ghost" type="button" disabled={generating} onclick={generateNeeds}>
       {generating ? 'Wird berechnet…' : '↻ Bedarf aus Beständen erzeugen'}
     </button>
+    <button class="btn-ghost" type="button" disabled={bulking || openItems.length === 0} onclick={bookAllForStore}>
+      {bulking ? 'Wird zugewiesen…' : '🛒 Alle in Einkauf legen'}
+    </button>
   </div>
   {#if selectedStore}
     <p class="filter-hint">Zeigt Artikel für diesen Markt + Einträge ohne Markt. Kein Mischen mehrerer Märkte.</p>
@@ -176,19 +274,38 @@
     {:else}
       <ul class="item-list">
         {#each openItems as i (i.id)}
-          <li class="item">
-            <button class="check" type="button" aria-label="Abhaken" onclick={() => toggle(i)}></button>
+          {@const reserved = i.reservedTripId !== null}
+          <li class="item" class:item--reserved={reserved}>
+            <button class="check" type="button" aria-label="Abhaken" disabled={reserved} onclick={() => toggle(i)}></button>
             <div class="item-main">
               <span class="item-name">{itemName(i)}</span>
               <span class="item-meta">
                 {qtyDisplay(i)}
                 {#if i.source === 'auto'}<span class="src-badge">auto</span>{/if}
                 {#if i.preferredStore}· {i.preferredStore.name}{/if}
+                {#if reserved}<span class="res-badge">reserviert · {reservedName(i)}</span>{/if}
               </span>
             </div>
             <div class="item-actions">
-              <a class="btn-book" href={bookInHref(i)}>Einbuchen</a>
-              <button class="btn-x" type="button" aria-label="Entfernen" onclick={() => removeItem(i)}>✕</button>
+              {#if reserved}
+                <a class="btn-book" href={`/einkauf/${i.reservedTripId}`}>Zum Einkauf</a>
+                {#if openTrips.filter((t) => t.id !== i.reservedTripId).length > 0}
+                  <select
+                    class="move-select"
+                    aria-label="In anderen Einkauf verschieben"
+                    onchange={(e) => { const v = (e.currentTarget as HTMLSelectElement).value; if (v) moveTo(i, v); (e.currentTarget as HTMLSelectElement).value = '' }}
+                  >
+                    <option value="">→ verschieben…</option>
+                    {#each openTrips.filter((t) => t.id !== i.reservedTripId) as t (t.id)}
+                      <option value={t.id}>{tripTitle(t)}</option>
+                    {/each}
+                  </select>
+                {/if}
+              {:else}
+                <button class="btn-book" type="button" onclick={() => bookToTrip(i)}>In Einkauf</button>
+                <a class="btn-book btn-book--ghost" href={bookInHref(i)}>Direkt einbuchen</a>
+                <button class="btn-x" type="button" aria-label="Entfernen" onclick={() => removeItem(i)}>✕</button>
+              {/if}
             </div>
           </li>
         {/each}
@@ -258,6 +375,12 @@
   .item:last-child { border-bottom: none; }
   .item--done { opacity: 0.55; }
   .item--done .item-name { text-decoration: line-through; }
+  .item--reserved { opacity: 0.7; background: var(--color-surface-sunken); border-radius: var(--radius-md); }
+
+  .res-badge { background: #fff7ed; color: #c2410c; border: 1px dashed #fdba74; border-radius: var(--radius-full); padding: 0 var(--space-2); font-size: 10px; font-weight: 700; }
+  .move-select { height: 28px; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface); color: var(--color-text-secondary); font-size: var(--text-xs); padding: 0 var(--space-1); cursor: pointer; }
+  .btn-book--ghost { color: var(--color-text-muted); }
+  .btn-book--ghost:hover { color: var(--color-primary); }
 
   .check { width: 22px; height: 22px; flex-shrink: 0; border: 2px solid var(--color-border-strong, var(--color-border)); border-radius: var(--radius-sm, 6px); background: var(--color-surface); cursor: pointer; }
   .check:hover { border-color: var(--color-primary); }

@@ -1,6 +1,7 @@
 import { redirect } from '@sveltejs/kit'
 import { requireHouseholdId, getUnits } from '$lib/server/queries/households'
 import { getShoppingList } from '$lib/server/queries/shopping-list'
+import { listTrips } from '$lib/server/queries/shopping-trips'
 import { db } from '$lib/server/db'
 import { stores } from '@stoqr/db'
 import { asc } from 'drizzle-orm'
@@ -10,7 +11,7 @@ export const load: PageServerLoad = async ({ locals }) => {
   if (!locals.user) redirect(302, '/login')
   const householdId = await requireHouseholdId(locals.user.id)
   try {
-    const [items, units, storeRows] = await Promise.all([
+    const [items, units, storeRows, trips] = await Promise.all([
       getShoppingList(householdId),
       getUnits(householdId),
       db.query.stores.findMany({
@@ -18,11 +19,12 @@ export const load: PageServerLoad = async ({ locals }) => {
         orderBy: [asc(stores.name)],
         columns: { id: true, name: true, chain: true },
       }),
+      listTrips(householdId),
     ])
-    return { items, units, stores: storeRows, loadError: null }
+    return { items, units, stores: storeRows, trips, loadError: null }
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err)
     console.error('[einkaufsliste] load error:', msg)
-    return { items: [], units: [], stores: [], loadError: 'Einkaufsliste konnte nicht geladen werden.' }
+    return { items: [], units: [], stores: [], trips: [], loadError: 'Einkaufsliste konnte nicht geladen werden.' }
   }
 }
