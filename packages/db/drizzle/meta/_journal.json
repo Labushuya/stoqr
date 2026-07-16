@@ -70,6 +70,13 @@
       "when": 1783800004000,
       "tag": "0009_audit_log_household",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1783800005000,
+      "tag": "0010_shopping_trips",
+      "breakpoints": true
     }
   ]
 }

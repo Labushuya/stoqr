@@ -500,6 +500,100 @@ export const shoppingListItemsRelations = relations(shoppingListItems, ({ one })
 }));
 
 // ---------------------------------------------------------------------------
+// shopping_trips — Einkauf-Run (Block E / M2)
+//
+// Ein konkreter Einkaufsvorgang mit Status. Mehrere Runs parallel moeglich,
+// aber hoechstens einer je Haushalt im Status 'begonnen' (partieller Unique-
+// Index in der Migration). Positionen (shopping_trip_items) reservieren jeweils
+// genau einen Bedarf (shopping_list_item).
+// ---------------------------------------------------------------------------
+
+export const shoppingTrips = pgTable('shopping_trips', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  householdId: text('household_id')
+    .notNull()
+    .references(() => households.id),
+  name: varchar('name', { length: 128 }),
+  storeId: uuid('store_id').references(() => stores.id),
+  status: varchar('status', { length: 16 })
+    .notNull()
+    .default('begonnen')
+    .$type<'begonnen' | 'pausiert' | 'beendet'>(),
+  startedAt: timestamp('started_at').notNull().defaultNow(),
+  endedAt: timestamp('ended_at'),
+  notes: text('notes'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+export const shoppingTripsRelations = relations(shoppingTrips, ({ one, many }) => ({
+  household: one(households, {
+    fields: [shoppingTrips.householdId],
+    references: [households.id],
+  }),
+  store: one(stores, {
+    fields: [shoppingTrips.storeId],
+    references: [stores.id],
+  }),
+  items: many(shoppingTripItems),
+}));
+
+// ---------------------------------------------------------------------------
+// shopping_trip_items — Position eines Einkauf-Runs (Block E / M2)
+//
+// Reserviert genau einen Bedarf (shoppingListItemId UNIQUE) → "1 Bedarf = 1 Run".
+// product/freeText/quantity/unit sind vom Bedarf denormalisiert, damit die
+// Position im Run editierbar ist, ohne den Bedarf zu veraendern. Kein MHD hier —
+// der Split (N Bestand-Zeilen mit je eigenem MHD) passiert beim Einbuchen.
+// ---------------------------------------------------------------------------
+
+export const shoppingTripItems = pgTable('shopping_trip_items', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  tripId: uuid('trip_id')
+    .notNull()
+    .references(() => shoppingTrips.id, { onDelete: 'cascade' }),
+  householdId: text('household_id')
+    .notNull()
+    .references(() => households.id),
+  shoppingListItemId: uuid('shopping_list_item_id')
+    .notNull()
+    .references(() => shoppingListItems.id, { onDelete: 'cascade' }),
+  productId: uuid('product_id').references(() => products.id),
+  freeTextName: varchar('free_text_name', { length: 255 }),
+  quantity: numeric('quantity', { precision: 10, scale: 3 }).notNull().default('1'),
+  unit: varchar('unit', { length: 16 }).notNull().default('piece'),
+  realStatus: varchar('real_status', { length: 16 })
+    .notNull()
+    .default('offen')
+    .$type<'offen' | 'gekauft' | 'ausverkauft'>(),
+  notes: text('notes'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+}, (table) => ({
+  // 1 Bedarf = hoechstens 1 Run-Position (Reservierung).
+  needUniq: uniqueIndex('shopping_trip_items_need_uniq').on(table.shoppingListItemId),
+}));
+
+export const shoppingTripItemsRelations = relations(shoppingTripItems, ({ one }) => ({
+  trip: one(shoppingTrips, {
+    fields: [shoppingTripItems.tripId],
+    references: [shoppingTrips.id],
+  }),
+  household: one(households, {
+    fields: [shoppingTripItems.householdId],
+    references: [households.id],
+  }),
+  shoppingListItem: one(shoppingListItems, {
+    fields: [shoppingTripItems.shoppingListItemId],
+    references: [shoppingListItems.id],
+  }),
+  product: one(products, {
+    fields: [shoppingTripItems.productId],
+    references: [products.id],
+  }),
+}));
+
+// ---------------------------------------------------------------------------
 // bring_sync_log
 // ---------------------------------------------------------------------------
 
