@@ -12,14 +12,41 @@ import { buildUnitMetaMap, compareToTarget } from '$lib/utils/stock'
 // aus dem Soll-Ist-Bedarf; manuelle Einträge frei per Freitext.
 // ---------------------------------------------------------------------------
 
+/**
+ * Liefert die Einkaufsliste des Haushalts. Jedes Item wird um Reservierungs-Info
+ * angereichert (`reservedTrip*`): ist der Bedarf einem Einkauf-Run zugewiesen,
+ * zeigt die UI ihn „sichtbar aber gesperrt".
+ */
 export async function getShoppingList(householdId: string) {
-  return db.query.shoppingListItems.findMany({
-    where: (s, { eq }) => eq(s.householdId, householdId),
-    orderBy: [asc(shoppingListItems.isChecked), desc(shoppingListItems.priority), asc(shoppingListItems.createdAt)],
-    with: {
-      product: { columns: { id: true, name: true } },
-      preferredStore: { columns: { id: true, name: true } },
-    },
+  const [items, reservations] = await Promise.all([
+    db.query.shoppingListItems.findMany({
+      where: (s, { eq }) => eq(s.householdId, householdId),
+      orderBy: [asc(shoppingListItems.isChecked), desc(shoppingListItems.priority), asc(shoppingListItems.createdAt)],
+      with: {
+        product: { columns: { id: true, name: true } },
+        preferredStore: { columns: { id: true, name: true } },
+      },
+    }),
+    db.query.shoppingTripItems.findMany({
+      where: (i, { eq }) => eq(i.householdId, householdId),
+      columns: { id: true, shoppingListItemId: true, tripId: true, realStatus: true },
+      with: { trip: { columns: { id: true, name: true, status: true, storeId: true } } },
+    }),
+  ])
+
+  const byNeed = new Map<string, (typeof reservations)[number]>()
+  for (const r of reservations) byNeed.set(r.shoppingListItemId, r)
+
+  return items.map((it) => {
+    const r = byNeed.get(it.id)
+    return {
+      ...it,
+      reservedTripItemId: r?.id ?? null,
+      reservedTripId: r?.trip?.id ?? null,
+      reservedTripName: r?.trip?.name ?? null,
+      reservedTripStatus: r?.trip?.status ?? null,
+      reservedTripStoreId: r?.trip?.storeId ?? null,
+    }
   })
 }
 
@@ -67,11 +94,19 @@ export async function updateShoppingItem(
 }
 
 export async function deleteShoppingItem(id: string, householdId: string) {
+  // Guard: ein einem Einkauf-Run reservierter Bedarf darf nicht direkt geloescht
+  // werden (sonst verschwaende cascade die Trip-Position). Erst Reservierung loesen.
+  const reserved = await db.query.shoppingTripItems.findFirst({
+    where: (i, { and, eq }) => and(eq(i.shoppingListItemId, id), eq(i.householdId, householdId)),
+    columns: { id: true },
+  })
+  if (reserved) return { deleted: false, reserved: true }
+
   const [row] = await db
     .delete(shoppingListItems)
     .where(and(eq(shoppingListItems.id, id), eq(shoppingListItems.householdId, householdId)))
     .returning({ id: shoppingListItems.id })
-  return { deleted: !!row }
+  return { deleted: !!row, reserved: false }
 }
 
 /**
@@ -89,9 +124,28 @@ export async function generateAutoNeeds(householdId: string): Promise<{ created:
     where: (s, { and, eq }) =>
       and(eq(s.householdId, householdId), eq(s.source, 'auto'), eq(s.isChecked, false)),
   })
+
+  // Reservierte Bedarfe (einem Einkauf-Run zugewiesen) — geschützt: werden vom
+  // Auto-Lauf weder aktualisiert noch geloescht, und ein bereits reservierter
+  // (product,store)-Key wird nicht erneut erzeugt (behebt Doppelung / 2×2).
+  const reservedRows = await db.query.shoppingTripItems.findMany({
+    where: (i, { eq }) => eq(i.householdId, householdId),
+    columns: { shoppingListItemId: true },
+  })
+  const reservedItemIds = new Set(reservedRows.map((r) => r.shoppingListItemId))
+
   const key = (productId: string | null, storeId: string | null) => `${productId ?? ''}::${storeId ?? ''}`
   const openByKey = new Map<string, (typeof existing)[number]>()
-  for (const e of existing) openByKey.set(key(e.productId, e.preferredStoreId), e)
+  const reservedKeys = new Set<string>()
+  for (const e of existing) {
+    if (reservedItemIds.has(e.id)) {
+      // Geschützt: nicht in openByKey (nie updaten/als verwaist loeschen), aber
+      // der (product,store)-Key gilt als „abgedeckt" → kein Neu-Erzeugen.
+      reservedKeys.add(key(e.productId, e.preferredStoreId))
+      continue
+    }
+    openByKey.set(key(e.productId, e.preferredStoreId), e)
+  }
   // Alle offenen auto-Einträge, die in diesem Lauf bestätigt werden — der Rest wird bereinigt.
   const stillNeeded = new Set<string>()
 
@@ -123,6 +177,8 @@ export async function generateAutoNeeds(householdId: string): Promise<{ created:
     for (const storeId of storeIds) {
       const k = key(t.productId, storeId)
       stillNeeded.add(k)
+      // Bereits einem Run zugewiesen → nicht erneut als offenen Bedarf erzeugen.
+      if (reservedKeys.has(k)) continue
       const open = openByKey.get(k)
       if (open) {
         await db

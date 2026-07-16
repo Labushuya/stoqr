@@ -37,7 +37,13 @@ export const DELETE: RequestHandler = async ({ locals, params }) => {
   if (!locals.user) return json({ error: 'Unauthorized' }, { status: 401 })
   try {
     const householdId = await requireHouseholdId(locals.user.id)
-    const { deleted } = await deleteShoppingItem(params.id, householdId)
+    const { deleted, reserved } = await deleteShoppingItem(params.id, householdId)
+    if (reserved) {
+      return json(
+        { error: 'Dieser Bedarf ist einem Einkauf zugewiesen. Erst dort freigeben.' },
+        { status: 409 },
+      )
+    }
     if (!deleted) return json({ error: 'Not found' }, { status: 404 })
     return new Response(null, { status: 204 })
   } catch (err) {
