@@ -3,7 +3,6 @@ import { shoppingListItems } from '@stoqr/db'
 import { and, eq, asc, desc } from 'drizzle-orm'
 import { getStockTargets } from './stock-targets'
 import { getProductStockTotals } from './products'
-import { listStoresForProduct } from './product-stores'
 import { getUnits } from './households'
 import { buildUnitMetaMap, compareToTarget } from '$lib/utils/stock'
 
@@ -111,43 +110,51 @@ export async function deleteShoppingItem(id: string, householdId: string) {
 
 /**
  * Erzeugt/aktualisiert auto-Bedarf-Einträge aus dem Soll-Ist-Vergleich.
- * Pro Artikel max. EIN offener auto-Eintrag (Dedup). Fehlmenge = Soll − Ist (in Soll-Einheit).
- * Gedeckte Artikel: offenen auto-Eintrag entfernen. Abgehakte auto-Einträge werden nicht angefasst.
- * not_comparable / needsIncrease-Fälle werden übersprungen.
+ * EIN offener auto-Eintrag pro Artikel — unabhängig von der Markt-Zuordnung
+ * (der Markt wird erst beim Zuweisen zu einem Einkauf-Run gewählt). Fehlmenge =
+ * Soll − Ist (in Soll-Einheit). Gedeckte Artikel: offenen auto-Eintrag entfernen.
+ * Reservierte (einem Run zugewiesene) auto-Einträge werden nie angefasst.
+ * Bestehende markt-duplizierte auto-Einträge desselben Artikels werden auf einen
+ * zusammengeführt (übrige als verwaist entfernt).
  */
 export async function generateAutoNeeds(householdId: string): Promise<{ created: number; updated: number; removed: number }> {
   const [targets, units] = await Promise.all([getStockTargets(householdId), getUnits(householdId)])
   const metaMap = buildUnitMetaMap(units)
 
-  // Bestehende offene auto-Einträge (nicht abgehakt), gekeyed nach (productId|storeId).
+  // Bestehende offene auto-Einträge (nicht abgehakt).
   const existing = await db.query.shoppingListItems.findMany({
     where: (s, { and, eq }) =>
       and(eq(s.householdId, householdId), eq(s.source, 'auto'), eq(s.isChecked, false)),
   })
 
   // Reservierte Bedarfe (einem Einkauf-Run zugewiesen) — geschützt: werden vom
-  // Auto-Lauf weder aktualisiert noch geloescht, und ein bereits reservierter
-  // (product,store)-Key wird nicht erneut erzeugt (behebt Doppelung / 2×2).
+  // Auto-Lauf weder aktualisiert noch gelöscht; der Artikel gilt als abgedeckt.
   const reservedRows = await db.query.shoppingTripItems.findMany({
     where: (i, { eq }) => eq(i.householdId, householdId),
     columns: { shoppingListItemId: true },
   })
   const reservedItemIds = new Set(reservedRows.map((r) => r.shoppingListItemId))
 
-  const key = (productId: string | null, storeId: string | null) => `${productId ?? ''}::${storeId ?? ''}`
-  const openByKey = new Map<string, (typeof existing)[number]>()
-  const reservedKeys = new Set<string>()
+  // Nach productId gruppieren (ein Bedarf pro Artikel). Reservierte Artikel merken;
+  // pro Artikel höchstens EINEN offenen Eintrag behalten, überzählige (alte Markt-
+  // Duplikate) direkt als verwaist einsammeln.
+  const openByProduct = new Map<string, (typeof existing)[number]>()
+  const reservedProductIds = new Set<string>()
+  const orphans: (typeof existing)[number][] = []
   for (const e of existing) {
+    if (!e.productId) continue // Freitext-auto gibt es nicht; defensiv
     if (reservedItemIds.has(e.id)) {
-      // Geschützt: nicht in openByKey (nie updaten/als verwaist loeschen), aber
-      // der (product,store)-Key gilt als „abgedeckt" → kein Neu-Erzeugen.
-      reservedKeys.add(key(e.productId, e.preferredStoreId))
+      reservedProductIds.add(e.productId)
       continue
     }
-    openByKey.set(key(e.productId, e.preferredStoreId), e)
+    if (openByProduct.has(e.productId)) {
+      orphans.push(e) // Duplikat desselben Artikels → wird entfernt
+    } else {
+      openByProduct.set(e.productId, e)
+    }
   }
-  // Alle offenen auto-Einträge, die in diesem Lauf bestätigt werden — der Rest wird bereinigt.
-  const stillNeeded = new Set<string>()
+
+  const stillNeeded = new Set<string>() // productIds, die in diesem Lauf bestätigt werden
 
   let created = 0
   let updated = 0
@@ -161,7 +168,7 @@ export async function generateAutoNeeds(householdId: string): Promise<{ created:
       metaMap
     )
 
-    // Kein sinnvoller Bedarf → alle offenen auto-Einträge dieses Artikels laufen aus.
+    // Kein sinnvoller Bedarf → offener auto-Eintrag dieses Artikels läuft aus.
     if (cmp.status === 'not_comparable' || cmp.status === 'ok') continue
 
     const meta = metaMap.get(t.unit)
@@ -170,42 +177,41 @@ export async function generateAutoNeeds(householdId: string): Promise<{ created:
     const qty = shortfallInBase / (factor || 1)
     if (qty <= 0) continue
 
-    // Zielmärkte: alle zugeordneten Märkte des Artikels (M:N); ohne Zuordnung → ein Eintrag ohne Markt.
-    const storeRows = await listStoresForProduct(t.productId, householdId)
-    const storeIds: (string | null)[] = storeRows.length > 0 ? storeRows.map((r) => r.storeId) : [null]
+    stillNeeded.add(t.productId)
+    // Bereits einem Run zugewiesen → nicht erneut als offenen Bedarf erzeugen.
+    if (reservedProductIds.has(t.productId)) continue
 
-    for (const storeId of storeIds) {
-      const k = key(t.productId, storeId)
-      stillNeeded.add(k)
-      // Bereits einem Run zugewiesen → nicht erneut als offenen Bedarf erzeugen.
-      if (reservedKeys.has(k)) continue
-      const open = openByKey.get(k)
-      if (open) {
-        await db
-          .update(shoppingListItems)
-          .set({ quantity: String(qty), unit: t.unit, updatedAt: new Date() })
-          .where(eq(shoppingListItems.id, open.id))
-        updated++
-      } else {
-        await db.insert(shoppingListItems).values({
-          householdId,
-          productId: t.productId,
-          quantity: String(qty),
-          unit: t.unit,
-          source: 'auto',
-          preferredStoreId: storeId,
-        })
-        created++
-      }
+    const open = openByProduct.get(t.productId)
+    if (open) {
+      // Vorhandenen Eintrag aktualisieren; Markt-Zuordnung entfernen (markt-neutral).
+      await db
+        .update(shoppingListItems)
+        .set({ quantity: String(qty), unit: t.unit, preferredStoreId: null, updatedAt: new Date() })
+        .where(eq(shoppingListItems.id, open.id))
+      updated++
+    } else {
+      await db.insert(shoppingListItems).values({
+        householdId,
+        productId: t.productId,
+        quantity: String(qty),
+        unit: t.unit,
+        source: 'auto',
+        preferredStoreId: null,
+      })
+      created++
     }
   }
 
-  // Verwaiste offene auto-Einträge entfernen (Bedarf gedeckt / Markt-Zuordnung geändert).
-  for (const [k, item] of openByKey) {
-    if (!stillNeeded.has(k)) {
+  // Verwaiste offene auto-Einträge entfernen: (a) Bedarf gedeckt, (b) alte Markt-Duplikate.
+  for (const [productId, item] of openByProduct) {
+    if (!stillNeeded.has(productId)) {
       await db.delete(shoppingListItems).where(eq(shoppingListItems.id, item.id))
       removed++
     }
+  }
+  for (const dup of orphans) {
+    await db.delete(shoppingListItems).where(eq(shoppingListItems.id, dup.id))
+    removed++
   }
 
   return { created, updated, removed }
