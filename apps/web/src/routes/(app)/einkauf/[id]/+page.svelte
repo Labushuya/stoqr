@@ -1,0 +1,234 @@
+<script lang="ts">
+  import type { PageData } from './$types'
+  import { goto, invalidateAll } from '$app/navigation'
+  import { toast } from '$lib/stores/toast'
+
+  let { data }: { data: PageData } = $props()
+
+  type Unit = { id: string; name: string; symbol: string }
+  type Item = {
+    id: string
+    productId: string | null
+    freeTextName: string | null
+    quantity: string
+    unit: string
+    realStatus: 'offen' | 'gekauft' | 'ausverkauft'
+    product: { id: string; name: string } | null
+  }
+  type Trip = {
+    id: string
+    name: string | null
+    storeId: string | null
+    status: 'begonnen' | 'pausiert' | 'beendet'
+    startedAt: string
+    endedAt: string | null
+    store: { id: string; name: string; chain: string | null } | null
+    items: Item[]
+  }
+
+  const trip = $derived(data.trip as Trip)
+  const units = $derived(data.units as Unit[])
+  const isDone = $derived(trip.status === 'beendet')
+
+  const STATUS_LABEL: Record<Trip['status'], string> = { begonnen: 'Aktiv', pausiert: 'Pausiert', beendet: 'Beendet' }
+  const REAL_LABEL: Record<Item['realStatus'], string> = { offen: 'Offen', gekauft: 'Gekauft', ausverkauft: 'Ausverkauft' }
+
+  function unitLabel(symbol: string): string {
+    return units.find((u) => u.symbol === symbol)?.name ?? symbol
+  }
+  function itemName(i: Item): string {
+    return i.product?.name ?? i.freeTextName ?? 'Unbenannt'
+  }
+  function qtyDisplay(i: Item): string {
+    return `${Number(i.quantity).toLocaleString('de-DE', { maximumFractionDigits: 3 })} ${unitLabel(i.unit)}`
+  }
+  function tripTitle(t: Trip): string {
+    if (t.name) return t.name
+    const store = t.store?.name ?? 'Einkauf'
+    const d = new Date(t.startedAt).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' })
+    return `${store} · ${d}`
+  }
+
+  // ── Positions-Aktionen ─────────────────────────────────────────────────
+  async function setRealStatus(i: Item, realStatus: Item['realStatus']) {
+    // Toggle: nochmal auf denselben Status → zurück auf 'offen'
+    const next = i.realStatus === realStatus ? 'offen' : realStatus
+    const res = await fetch(`/api/shopping-trips/${trip.id}/items/${i.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ realStatus: next }),
+    })
+    if (!res.ok) { toast.error('Statusänderung fehlgeschlagen.'); return }
+    await invalidateAll()
+  }
+
+  async function release(i: Item) {
+    const res = await fetch(`/api/shopping-trips/${trip.id}/items/${i.id}`, { method: 'DELETE' })
+    if (!res.ok && res.status !== 204) { toast.error('Freigeben fehlgeschlagen.'); return }
+    toast.success('Zurück in die Einkaufsliste.')
+    await invalidateAll()
+  }
+
+  function bookInHref(i: Item): string {
+    const params = new URLSearchParams()
+    if (i.productId) {
+      params.set('productId', i.productId)
+      if (i.product?.name) params.set('productName', i.product.name)
+    }
+    params.set('qty', i.quantity)
+    params.set('unit', i.unit)
+    params.set('fromTripItem', i.id)
+    params.set('tripId', trip.id)
+    if (trip.storeId) params.set('storeId', trip.storeId)
+    return `/inventar/easy-add?${params.toString()}`
+  }
+
+  // ── Run-Aktionen ────────────────────────────────────────────────────────
+  async function tripAction(action: 'pause' | 'resume' | 'end') {
+    const res = await fetch(`/api/shopping-trips/${trip.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action }),
+    })
+    if (!res.ok) {
+      const b = await res.json().catch(() => ({}))
+      toast.error(b?.error ?? 'Aktion fehlgeschlagen.')
+      return
+    }
+    if (action === 'end') { toast.success('Einkauf beendet.'); await invalidateAll(); return }
+    await invalidateAll()
+  }
+
+  async function deleteTrip() {
+    if (!confirm('Diesen Einkauf löschen? Reservierte Bedarfe kehren in die Einkaufsliste zurück.')) return
+    const res = await fetch(`/api/shopping-trips/${trip.id}`, { method: 'DELETE' })
+    if (!res.ok && res.status !== 204) { toast.error('Löschen fehlgeschlagen.'); return }
+    goto('/einkauf')
+  }
+</script>
+
+<div class="page">
+  <nav class="breadcrumb" aria-label="Breadcrumb">
+    <a href="/einkauf" class="breadcrumb-back">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+        <path d="M10 3L5 8l5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      Einkauf
+    </a>
+    <span class="breadcrumb-sep" aria-hidden="true">/</span>
+    <span class="breadcrumb-current" aria-current="page">{tripTitle(trip)}</span>
+  </nav>
+
+  <header class="page-header">
+    <div class="title-row">
+      <h1 class="page-title">{tripTitle(trip)}</h1>
+      <span class="status-badge status-badge--{trip.status}">{STATUS_LABEL[trip.status]}</span>
+    </div>
+    {#if trip.store}<p class="page-desc">Markt: {trip.store.name}{trip.store.chain ? ` (${trip.store.chain})` : ''}</p>{/if}
+  </header>
+
+  <!-- Run-Aktionen -->
+  {#if !isDone}
+    <div class="toolbar">
+      {#if trip.status === 'begonnen'}
+        <button class="btn-ghost" type="button" onclick={() => tripAction('pause')}>Pausieren</button>
+      {:else if trip.status === 'pausiert'}
+        <button class="btn-ghost" type="button" onclick={() => tripAction('resume')}>Fortsetzen</button>
+      {/if}
+      <button class="btn-ghost btn-ghost--strong" type="button" onclick={() => tripAction('end')}>Einkauf beenden</button>
+      <button class="btn-x-text" type="button" onclick={deleteTrip}>Löschen</button>
+    </div>
+  {/if}
+
+  <section class="card">
+    <h2 class="section-title">Positionen <span class="section-sub">({trip.items.length})</span></h2>
+    {#if trip.items.length === 0}
+      <p class="empty-hint">Noch keine Positionen. Weise in der Einkaufsliste Bedarf diesem Einkauf zu.</p>
+    {:else}
+      <ul class="item-list">
+        {#each trip.items as i (i.id)}
+          <li class="item" class:item--gekauft={i.realStatus === 'gekauft'} class:item--ausverkauft={i.realStatus === 'ausverkauft'}>
+            <div class="item-main">
+              <span class="item-name">{itemName(i)}</span>
+              <span class="item-meta">
+                {qtyDisplay(i)}
+                <span class="real-badge real-badge--{i.realStatus}">{REAL_LABEL[i.realStatus]}</span>
+              </span>
+            </div>
+            {#if !isDone}
+              <div class="item-actions">
+                <button class="chip" class:chip--on={i.realStatus === 'gekauft'} type="button"
+                        onclick={() => setRealStatus(i, 'gekauft')}>Gekauft</button>
+                <button class="chip" class:chip--on={i.realStatus === 'ausverkauft'} type="button"
+                        onclick={() => setRealStatus(i, 'ausverkauft')}>Ausverkauft</button>
+                <a class="btn-book" href={bookInHref(i)}>Einbuchen</a>
+                <button class="btn-x" type="button" aria-label="Freigeben" title="Zurück in die Einkaufsliste"
+                        onclick={() => release(i)}>✕</button>
+              </div>
+            {/if}
+          </li>
+        {/each}
+      </ul>
+    {/if}
+  </section>
+</div>
+
+<style>
+  .page { max-width: 720px; margin: 0 auto; padding: var(--space-6) var(--space-4) var(--space-16); }
+  .breadcrumb { display: flex; align-items: center; gap: var(--space-2); margin-bottom: var(--space-4); font-size: var(--text-sm); color: var(--color-text-muted); }
+  .breadcrumb-back { display: inline-flex; align-items: center; gap: var(--space-1); color: var(--color-primary); text-decoration: none; font-weight: 500; }
+  .breadcrumb-sep { color: var(--color-text-muted); }
+  .breadcrumb-current { color: var(--color-text-secondary); font-weight: 500; }
+
+  .page-header { margin-bottom: var(--space-4); }
+  .title-row { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; }
+  .page-title { font-family: var(--font-display); font-size: var(--text-2xl); font-weight: 700; color: var(--color-text-primary); margin: 0; }
+  .page-desc { font-size: var(--text-sm); color: var(--color-text-secondary); margin: var(--space-1) 0 0; }
+
+  .toolbar { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; margin-bottom: var(--space-4); }
+  .btn-ghost { border: 1px solid var(--color-border); background: transparent; color: var(--color-primary); border-radius: var(--radius-md); height: 36px; padding: 0 var(--space-4); font-size: var(--text-sm); font-weight: 600; cursor: pointer; }
+  .btn-ghost:hover { background: var(--color-primary-subtle); border-color: var(--color-primary); }
+  .btn-ghost--strong { color: var(--color-text-inverse); background: var(--color-primary); border-color: var(--color-primary); }
+  .btn-ghost--strong:hover { background: var(--color-primary-hover); }
+  .btn-x-text { border: none; background: none; color: var(--color-text-muted); cursor: pointer; font-size: var(--text-sm); }
+  .btn-x-text:hover { color: var(--color-danger, #dc2626); }
+
+  .card { background: var(--color-surface-raised); border: 1px solid var(--color-border); border-radius: var(--radius-xl); padding: var(--space-5); margin-bottom: var(--space-5); box-shadow: var(--shadow-sm); }
+  .section-title { font-family: var(--font-display); font-size: var(--text-lg); font-weight: 700; color: var(--color-text-primary); margin: 0 0 var(--space-4); }
+  .section-sub { font-size: var(--text-xs); font-weight: 500; color: var(--color-text-muted); }
+  .empty-hint { font-size: var(--text-sm); color: var(--color-text-muted); margin: 0; }
+
+  .item-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+  .item { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-3) 0; border-bottom: 1px solid var(--color-border-subtle); flex-wrap: wrap; }
+  .item:last-child { border-bottom: none; }
+  .item--ausverkauft { opacity: 0.6; }
+  .item--ausverkauft .item-name { text-decoration: line-through; }
+
+  .item-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+  .item-name { font-size: var(--text-sm); font-weight: 600; color: var(--color-text-primary); }
+  .item-meta { font-size: var(--text-xs); color: var(--color-text-muted); display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
+
+  .real-badge { display: inline-flex; align-items: center; height: 17px; padding: 0 var(--space-2); border-radius: var(--radius-full); font-size: 10px; font-weight: 700; }
+  .real-badge--offen { background: var(--color-surface-sunken); color: var(--color-text-muted); }
+  .real-badge--gekauft { background: var(--color-success-subtle, #dcfce7); color: var(--color-success, #16a34a); }
+  .real-badge--ausverkauft { background: #fee2e2; color: #dc2626; }
+
+  .item-actions { display: flex; align-items: center; gap: var(--space-2); flex-shrink: 0; flex-wrap: wrap; }
+  .chip { border: 1px solid var(--color-border); background: transparent; color: var(--color-text-secondary); border-radius: var(--radius-full); height: 28px; padding: 0 var(--space-3); font-size: var(--text-xs); font-weight: 600; cursor: pointer; }
+  .chip:hover { border-color: var(--color-primary); color: var(--color-primary); }
+  .chip--on { background: var(--color-primary); color: var(--color-text-inverse); border-color: var(--color-primary); }
+  .btn-book { font-size: var(--text-xs); font-weight: 600; color: var(--color-primary); text-decoration: none; border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: var(--space-1) var(--space-2); }
+  .btn-book:hover { background: var(--color-primary-subtle); border-color: var(--color-primary); }
+  .btn-x { border: none; background: none; color: var(--color-text-muted); cursor: pointer; font-size: 14px; padding: var(--space-1); }
+  .btn-x:hover { color: var(--color-danger, #dc2626); }
+
+  .status-badge { display: inline-flex; align-items: center; height: 20px; padding: 0 var(--space-2); border-radius: var(--radius-full); font-size: 11px; font-weight: 700; }
+  .status-badge--begonnen { background: var(--color-success-subtle, #dcfce7); color: var(--color-success, #16a34a); }
+  .status-badge--pausiert { background: #fef9c3; color: #a16207; }
+  .status-badge--beendet { background: var(--color-surface-sunken); color: var(--color-text-muted); }
+
+  @media (max-width: 560px) {
+    .page { padding: var(--space-4) var(--space-3) var(--space-12); }
+    .card { padding: var(--space-4); }
+  }
+</style>

@@ -31,6 +31,7 @@
     { href: '/inventar',  label: 'Inventar'  },
     { href: '/orte',      label: 'Räume'     },
     { href: '/einkaufsliste', label: 'Einkaufsliste' },
+    { href: '/einkauf',   label: 'Einkauf'   },
     { href: '/einstellungen', label: 'Einstellungen' },
   ]
 
