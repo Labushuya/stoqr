@@ -229,7 +229,7 @@ const BLOCKS = [
     tag: "2c", name: "Einkaufsliste & Bedarf", desc: "Bedarf erzeugen, manuelle Einträge, Markt-Filter.",
     items: [
       { id: "L1", title: "Bedarf aus Beständen erzeugen", steps: ["Einkaufsliste öffnen.", "„↻ Bedarf aus Beständen erzeugen“ klicken."],
-        expect: "Toast „Bedarf aktualisiert (… neu, … aktualisiert, … entfernt)“. Für Vollmilch (Soll 4 > Ist) erscheint auto-Bedarf. Da Vollmilch Globus+Penny zugeordnet ist, erscheint der Bedarf zunächst je Markt (das ist der Ausgangspunkt für Block E)." },
+        expect: "Toast „Bedarf aktualisiert (… neu, … aktualisiert, … entfernt)“. Für Vollmilch (Soll 4 > Ist) erscheint GENAU EIN Bedarf-Eintrag — unabhängig davon, dass Vollmilch Globus+Penny zugeordnet ist (Bedarf ist markt-neutral). Kein Duplikat pro Markt." },
       { id: "L2", title: "Manuellen Eintrag hinzufügen", steps: ["Unten „Eintrag hinzufügen…“ z.B. „Küchenrolle“, Menge, Einheit, „+“ klicken."],
         expect: "Eintrag erscheint in „Zu kaufen“. Abhaken verschiebt ihn nach „Erledigt“." },
       { id: "L3", title: "Markt-Filter „Einkauf bei“", steps: ["Oben „Einkauf bei“ → „Globus“ wählen."],
@@ -241,12 +241,12 @@ const BLOCKS = [
     items: [
       { id: "E1", title: "Neuen Einkauf starten", steps: ["Menü „Einkauf“ öffnen.", "Unter „Neuen Einkauf starten“ Markt „Globus“ wählen, „Starten“."],
         expect: "Weiterleitung zur Run-Detailseite; Status-Badge „Aktiv“. In der Übersicht steht der Run unter „Laufende Einkäufe“." },
-      { id: "E2", title: "2×2 behoben: Bedarf reservieren & sperren", steps: ["Einkaufsliste öffnen.", "Beim Vollmilch-Bedarf „In Einkauf“ klicken (legt ihn in den Globus-Run).", "Markt-Filter auf „Penny“ stellen und den Vollmilch-Eintrag suchen."],
-        expect: "In der Penny-Ansicht ist der Vollmilch-Bedarf AUSGEGRAUT mit Badge „reserviert · <Globus-Run>“ und NICHT abhak-/buchbar. So kann er nicht doppelt (2×2) eingekauft werden. (Kernziel Block E)" },
+      { id: "E2", title: "2×2 behoben: nur ein Bedarf, reserviert & gesperrt", steps: ["Einkaufsliste öffnen — für Vollmilch existiert nur EIN Bedarf-Eintrag (nicht 2×2).", "Beim Vollmilch-Bedarf „In Einkauf“ klicken (legt ihn in den Globus-Run).", "Markt-Filter auf „Penny“ stellen und den Vollmilch-Eintrag suchen."],
+        expect: "Es gibt genau EINEN Vollmilch-Bedarf (kein Duplikat je Markt). Nach „In Einkauf“ ist er in allen Markt-Ansichten AUSGEGRAUT mit Badge „reserviert · <Globus-Run>“ und nicht doppelt buchbar. (Wurzel-Fix E2/2×2)" },
       { id: "E3", title: "Sammel-Aktion „Alle in Einkauf legen“", steps: ["In der Einkaufsliste (ggf. Markt wählen) „🛒 Alle in Einkauf legen“ klicken."],
         expect: "Toast „N Bedarf(e) in den Einkauf gelegt.“ Alle passenden offenen Bedarfe werden reserviert und erscheinen ausgegraut." },
-      { id: "E4", title: "Verschieben zwischen Runs", steps: ["Zweiten Run für „Penny“ starten (Einkauf → Starten).", "In der Einkaufsliste beim reservierten Vollmilch-Eintrag das Dropdown „→ verschieben…“ öffnen und den Penny-Run wählen."],
-        expect: "Toast „Verschoben.“ Das Badge zeigt nun den Penny-Run. (Bedarf hängt an genau einem Run.)" },
+      { id: "E4", title: "Verschieben zwischen Runs + leere Runs", steps: ["Zweiten Run für „Penny“ starten (Einkauf → Starten).", "Einkauf-Übersicht öffnen: erscheint ein LEERER Run in der Liste?", "In der Einkaufsliste beim reservierten Vollmilch-Eintrag das Dropdown „→ verschieben…“ öffnen und den Penny-Run wählen."],
+        expect: "Leere Runs (ohne Positionen) werden in der Übersicht NICHT gelistet (ggf. Hinweis „N leerer Einkauf ausgeblendet“). Zweimal Starten für denselben Markt legt keinen zweiten leeren Run an. Verschieben: Toast „Verschoben.“, Badge zeigt nun den Penny-Run (Bedarf hängt an genau einem Run)." },
       { id: "E5", title: "Nur ein aktiver Run", steps: ["Beim Starten des zweiten Runs (E4) den ersten beobachten bzw. Einkauf-Übersicht öffnen."],
         expect: "Nur EIN Run hat Status „Aktiv“; der zuvor aktive steht auf „Pausiert“. Ein pausierter Run hat einen „Fortsetzen“-Button." },
       { id: "E6", title: "Position: Gekauft / Ausverkauft", steps: ["Run-Detailseite öffnen.", "Bei einer Position „Gekauft“ klicken, bei einer anderen „Ausverkauft“.", "Nochmal auf denselben Chip klicken (Toggle)."],
@@ -282,9 +282,9 @@ const BLOCKS = [
   {
     tag: "Konsistenz", name: "Feinschliff-Checks", desc: "Bewusst geprüfte Detail-/Konsistenzpunkte, die beim Feinschliff helfen.",
     items: [
-      { id: "K1", title: "Status-Bezeichnung „donated“ konsistent?", flag: true,
-        steps: ["Einen Bestand als gespendet/verschenkt markieren (falls über Aktionen möglich) bzw. beide Ansichten vergleichen.", "Status-Text in der Inventar-Übersicht mit dem auf der Artikel-Detailseite vergleichen."],
-        expect: "BEKANNTE INKONSISTENZ zu prüfen: Übersicht zeigt „Verschenkt“, Detailseite zeigt „Gespendet“. Bitte notieren, welche Bezeichnung Dir lieber ist — ich vereinheitliche sie." },
+      { id: "K1", title: "Spenden/Entsorgen-Aktion + Label",
+        steps: ["Inventar → 3-Punkt-Menü eines verfügbaren Bestands öffnen.", "„Gespendet“ bzw. „Entsorgt“ wählen.", "Status-Text in der Übersicht mit dem auf der Artikel-Detailseite vergleichen."],
+        expect: "Aktionen „Gespendet“ und „Entsorgt“ sind vorhanden (auch auf der Detailseite pro Bestand). Nach dem Klick: Status-Badge erscheint, Bestand zählt nicht mehr zum verfügbaren Gesamtbestand. Bezeichnung „Gespendet“ ist in Übersicht UND Detailseite identisch (nicht mehr „Verschenkt“ vs. „Gespendet“)." },
       { id: "K2", title: "Navigation vollständig", steps: ["Menü prüfen: Dashboard, Inventar, Räume, Einkaufsliste, Einkauf, Einstellungen."],
         expect: "Alle sechs Menüpunkte vorhanden und führen auf die richtige Seite. „Einkauf“ und „Einkaufsliste“ sind getrennt." },
       { id: "K3", title: "Mobile-Darstellung (falls am Handy getestet)", steps: ["Auf dem Smartphone durch die Hauptseiten navigieren."],

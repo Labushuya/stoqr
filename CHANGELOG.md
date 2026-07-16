@@ -5,6 +5,28 @@ Neueste Einträge oben. Jeder Eintrag nennt den Commit-Kontext, damit andere LLM
 
 ---
 
+## [Unreleased] — Block-E-Testing-Feedback: 2×2-Wurzelfix, leere Runs, Spenden/Entsorgen (implementiert, Test auf Pi ausstehend)
+
+Testlauf des Manifests A–E deckte drei Punkte auf:
+
+- **E2 (2×2 an der Wurzel):** `generateAutoNeeds` erzeugte weiterhin pro zugeordnetem Markt einen Bedarf
+  (2×Globus + 2×Penny). Fix: **ein Bedarf pro Artikel** (nach productId gruppiert, `preferredStoreId` immer null,
+  markt-neutral) — rein aus Soll-Ist. Der Markt wird erst beim Zuweisen zu einem Run gewählt. Bestehende
+  markt-duplizierte auto-Einträge desselben Artikels werden beim nächsten „Bedarf erzeugen" auf einen zusammengeführt. (ec082da)
+- **E4 (leere Runs):** `createTrip` verwendet einen vorhandenen leeren nicht-beendeten Run desselben Markts wieder;
+  die Einkauf-Übersicht blendet Runs ohne Positionen aus (mit dezentem Hinweis, wie viele). `listTrips` liefert `itemCount`. (f762ae3)
+- **K1 (Spenden/Entsorgen):** Status `donated`/`discarded` waren nur Anzeige-Labels ohne setzende UI. Neue Aktionen
+  „Gespendet"/„Entsorgt" im Inventar-3-Punkt-Menü + Artikel-Detailseite (analog „Verbraucht"). Label vereinheitlicht:
+  `donated` heißt jetzt überall „Gespendet". (25808aa)
+
+### Test-Steps (Pi)
+1. Vollmilch bei Globus+Penny zugeordnet, Soll 4 > Ist → „Bedarf erzeugen": es entsteht nur EIN Vollmilch-Bedarf (nicht 2×2).
+2. „In Einkauf" beim Vollmilch-Bedarf → in der Liste reserviert; kein zweiter Bedarf mehr vorhanden.
+3. Zweimal „Neuen Einkauf starten" für denselben Markt ohne Position → nur ein (leerer) Run; Übersicht zeigt keine leeren Runs.
+4. Bestand im 3-Punkt-Menü „Gespendet"/„Entsorgt" → Status-Badge erscheint, Gesamtbestand sinkt; Label überall „Gespendet".
+
+---
+
 ## [Unreleased] — Block E: Einkauf-Entität (M2) — behebt 2×2-Bedarf (implementiert, Test auf Pi ausstehend)
 
 M1 erzeugte Bedarf pro zugeordnetem Markt → Milch bei Globus+Penny gelistet und 2× gebraucht = 2×2. Block E
