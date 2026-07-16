@@ -29,6 +29,9 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 
   // Einbuchen aus der Einkaufsliste (2c-3): Vorbelegung + Referenz zum Listeneintrag.
   const fromShoppingItem = url.searchParams.get('fromShoppingItem')
+  // Einbuchen aus einem Einkauf-Run (Block E): Referenz zur Trip-Position + Run.
+  const fromTripItem = url.searchParams.get('fromTripItem')
+  const tripId = url.searchParams.get('tripId')
   const prefillQty = url.searchParams.get('qty')
   const prefillUnit = url.searchParams.get('unit')
   const prefillStore = url.searchParams.get('storeId')
@@ -40,6 +43,8 @@ export const load: PageServerLoad = async ({ locals, url }) => {
     stores: storeRows,
     preselectedProduct,
     fromShoppingItem,
+    fromTripItem,
+    tripId,
     prefillQty,
     prefillUnit,
     prefillStore,

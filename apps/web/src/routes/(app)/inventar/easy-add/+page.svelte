@@ -362,6 +362,22 @@
     mhdRows = mhdRows.map((r) => (r.id === id ? { ...r, [field]: value } : r))
   }
 
+  // Split N: teilt die aktuelle Gesamtmenge gleichmaessig auf N Zeilen (Rest auf
+  // die erste Zeile, damit die Summe exakt bleibt), je mit leerem MHD. Dient dem
+  // Aufteilen einer Charge in Teilmengen mit unterschiedlichem MHD beim Einbuchen.
+  function splitRows(n: number) {
+    if (n < 1) return
+    const total = totalQuantity()
+    const per = Math.floor((total / n) * 1000) / 1000
+    const rows: MhdRow[] = []
+    for (let idx = 0; idx < n; idx++) {
+      // Rundungsrest auf die erste Zeile schlagen.
+      const qty = idx === 0 ? Math.round((total - per * (n - 1)) * 1000) / 1000 : per
+      rows.push({ id: ++rowCounter, quantity: String(qty), mhd: '' })
+    }
+    mhdRows = rows
+  }
+
   // ── Save ───────────────────────────────────────────────────────────────────
 
   async function saveAll() {
@@ -427,8 +443,20 @@
         if (fromItem) {
           await fetch(`/api/shopping-list/${fromItem}`, { method: 'DELETE' }).catch(() => {})
         }
+
+        // Einbuchen aus einem Einkauf-Run (Block E): Position abbuchen (loescht den
+        // Bedarf → Trip-Position via cascade) und zurueck zum Run.
+        const fromTripItem = data.fromTripItem as string | null
+        const tripId = data.tripId as string | null
+        if (fromTripItem && tripId) {
+          await fetch(`/api/shopping-trips/${tripId}/items/${fromTripItem}/book-in`, {
+            method: 'POST',
+          }).catch(() => {})
+        }
+
         showToast(`${succeeded} Eintrag${succeeded !== 1 ? 'e' : ''} hinzugefügt`)
-        setTimeout(() => goto(fromItem ? '/einkaufsliste' : '/inventar'), 800)
+        const dest = fromTripItem && tripId ? `/einkauf/${tripId}` : fromItem ? '/einkaufsliste' : '/inventar'
+        setTimeout(() => goto(dest), 800)
       } else if (succeeded > 0) {
         showToast(`Fehler beim Speichern: ${failed}/${results.length} fehlgeschlagen`, 'error')
         // partial success — stay on page so user can retry failed rows
@@ -797,6 +825,18 @@
         </svg>
         Zeile hinzufügen
       </button>
+
+      <div class="split-chips" role="group" aria-label="Menge aufteilen">
+        <span class="split-label">Split:</span>
+        {#each [2, 3, 4] as n (n)}
+          <button
+            class="split-chip"
+            type="button"
+            disabled={selectedProduct === null || totalQuantity() <= 0}
+            onclick={() => splitRows(n)}
+          >×{n}</button>
+        {/each}
+      </div>
 
       <span class="total-label">
         Gesamt: <strong>{totalQuantity() % 1 === 0 ? totalQuantity().toFixed(0) : totalQuantity()} {formUnit}</strong>
@@ -1533,6 +1573,37 @@
     justify-content: space-between;
     gap: var(--space-3);
     flex-wrap: wrap;
+  }
+
+  .split-chips {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+  }
+  .split-label {
+    font-size: var(--text-xs);
+    color: var(--color-text-muted);
+  }
+  .split-chip {
+    border: 1px solid var(--color-border);
+    background: transparent;
+    color: var(--color-text-secondary);
+    border-radius: var(--radius-full);
+    height: 26px;
+    min-width: 32px;
+    padding: 0 var(--space-2);
+    font-size: var(--text-xs);
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .split-chip:hover:not(:disabled) {
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+    background: var(--color-primary-subtle);
+  }
+  .split-chip:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
   }
 
   .btn-add-row {
