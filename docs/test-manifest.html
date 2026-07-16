@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>stoqr — Test-Manifest A–E</title>
+<style>
+  :root {
+    --bg: #faf7f2;
+    --surface: #ffffff;
+    --surface-sunken: #f3efe8;
+    --border: #e4ddd1;
+    --text: #2a2621;
+    --text-muted: #857b6d;
+    --primary: #c4673a;
+    --primary-subtle: #f7e8e0;
+    --ok: #16a34a;
+    --ok-subtle: #dcfce7;
+    --warn: #c2410c;
+    --warn-subtle: #fff7ed;
+    --danger: #dc2626;
+    --radius: 12px;
+    --radius-sm: 8px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1c1a17; --surface: #262320; --surface-sunken: #201d1a;
+      --border: #3a352f; --text: #ece7df; --text-muted: #9a9084;
+      --primary: #e08a5c; --ok: #4ade80; --ok-subtle: #14331f;
+      --warn: #fb923c; --warn-subtle: #33220f; --danger: #f87171;
+    }
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    line-height: 1.55; font-size: 16px;
+  }
+  .wrap { max-width: 860px; margin: 0 auto; padding: 20px 16px 120px; }
+  header.top { margin-bottom: 20px; }
+  h1 { font-size: 1.6rem; margin: 0 0 4px; letter-spacing: -0.02em; }
+  .subtitle { color: var(--text-muted); font-size: 0.95rem; margin: 0 0 16px; }
+
+  .pre {
+    background: var(--warn-subtle); border: 1px solid var(--warn);
+    border-radius: var(--radius); padding: 14px 16px; margin-bottom: 16px;
+  }
+  .pre h2 { margin: 0 0 6px; font-size: 1rem; color: var(--warn); }
+  .pre ul { margin: 6px 0 0; padding-left: 20px; }
+  .pre li { margin: 2px 0; font-size: 0.9rem; }
+
+  .progress-bar {
+    position: sticky; top: 0; z-index: 10; background: var(--bg);
+    padding: 10px 0; border-bottom: 1px solid var(--border); margin-bottom: 16px;
+  }
+  .progress-track { height: 10px; background: var(--surface-sunken); border-radius: 999px; overflow: hidden; }
+  .progress-fill { height: 100%; background: var(--ok); width: 0%; transition: width 0.2s; }
+  .progress-meta { display: flex; justify-content: space-between; align-items: center; margin-top: 6px; font-size: 0.85rem; color: var(--text-muted); gap: 8px; flex-wrap: wrap; }
+  .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+  button.act {
+    border: 1px solid var(--border); background: var(--surface); color: var(--text);
+    border-radius: var(--radius-sm); padding: 7px 12px; font-size: 0.85rem; font-weight: 600; cursor: pointer;
+  }
+  button.act:hover { border-color: var(--primary); color: var(--primary); }
+  button.act.primary { background: var(--primary); color: #fff; border-color: var(--primary); }
+  button.act.primary:hover { opacity: 0.9; color: #fff; }
+
+  section.block { margin-bottom: 26px; }
+  .block-head { display: flex; align-items: baseline; gap: 10px; margin: 0 0 4px; }
+  .block-head h2 { font-size: 1.2rem; margin: 0; }
+  .block-tag { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--primary); background: var(--primary-subtle); padding: 2px 8px; border-radius: 999px; }
+  .block-desc { color: var(--text-muted); font-size: 0.9rem; margin: 0 0 12px; }
+
+  .item {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 12px 14px; margin-bottom: 10px;
+  }
+  .item.done { border-color: var(--ok); background: var(--ok-subtle); }
+  .item-top { display: flex; gap: 10px; align-items: flex-start; }
+  .item-cb { width: 22px; height: 22px; flex-shrink: 0; margin-top: 2px; accent-color: var(--ok); cursor: pointer; }
+  .item-body { flex: 1; min-width: 0; }
+  .item-id { font-size: 0.7rem; font-weight: 700; color: var(--text-muted); letter-spacing: 0.03em; }
+  .item-title { font-weight: 600; margin: 1px 0 4px; }
+  .item-steps { margin: 6px 0 0; padding-left: 18px; font-size: 0.9rem; }
+  .item-steps li { margin: 2px 0; }
+  .expect {
+    margin: 8px 0 0; padding: 8px 10px; background: var(--surface-sunken);
+    border-left: 3px solid var(--ok); border-radius: 0 var(--radius-sm) var(--radius-sm) 0; font-size: 0.88rem;
+  }
+  .expect b { color: var(--ok); }
+  .note-wrap { margin-top: 10px; }
+  .note-wrap label { display: block; font-size: 0.75rem; color: var(--text-muted); margin-bottom: 3px; font-weight: 600; }
+  textarea.note {
+    width: 100%; min-height: 40px; resize: vertical; border: 1px solid var(--border);
+    border-radius: var(--radius-sm); background: var(--bg); color: var(--text);
+    padding: 7px 9px; font-family: inherit; font-size: 0.9rem;
+  }
+  textarea.note:focus { outline: none; border-color: var(--primary); }
+  code { background: var(--surface-sunken); padding: 1px 5px; border-radius: 4px; font-size: 0.85em; }
+  .flag { color: var(--warn); font-weight: 600; }
+  footer.foot { text-align: center; color: var(--text-muted); font-size: 0.8rem; margin-top: 30px; }
+  .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--text); color: var(--bg); padding: 10px 18px; border-radius: 999px; font-size: 0.9rem; font-weight: 600; opacity: 0; transition: opacity 0.2s; pointer-events: none; z-index: 50; }
+  .toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <h1>stoqr — Test-Manifest</h1>
+    <p class="subtitle">Blöcke A–E · logisch aufbauender Durchlauf · Stand nach Block E (M2)</p>
+
+    <div class="pre">
+      <h2>Voraussetzung (kein Testschritt)</h2>
+      <ul>
+        <li>Deployment auf dem Pi ist erfolgreich durchgelaufen; die App ist erreichbar.</li>
+        <li>Migration <code>0010_shopping_trips</code> ist beim Container-Start gelaufen (sonst funktioniert der Einkauf-Teil E nicht).</li>
+        <li>Du bist eingeloggt und einem Haushalt zugeordnet.</li>
+      </ul>
+      Trifft alles zu → direkt mit <b>R1</b> beginnen. Hake jeden Punkt ab; trage Abweichungen ins Notizfeld.
+    </div>
+  </header>
+
+  <div class="progress-bar">
+    <div class="progress-track"><div class="progress-fill" id="fill"></div></div>
+    <div class="progress-meta">
+      <span id="count">0 / 0 erledigt</span>
+      <span class="actions">
+        <button class="act primary" onclick="copyExport()">📋 Ergebnis kopieren (Markdown)</button>
+        <button class="act" onclick="resetAll()">Zurücksetzen</button>
+      </span>
+    </div>
+  </div>
+
+  <div id="manifest"></div>
+
+  <footer class="foot">
+    Zustand wird automatisch im Browser gespeichert (localStorage). „Ergebnis kopieren" legt eine Markdown-Übersicht
+    in die Zwischenablage — hier im Chat einfügen.
+  </footer>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+// ── Manifest-Daten ────────────────────────────────────────────────────────
+// Jeder Punkt: id, title, steps[], expect (Erwartung), optional flag (Auffälligkeit).
+const BLOCKS = [
+  {
+    tag: "Setup", name: "Räume & Struktur", desc: "Lagerstruktur anlegen — Voraussetzung für Bestände (Block A3: „Orte“ → „Räume“).",
+    items: [
+      { id: "R1", title: "Räume-Seite öffnen", steps: ["Im Menü „Räume“ öffnen."],
+        expect: "Menüpunkt heißt „Räume“ (nicht „Orte“). Seitentitel „Räume“. Bei leerem Stand: „Noch keine Räume angelegt“ + Button „Ersten Raum anlegen“." },
+      { id: "R2", title: "Raum anlegen", steps: ["„Raum hinzufügen“ (oder „Ersten Raum anlegen“) klicken.", "Icon wählen (Default 📍), Name z.B. „Küche“ eingeben.", "„Hinzufügen“ klicken."],
+        expect: "Toast „Raum \"Küche\" hinzugefügt“. Raum erscheint als aufklappbare Zeile." },
+      { id: "R3", title: "Lagerort im Raum anlegen", steps: ["Raum „Küche“ aufklappen.", "„Lagerort hinzufügen“ klicken.", "Name z.B. „Kühlschrank“ → „Hinzufügen“."],
+        expect: "Toast „Lagerort \"Kühlschrank\" hinzugefügt“. Lagerort erscheint unter dem Raum." },
+      { id: "R4", title: "Fach im Lagerort anlegen", steps: ["Lagerort „Kühlschrank“ aufklappen.", "„Fach hinzufügen“ klicken.", "Name z.B. „Oberes Fach“ → „Hinzufügen“."],
+        expect: "Toast „Fach \"Oberes Fach\" hinzugefügt“. Fach erscheint unter dem Lagerort." },
+      { id: "R5", title: "Umbenennen & Löschen prüfen", steps: ["Ein „Bearbeiten“ (Stift) an Raum/Lagerort/Fach testen, umbenennen, „Speichern“.", "Ein „Löschen“ (Papierkorb) an einem Test-Fach testen."],
+        expect: "Umbenennen → Toast „… umbenannt“. Löschen zeigt Bestätigungsdialog mit passendem Text; Fach danach weg." },
+    ]
+  },
+  {
+    tag: "Setup", name: "Märkte & Einheiten", desc: "Märkte und eine eigene Einheit anlegen — Grundlage für Markt-Zuordnung, Bedarf und A4 (Einheiten-Vorschläge).",
+    items: [
+      { id: "M1", title: "Zwei Märkte anlegen", steps: ["Einstellungen → Märkte verwalten.", "Zwei Märkte anlegen, z.B. „Globus“ und „Penny“ (Kette optional)."],
+        expect: "Beide Märkte erscheinen in der Liste. (Werden später für das 2×2-Szenario gebraucht.)" },
+      { id: "U1", title: "Einheiten-Vorschläge: Button-Logik (A4)", steps: ["Einstellungen → Einheiten verwalten.", "„+ Vorschläge“ klicken.", "Ein paar Vorschläge übernehmen (antippen)."],
+        expect: "Modal „Gängige Einheiten“ zeigt viele Vorschläge (u.a. Portion, Scheibe, Tafel, Tube, Kiste, Paar). Bereits vorhandene sind ausgegraut/„vorhanden“. Übernommene verschwinden aus der Auswahl." },
+      { id: "U2", title: "Vorschläge-Button verschwindet wenn leer (A4)", steps: ["Alle Vorschläge übernehmen (oder so viele wie sinnvoll)."],
+        expect: "Wenn KEIN Vorschlag mehr offen ist, verschwindet der „+ Vorschläge“-Button ganz." },
+      { id: "U3", title: "Eigene Einheit anlegen", steps: ["Unter „Neue Einheit anlegen“ Name + Kürzel eingeben, Dimension wählen.", "Bei Masse/Volumen einen Faktor angeben.", "„Anlegen“."],
+        expect: "Toast „Einheit angelegt“. Einheit erscheint mit Dimension-Badge; bei Masse/Volumen Faktor-Anzeige (z.B. „1 EL = 15 ml“), bei Stückzahl „—“." },
+      { id: "U4", title: "System-Einheiten sind schreibgeschützt", steps: ["Eine System-Einheit (z.B. Stück, kg) betrachten."],
+        expect: "System-Einheiten tragen Badge „System“ und haben KEINE Bearbeiten/Löschen-Buttons." },
+    ]
+  },
+  {
+    tag: "B", name: "Artikel & EAN", desc: "Artikel-Stammdaten inkl. EAN (Block B) — an beiden Anlege-Stellen, plus EAN-Duplikat-Meldung (B-a Fix).",
+    items: [
+      { id: "A-EAN1", title: "Artikel mit EAN + Standard-Einheit über FAB anlegen", steps: ["Inventar öffnen.", "FAB „Neuer Artikel“ klicken.", "Produktname „Vollmilch“, Kategorie wählen, Standard-Einheit „Packung“, EAN z.B. „4001234567890“.", "„Hinzufügen“."],
+        expect: "Modal hat die Felder Produktname*, Kategorie, Standard-Einheit UND EAN / Barcode. Toast „Artikel angelegt — Bestand über ‚Bestand hinzufügen‘“." },
+      { id: "A-EAN2", title: "EAN in Artikelverwaltung sichtbar + editierbar", steps: ["Einstellungen → Artikel verwalten.", "„Vollmilch“ suchen: EAN sichtbar?", "„Bearbeiten“ → EAN ändern → „Speichern“."],
+        expect: "EAN wird als Barcode-Zeile am Artikel angezeigt. Nach dem Bearbeiten ist die neue EAN SOFORT sichtbar (ohne Reload). (Fix B-b)" },
+      { id: "A-EAN3", title: "EAN-Duplikat wird klar abgelehnt (B-a Fix)", steps: ["Neuen Artikel „Testdopplung“ mit der GLEICHEN EAN wie Vollmilch anlegen (FAB oder Artikelverwaltung)."],
+        expect: "Klare Fehlermeldung „Diese EAN ist bereits einem anderen Artikel zugeordnet.“ — NICHT eine generische Meldung." },
+      { id: "A-EAN4", title: "EAN-Feld in „Neuer Artikel anlegen“ (Einstellungen)", steps: ["Einstellungen → Artikel → Abschnitt „Neuen Artikel anlegen“.", "Artikel mit Name + EAN anlegen."],
+        expect: "Das Formular hat ein EAN-Feld; die eingegebene EAN wird gespeichert und erscheint am neuen Artikel." },
+    ]
+  },
+  {
+    tag: "A6/A2", name: "Bestand anlegen & Einheit-Vorauswahl", desc: "Bestand über easy-add (Block A2 Stepper, A6 Einheit-Vorauswahl, C Vererbung).",
+    items: [
+      { id: "S1", title: "Bestand anlegen mit korrekter Einheit-Vorauswahl (A6)", steps: ["Inventar → „Bestand hinzufügen“.", "Artikel „Vollmilch“ wählen (mit Standard-Einheit „Packung“ angelegt).", "Auf Step „Lagerplatz wählen“ die Einheit prüfen."],
+        expect: "Einheit ist mit „Packung“ VORBELEGT (nicht mit einer Custom-Einheit wie „Blihn“). (Fix A6)" },
+      { id: "S2", title: "0,25er-Stepper bei Mengen (A2)", steps: ["Im Anzahl-Feld die Stepper-Pfeile nutzen.", "Danach manuell z.B. „1,3“ eintippen."],
+        expect: "Stepper springt in 0,25-Schritten (1,00 → 1,25 → 1,50). Freie Tastatureingabe wie „1,3“ bleibt möglich." },
+      { id: "S3", title: "Bestand speichern (Raum + Markt + MHD)", steps: ["Raum/Lagerort/Fach „Küche › Kühlschrank › Oberes Fach“ wählen.", "Markt „Globus“ wählen.", "Anzahl 2, ein MHD-Datum setzen.", "„Speichern“."],
+        expect: "Toast „1 Eintrag hinzugefügt“ (bzw. Anzahl). Zurück im Inventar erscheint Vollmilch." },
+      { id: "S4", title: "Zweiter Bestand erbt Markt/Ort (Block C)", steps: ["Erneut „Bestand hinzufügen“ → wieder „Vollmilch“ wählen.", "Ohne selbst etwas zu wählen: Markt- und Raum-Vorbelegung prüfen."],
+        expect: "Markt „Globus“ und der Lagerort aus dem ersten Bestand sind bereits VORBELEGT. (Vererbung aus vorhandenen Beständen)" },
+    ]
+  },
+  {
+    tag: "A5", name: "Inventar-Übersicht & MHD", desc: "MHD-Darstellung, „Kein MHD“-Hervorhebung (Block A5), Filter, Kontextmenü.",
+    items: [
+      { id: "I1", title: "MHD-Badge korrekt", steps: ["Inventar-Liste betrachten (Bestand mit MHD)."],
+        expect: "Badge zeigt sinnvollen MHD-Text („Noch N Tage“ / „Heute ablaufend“ / „Abgelaufen seit …“) in passender Farbe (grün/gelb/rot)." },
+      { id: "I2", title: "Bestand OHNE MHD auffällig markiert (A5)", steps: ["Einen Bestand ohne MHD anlegen (easy-add, MHD-Feld leer lassen).", "Inventar-Liste + Artikel-Detailseite betrachten."],
+        expect: "„⚠ Kein MHD“ wird ORANGE mit gestricheltem Rand angezeigt — NICHT grün wie „frisch“. (Fix A5) Gleiche Markierung auf der Detailseite." },
+      { id: "I3", title: "Lagerplatz-Filter", steps: ["Filter-Dropdown „Alle Lagerplätze“ öffnen, einen Lagerplatz wählen.", "„Nur verfügbare“-Toggle testen."],
+        expect: "Liste filtert auf den gewählten Lagerplatz (angezeigt als „Raum › Lagerort › Fach“). Toggle blendet verbrauchte aus." },
+    ]
+  },
+  {
+    tag: "2a-c", name: "Soll-Bestand, Bedarf & Korrektur", desc: "Artikel-Detailseite: Märkte-Zuordnung, Soll festlegen (A1 Bugfix), Bestandskorrektur.",
+    items: [
+      { id: "D1", title: "Märkte dem Artikel zuordnen", steps: ["Vollmilch → Detailseite öffnen.", "Unter „Märkte wo einkaufbar“ BEIDE Märkte „Globus“ und „Penny“ antippen."],
+        expect: "Beide Chips werden aktiv (✓ vorangestellt). (Wichtig fürs 2×2-Szenario in Block E.)" },
+      { id: "D2", title: "Soll-Bestand mit Mindestbestand speichern (A1 Bugfix)", steps: ["„+ Soll-Bestand festlegen“ klicken.", "Soll-Menge z.B. 4, Einheit „Packung“, Mindestbestand z.B. 1 eintragen.", "„Speichern“."],
+        expect: "KEIN „Netzwerkfehler“. Toast „Soll-Bestand gespeichert“. Wert bleibt nach Reload erhalten. (Fix A1 — trat früher nur mit gesetztem Mindestbestand auf.)" },
+      { id: "D3", title: "Bedarf-Indikator", steps: ["Nach dem Soll den Bedarf-Indikator betrachten."],
+        expect: "Badge zeigt Status: „Bestand ausreichend“ / „Unter Soll — nachkaufen“ / „Unter Mindestbestand!“ passend zum Ist-Bestand." },
+      { id: "D4", title: "Bestandskorrektur (Inventur)", steps: ["„Bestand korrigieren“ klicken.", "Tatsächlichen (niedrigeren) Bestand angeben, z.B. 1.", "„Übernehmen“."],
+        expect: "Toast „Bestand korrigiert“. Gesamtbestand sinkt. (Erhöhung wird abgelehnt mit Hinweis, den Zuwachs über „Bestand hinzufügen“ zu erfassen.)" },
+    ]
+  },
+  {
+    tag: "2c", name: "Einkaufsliste & Bedarf", desc: "Bedarf erzeugen, manuelle Einträge, Markt-Filter.",
+    items: [
+      { id: "L1", title: "Bedarf aus Beständen erzeugen", steps: ["Einkaufsliste öffnen.", "„↻ Bedarf aus Beständen erzeugen“ klicken."],
+        expect: "Toast „Bedarf aktualisiert (… neu, … aktualisiert, … entfernt)“. Für Vollmilch (Soll 4 > Ist) erscheint auto-Bedarf. Da Vollmilch Globus+Penny zugeordnet ist, erscheint der Bedarf zunächst je Markt (das ist der Ausgangspunkt für Block E)." },
+      { id: "L2", title: "Manuellen Eintrag hinzufügen", steps: ["Unten „Eintrag hinzufügen…“ z.B. „Küchenrolle“, Menge, Einheit, „+“ klicken."],
+        expect: "Eintrag erscheint in „Zu kaufen“. Abhaken verschiebt ihn nach „Erledigt“." },
+      { id: "L3", title: "Markt-Filter „Einkauf bei“", steps: ["Oben „Einkauf bei“ → „Globus“ wählen."],
+        expect: "Zeigt nur Globus-Bedarf + markt-lose Einträge. Hinweis „Kein Mischen mehrerer Märkte“. Penny-nur-Einträge sind ausgeblendet." },
+    ]
+  },
+  {
+    tag: "E", name: "Einkauf-Runs & 2×2-Fix", desc: "Kern von Block E: Reservierung „1 Bedarf = 1 Run“, Status-Maschine, Verschieben, Ausverkauft.",
+    items: [
+      { id: "E1", title: "Neuen Einkauf starten", steps: ["Menü „Einkauf“ öffnen.", "Unter „Neuen Einkauf starten“ Markt „Globus“ wählen, „Starten“."],
+        expect: "Weiterleitung zur Run-Detailseite; Status-Badge „Aktiv“. In der Übersicht steht der Run unter „Laufende Einkäufe“." },
+      { id: "E2", title: "2×2 behoben: Bedarf reservieren & sperren", steps: ["Einkaufsliste öffnen.", "Beim Vollmilch-Bedarf „In Einkauf“ klicken (legt ihn in den Globus-Run).", "Markt-Filter auf „Penny“ stellen und den Vollmilch-Eintrag suchen."],
+        expect: "In der Penny-Ansicht ist der Vollmilch-Bedarf AUSGEGRAUT mit Badge „reserviert · <Globus-Run>“ und NICHT abhak-/buchbar. So kann er nicht doppelt (2×2) eingekauft werden. (Kernziel Block E)" },
+      { id: "E3", title: "Sammel-Aktion „Alle in Einkauf legen“", steps: ["In der Einkaufsliste (ggf. Markt wählen) „🛒 Alle in Einkauf legen“ klicken."],
+        expect: "Toast „N Bedarf(e) in den Einkauf gelegt.“ Alle passenden offenen Bedarfe werden reserviert und erscheinen ausgegraut." },
+      { id: "E4", title: "Verschieben zwischen Runs", steps: ["Zweiten Run für „Penny“ starten (Einkauf → Starten).", "In der Einkaufsliste beim reservierten Vollmilch-Eintrag das Dropdown „→ verschieben…“ öffnen und den Penny-Run wählen."],
+        expect: "Toast „Verschoben.“ Das Badge zeigt nun den Penny-Run. (Bedarf hängt an genau einem Run.)" },
+      { id: "E5", title: "Nur ein aktiver Run", steps: ["Beim Starten des zweiten Runs (E4) den ersten beobachten bzw. Einkauf-Übersicht öffnen."],
+        expect: "Nur EIN Run hat Status „Aktiv“; der zuvor aktive steht auf „Pausiert“. Ein pausierter Run hat einen „Fortsetzen“-Button." },
+      { id: "E6", title: "Position: Gekauft / Ausverkauft", steps: ["Run-Detailseite öffnen.", "Bei einer Position „Gekauft“ klicken, bei einer anderen „Ausverkauft“.", "Nochmal auf denselben Chip klicken (Toggle)."],
+        expect: "Badge wechselt „Offen“ → „Gekauft“ (grün) bzw. „Ausverkauft“ (rot). Erneuter Klick setzt zurück auf „Offen“." },
+      { id: "E7", title: "Freigeben (zurück in die Liste)", steps: ["Bei einer Position das „✕“ (Freigeben) klicken."],
+        expect: "Toast „Zurück in die Einkaufsliste.“ Position verschwindet aus dem Run; der Bedarf erscheint wieder normal (nicht mehr reserviert) in der Einkaufsliste." },
+    ]
+  },
+  {
+    tag: "E7", name: "Einbuchen aus Run mit Split", desc: "Position aus dem Run als echten Bestand einbuchen; Split in mehrere MHD-Zeilen.",
+    items: [
+      { id: "B1", title: "Split beim Einbuchen", steps: ["Run-Detail → bei einer Position „Einbuchen“ klicken (öffnet „Bestand hinzufügen“ vorbelegt).", "Im Step „MHD-Gruppen“ auf „Split:“ einen Chip klicken, z.B. „×2“.", "Beiden Zeilen unterschiedliche MHD-Daten geben."],
+        expect: "Die Gesamtmenge wird gleichmäßig auf 2 Zeilen aufgeteilt (Summe bleibt gleich, sichtbar unter „Gesamt“). Jede Zeile hat ein eigenes MHD-Feld." },
+      { id: "B2", title: "Einbuchen schließt den Kreis", steps: ["„Speichern“ klicken."],
+        expect: "Weiterleitung zurück zur Run-Detailseite. Die Position ist verschwunden (Bedarf verbraucht). Im Inventar liegen 2 neue Bestände mit je eigenem MHD." },
+      { id: "B3", title: "Einkauf beenden — Blockade-Regel", steps: ["Eine Position im Run auf „Gekauft“ setzen, aber NICHT einbuchen.", "„Einkauf beenden“ klicken."],
+        expect: "Beenden wird BLOCKIERT mit Meldung, dass noch gekaufte Position(en) einzubuchen sind. Erst nach Einbuchen (oder Freigeben) lässt sich der Run beenden." },
+      { id: "B4", title: "Einkauf beenden — Aufräumen", steps: ["Die offene(n)/ausverkaufte(n) Position(en) belassen, gekaufte einbuchen/freigeben.", "„Einkauf beenden“ klicken."],
+        expect: "Toast „Einkauf beendet.“ Offene/ausverkaufte Positionen werden freigegeben → ihre Bedarfe stehen wieder in der Einkaufsliste. Run erscheint unter „Abgeschlossen“ (Badge „Beendet“)." },
+    ]
+  },
+  {
+    tag: "D", name: "Audit / Aktivität", desc: "Vollständiges Änderungsprotokoll (Block D) — alle bisherigen Aktionen sollten hier auftauchen.",
+    items: [
+      { id: "AK1", title: "Aktivitätsseite erreichbar", steps: ["Einstellungen → „Aktivität ansehen“."],
+        expect: "Seite „Aktivität“ öffnet; Einträge sind nach Tag gruppiert, neueste zuerst." },
+      { id: "AK2", title: "Anlegen/Ändern/Löschen protokolliert", steps: ["Die Liste durchsehen (Artikel, Bestand, Soll, Einkauf, Räume …)."],
+        expect: "Aktion-Badges „angelegt“ (grün) / „geändert“ (blau) / „gelöscht“ (rot). Deutsche Entitäts-Labels: Artikel, Bestand, Soll-Bestand, Einheit, Markt, Raum, Einkauf, Einkauf-Position." },
+      { id: "AK3", title: "Vorher→Nachher bei Änderungen", steps: ["Einen „geändert“-Eintrag betrachten (z.B. Soll-Bestand oder EAN-Änderung)."],
+        expect: "Zeigt je geändertem Feld „Feld: alt → neu“ (alter Wert durchgestrichen), Datum/Uhrzeit und Benutzer." },
+    ]
+  },
+  {
+    tag: "Konsistenz", name: "Feinschliff-Checks", desc: "Bewusst geprüfte Detail-/Konsistenzpunkte, die beim Feinschliff helfen.",
+    items: [
+      { id: "K1", title: "Status-Bezeichnung „donated“ konsistent?", flag: true,
+        steps: ["Einen Bestand als gespendet/verschenkt markieren (falls über Aktionen möglich) bzw. beide Ansichten vergleichen.", "Status-Text in der Inventar-Übersicht mit dem auf der Artikel-Detailseite vergleichen."],
+        expect: "BEKANNTE INKONSISTENZ zu prüfen: Übersicht zeigt „Verschenkt“, Detailseite zeigt „Gespendet“. Bitte notieren, welche Bezeichnung Dir lieber ist — ich vereinheitliche sie." },
+      { id: "K2", title: "Navigation vollständig", steps: ["Menü prüfen: Dashboard, Inventar, Räume, Einkaufsliste, Einkauf, Einstellungen."],
+        expect: "Alle sechs Menüpunkte vorhanden und führen auf die richtige Seite. „Einkauf“ und „Einkaufsliste“ sind getrennt." },
+      { id: "K3", title: "Mobile-Darstellung (falls am Handy getestet)", steps: ["Auf dem Smartphone durch die Hauptseiten navigieren."],
+        expect: "Kein horizontales Scrollen/Overflow; Buttons und Felder gut bedienbar; FABs erreichbar." },
+    ]
+  },
+];
+
+// ── Rendering ───────────────────────────────────────────────────────────────
+const STORAGE_KEY = "stoqr-test-manifest-v1";
+let state = {};
+try { state = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}"); } catch (e) { state = {}; }
+
+const manifestEl = document.getElementById("manifest");
+const allIds = [];
+
+for (const block of BLOCKS) {
+  const sec = document.createElement("section");
+  sec.className = "block";
+  const head = document.createElement("div");
+  head.className = "block-head";
+  head.innerHTML = `<span class="block-tag">${block.tag}</span><h2>${block.name}</h2>`;
+  sec.appendChild(head);
+  const desc = document.createElement("p");
+  desc.className = "block-desc";
+  desc.textContent = block.desc;
+  sec.appendChild(desc);
+
+  for (const it of block.items) {
+    allIds.push(it.id);
+    const item = document.createElement("div");
+    item.className = "item";
+    item.id = "item-" + it.id;
+
+    const checked = !!(state[it.id] && state[it.id].done);
+    if (checked) item.classList.add("done");
+
+    const stepsHtml = (it.steps || []).map(s => `<li>${escapeHtml(s)}</li>`).join("");
+    const flagCls = it.flag ? ' style="border-color:var(--warn)"' : "";
+
+    item.innerHTML = `
+      <div class="item-top">
+        <input type="checkbox" class="item-cb" ${checked ? "checked" : ""} data-id="${it.id}" aria-label="erledigt" />
+        <div class="item-body">
+          <div class="item-id">${it.id}${it.flag ? ' · <span class="flag">Konsistenz-Check</span>' : ""}</div>
+          <div class="item-title">${escapeHtml(it.title)}</div>
+          <ol class="item-steps">${stepsHtml}</ol>
+          <div class="expect"><b>Erwartung:</b> ${escapeHtml(it.expect)}</div>
+          <div class="note-wrap">
+            <label for="note-${it.id}">Notiz / Abweichung</label>
+            <textarea class="note" id="note-${it.id}" data-id="${it.id}" placeholder="Alles wie erwartet? Sonst hier notieren…">${escapeHtml(state[it.id] && state[it.id].note ? state[it.id].note : "")}</textarea>
+          </div>
+        </div>
+      </div>`;
+    if (it.flag) item.setAttribute("style", "border-color:var(--warn)");
+    sec.appendChild(item);
+  }
+  manifestEl.appendChild(sec);
+}
+
+// ── Interaktion ───────────────────────────────────────────────────────────
+manifestEl.addEventListener("change", (e) => {
+  const cb = e.target.closest(".item-cb");
+  if (cb) {
+    const id = cb.dataset.id;
+    ensure(id).done = cb.checked;
+    document.getElementById("item-" + id).classList.toggle("done", cb.checked);
+    save();
+    updateProgress();
+  }
+});
+manifestEl.addEventListener("input", (e) => {
+  const ta = e.target.closest(".note");
+  if (ta) { ensure(ta.dataset.id).note = ta.value; save(); }
+});
+
+function ensure(id) { if (!state[id]) state[id] = { done: false, note: "" }; return state[id]; }
+function save() { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+function escapeHtml(s) { return String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
+
+function updateProgress() {
+  const done = allIds.filter(id => state[id] && state[id].done).length;
+  const total = allIds.length;
+  document.getElementById("count").textContent = `${done} / ${total} erledigt`;
+  document.getElementById("fill").style.width = total ? (done / total * 100) + "%" : "0%";
+}
+updateProgress();
+
+// ── Export (Markdown → Zwischenablage) ──────────────────────────────────────
+function buildMarkdown() {
+  const done = allIds.filter(id => state[id] && state[id].done).length;
+  const lines = [];
+  lines.push("# stoqr — Test-Ergebnis A–E");
+  lines.push("");
+  lines.push(`Stand: ${done} / ${allIds.length} erledigt`);
+  lines.push("");
+  for (const block of BLOCKS) {
+    lines.push(`## [${block.tag}] ${block.name}`);
+    for (const it of block.items) {
+      const st = state[it.id] || {};
+      const box = st.done ? "[x]" : "[ ]";
+      lines.push(`- ${box} **${it.id}** — ${it.title}`);
+      const note = (st.note || "").trim();
+      if (note) {
+        for (const nl of note.split("\n")) lines.push(`    - 📝 ${nl}`);
+      }
+    }
+    lines.push("");
+  }
+  return lines.join("\n");
+}
+
+function copyExport() {
+  const md = buildMarkdown();
+  const fallback = () => {
+    const ta = document.createElement("textarea");
+    ta.value = md; document.body.appendChild(ta); ta.select();
+    try { document.execCommand("copy"); showToast("In Zwischenablage kopiert ✓"); }
+    catch (e) { showToast("Kopieren nicht möglich — Text manuell markieren"); }
+    document.body.removeChild(ta);
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(md).then(() => showToast("In Zwischenablage kopiert ✓"), fallback);
+  } else { fallback(); }
+}
+
+function resetAll() {
+  if (!confirm("Alle Häkchen und Notizen zurücksetzen?")) return;
+  state = {}; save();
+  document.querySelectorAll(".item-cb").forEach(cb => cb.checked = false);
+  document.querySelectorAll(".note").forEach(ta => ta.value = "");
+  document.querySelectorAll(".item").forEach(el => el.classList.remove("done"));
+  updateProgress();
+}
+
+let toastTimer = null;
+function showToast(msg) {
+  const t = document.getElementById("toast");
+  t.textContent = msg; t.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove("show"), 2000);
+}
+</script>
+</body>
+</html>
