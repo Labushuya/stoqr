@@ -3,7 +3,7 @@
 > Kanonisches Datenmodell und Entwicklungsplan. Diese Datei ist führend für Absicht,
 > Logik und Ziel von stoqr. Bei Widersprüchen zwischen Code und dieser Datei gilt diese Datei.
 
-Letzte Aktualisierung: 2026-07-14 (M1-Feedback: Fixes, EAN am Artikel, Vererbung, Audit-Log)
+Letzte Aktualisierung: 2026-07-16 (Block E / M2: Einkauf-Entität)
 
 ---
 
@@ -140,11 +140,11 @@ Kein Text-/Pipe-Export (existiert so in Bring! nicht).
   - [x] B EAN/Barcode am Artikel (products.gtin UI-pflegbar, Unique-Konflikt → 409)
   - [x] C Markt/Ort-Vererbung: neuer Bestand erbt häufigsten Ort/Markt vorhandener Bestände (inventory-hints)
   - [x] D vollständiges Audit-Log (writeAudit in allen Schreib-Routen, Migration 0009 audit_log.household_id) + Seite /aktivitaet
-- **M2 — Einkauf-Entität mit Status** (geplant, eigene Feinplanung vor Bau): shopping_trips (begonnen/pausiert/beendet),
-  mehrere parallel, nur einer aktiv. **Behebt den M1-Architektur-Fehler:** generateAutoNeeds erzeugt aktuell pro
-  zugeordnetem Markt einen Eintrag → Milch bei Globus+Penny gelistet und 2× gebraucht = 2×2. Ziel: **ein Bedarf pro
-  Artikel, genau EINEM Run zugewiesen** (reserviert; andere Runs sehen ihn nicht). Zusätzlich „nach EKL X verschieben"
-  (Ausverkauf), Split beim Einbuchen (N Zeilen, je eigenes MHD).
+- **M2 — Einkauf-Entität mit Status** (abgeschlossen, Test ausstehend): shopping_trips (begonnen/pausiert/beendet,
+  max 1 aktiv je Haushalt) + shopping_trip_items (reserviert 1 Bedarf via UNIQUE); Reservierung „1 Bedarf = 1 Run"
+  behebt das 2×2-Problem; „sichtbar aber gesperrt" in der Einkaufsliste + „In Einkauf legen"/Sammel-Aktion/verschieben;
+  Ausverkauft-Status; Beenden blockiert bei nicht eingebuchten gekauften Positionen; eigene /einkauf-Seite;
+  Split beim Einbuchen (N MHD-Zeilen). Migration 0010. Preise bewusst ausgeklammert → M3.
 - **M3 — Preise je Artikel+Markt** (geplant): product_prices + Historie, Estimate „ca. ~X €" + Warnhinweis,
   realer Kaufpreis vor Einbuchen korrigierbar; opt-in Online-Abruf (Globus/Penny, Best-Effort).
 - **M4 — Rezepte + Personen/Portionen** (geplant): recipes/recipe_ingredients/recipe_steps, persons,
@@ -166,6 +166,14 @@ Inventur (Ist erfassen) → Soll-Ist-Bedarf → Einkaufsliste (virtuelle Bestän
 ---
 
 ## Offene Punkte / noch zu testen (nicht bestätigt)
+
+**Block E / M2 — Einkauf-Entität (Commits 9a05157, d6b6f10, cc95666, 4775eda, 9482a9e, d327598, 01bc69e, 47a1ce9) — Test auf Pi ausstehend:**
+- Migration 0010 läuft (shopping_trips + shopping_trip_items, beide Unique-Indizes)
+- 2×2 behoben: Milch bei Globus+Penny, 2× Soll → einen dem Globus-Run zuweisen → in Penny-Ansicht ausgegraut „reserviert"
+- Status: zweiter Run pausiert den ersten; Beenden blockiert bei nicht eingebuchter „gekauft"-Position
+- Verschieben zwischen Runs; Ausverkauft → beim Beenden zurück in Backlog
+- Split beim Einbuchen (×2/×3/×4) → mehrere Bestände mit je MHD; Bedarf + Position verschwinden
+- Sammel-Aktion „Alle in Einkauf legen"; /aktivitaet zeigt Einkauf-Einträge
 
 **M1-Feedback A–D (Commits 77b3e6e, 97a3462, 40798b6, 4d3a374, 832dfee, 9000b61, cc1674f, c094739, 82ce904) — Test auf Pi ausstehend:**
 - Migration 0009 läuft (audit_log.household_id)

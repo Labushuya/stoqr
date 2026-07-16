@@ -5,6 +5,54 @@ Neueste Einträge oben. Jeder Eintrag nennt den Commit-Kontext, damit andere LLM
 
 ---
 
+## [Unreleased] — Block E: Einkauf-Entität (M2) — behebt 2×2-Bedarf (implementiert, Test auf Pi ausstehend)
+
+M1 erzeugte Bedarf pro zugeordnetem Markt → Milch bei Globus+Penny gelistet und 2× gebraucht = 2×2. Block E
+führt eine **Einkauf-Entität** ein: ein Bedarf wird genau EINEM Run zugewiesen (reserviert), kann also nicht
+doppelt eingekauft werden. Additiv, keine bestehende Logik zurückgebaut.
+
+### Datenmodell + Migration (E1)
+- `shopping_trips` (Run: Status begonnen|pausiert|beendet, storeId, name, dates) + `shopping_trip_items`
+  (Position: reserviert 1 Bedarf via `shoppingListItemId` UNIQUE + FK cascade; realStatus offen|gekauft|ausverkauft;
+  denormalisierte product/quantity/unit).
+- Migration 0010 (additiv): partieller Unique-Index `shopping_trips_active_uniq` (max 1 'begonnen' je Haushalt) +
+  `shopping_trip_items_need_uniq` (1 Bedarf = 1 Run). `_journal.json` idx 10.
+
+### Backend (E2–E4)
+- `queries/shopping-trips.ts`: create/list/get/update/delete + pause/resume/end (transaktional; endTrip blockiert
+  bei nicht eingebuchten 'gekauft'-Positionen, löst sonst offene/ausverkaufte); reserveNeed/reserveAllForStore/
+  moveTripItem/updateTripItem/releaseTripItem/bookInTripItem.
+- APIs `/api/shopping-trips` (+ `[id]`, `[id]/items`, `[id]/items/[itemId]`, `.../book-in`); writeAudit je Mutation.
+- `generateAutoNeeds`: reservierte Bedarfe geschützt (nie überschrieben/gelöscht/dupliziert). `getShoppingList`
+  liefert `reservedTrip*`. `deleteShoppingItem`: 409 wenn reserviert.
+
+### UI (E5–E8)
+- Einkaufsliste: reservierte Bedarfe „sichtbar aber gesperrt" (ausgegraut, Badge, „→ verschieben"-Dropdown);
+  „In Einkauf" pro Bedarf + Sammel-Aktion „Alle in Einkauf legen"; „Direkt einbuchen" als Fallback.
+- Neue Seite `/einkauf` (Übersicht: neuer Run, laufende/beendete Runs, Fortsetzen) + `/einkauf/[id]` (Positionen mit
+  Gekauft/Ausverkauft-Chips, Einbuchen, Freigeben; Pausieren/Fortsetzen/Beenden/Löschen). Nav-Link „Einkauf".
+- easy-add: Split-Chips (×2/×3/×4) teilen die Menge auf N MHD-Zeilen; Einbuchen aus Run (`fromTripItem`+`tripId`)
+  → book-in + Redirect zum Run.
+- Aktivitäts-Labels für shopping_trips / shopping_trip_items.
+
+### Commits
+9a05157 (E1) · d6b6f10 (E2) · cc95666 (E3) · 4775eda (E4) · 9482a9e (E6) · d327598 (E5) · 01bc69e (E7) · 47a1ce9 (E8)
+
+### Test-Steps (Pi)
+1. Container-Neustart → Migration 0010 (shopping_trips*, beide Unique-Indizes).
+2. Milch bei Globus+Penny, 2× Soll → „Bedarf erzeugen"; einen dem Globus-Run zuweisen → in Penny-Ansicht ausgegraut
+   „reserviert · Globus-Run" (kein 2×2).
+3. Zweiten Run starten → erster pausiert. Beenden blockiert bei nicht eingebuchter „gekauft"-Position.
+4. Reservierten Bedarf per Dropdown in anderen Run verschieben.
+5. Position „ausverkauft" → beim Run-Beenden zurück in den Backlog.
+6. Position einbuchen → „Split 2" → 2 Bestände mit je MHD; Bedarf + Position weg; Redirect zum Run.
+7. Sammel-Aktion „Alle in Einkauf legen" reserviert alle passenden offenen Bedarfe.
+8. /aktivitaet zeigt Einkauf-/Einkauf-Position-Einträge.
+
+### Ausblick: Block F (Preise) — product_prices + Historie, Estimate „ca. ~X €", Kaufpreis-Korrektur, Online-Abruf.
+
+---
+
 ## [Unreleased] — M1-Feedback Nachbesserung: A6 + B behoben (implementiert, Test auf Pi ausstehend)
 
 Zweite Testrunde deckte auf, dass A6 und B nicht vollständig erfüllt waren. Ursachenanalyse via
