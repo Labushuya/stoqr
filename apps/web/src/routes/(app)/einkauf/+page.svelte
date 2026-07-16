@@ -14,6 +14,7 @@
     startedAt: string
     endedAt: string | null
     store: { id: string; name: string; chain: string | null } | null
+    itemCount: number
   }
 
   const trips = $derived((data.trips as Trip[]) ?? [])
@@ -26,8 +27,11 @@
     beendet: 'Beendet',
   }
 
-  const activeTrips = $derived(trips.filter((t) => t.status !== 'beendet'))
-  const doneTrips = $derived(trips.filter((t) => t.status === 'beendet'))
+  // Leere Runs (ohne Positionen) werden in der Übersicht ausgeblendet — ein frisch
+  // gestarteter Run ist auf seiner Detailseite trotzdem erreichbar.
+  const activeTrips = $derived(trips.filter((t) => t.status !== 'beendet' && t.itemCount > 0))
+  const doneTrips = $derived(trips.filter((t) => t.status === 'beendet' && t.itemCount > 0))
+  const emptyActiveCount = $derived(trips.filter((t) => t.status !== 'beendet' && t.itemCount === 0).length)
 
   function tripTitle(t: Trip): string {
     if (t.name) return t.name
@@ -140,6 +144,9 @@
           </li>
         {/each}
       </ul>
+    {/if}
+    {#if emptyActiveCount > 0}
+      <p class="hint">{emptyActiveCount} leerer Einkauf ausgeblendet (noch ohne Positionen).</p>
     {/if}
   </section>
 

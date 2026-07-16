@@ -16,13 +16,16 @@ export type TripStatus = 'begonnen' | 'pausiert' | 'beendet'
 // ── Lesen ────────────────────────────────────────────────────────────────
 
 export async function listTrips(householdId: string) {
-  return db.query.shoppingTrips.findMany({
+  const rows = await db.query.shoppingTrips.findMany({
     where: (t, { eq }) => eq(t.householdId, householdId),
     orderBy: [desc(shoppingTrips.startedAt)],
     with: {
       store: { columns: { id: true, name: true, chain: true } },
+      items: { columns: { id: true } },
     },
   })
+  // itemCount mitliefern; items-Array selbst nicht durchreichen (Übersicht braucht nur die Zahl).
+  return rows.map(({ items, ...trip }) => ({ ...trip, itemCount: items.length }))
 }
 
 export async function getTrip(id: string, householdId: string) {
@@ -43,6 +46,10 @@ export async function getTrip(id: string, householdId: string) {
 /**
  * Legt einen neuen Run an (Status 'begonnen'). Setzt einen evtl. bereits aktiven
  * Run desselben Haushalts zuvor auf 'pausiert' (nur einer aktiv).
+ *
+ * Wiederverwendung: existiert bereits ein LEERER (keine Positionen), nicht-beendeter
+ * Run desselben Markts, wird dieser aktiviert und zurückgegeben — verhindert das
+ * Anhäufen leerer Runs.
  */
 export async function createTrip(input: {
   householdId: string
@@ -50,16 +57,42 @@ export async function createTrip(input: {
   storeId?: string | null
 }) {
   return db.transaction(async (tx) => {
+    const targetStore = input.storeId || null
+
+    // Vorhandene nicht-beendete Runs desselben Markts + deren Positionszahl.
+    const candidates = await tx.query.shoppingTrips.findMany({
+      where: (t, { and, eq, ne }) => and(eq(t.householdId, input.householdId), ne(t.status, 'beendet')),
+      with: { items: { columns: { id: true } } },
+    })
+    const reusable = candidates.find(
+      (t) => (t.storeId ?? null) === targetStore && t.items.length === 0,
+    )
+
+    // Aktiven Run pausieren (Invariante: max. einer 'begonnen').
     await tx
       .update(shoppingTrips)
       .set({ status: 'pausiert', updatedAt: new Date() })
       .where(and(eq(shoppingTrips.householdId, input.householdId), eq(shoppingTrips.status, 'begonnen')))
+
+    if (reusable) {
+      const [row] = await tx
+        .update(shoppingTrips)
+        .set({
+          status: 'begonnen',
+          name: input.name?.trim() || reusable.name || null,
+          updatedAt: new Date(),
+        })
+        .where(eq(shoppingTrips.id, reusable.id))
+        .returning()
+      return row
+    }
+
     const [row] = await tx
       .insert(shoppingTrips)
       .values({
         householdId: input.householdId,
         name: input.name?.trim() || null,
-        storeId: input.storeId || null,
+        storeId: targetStore,
         status: 'begonnen',
       })
       .returning()
