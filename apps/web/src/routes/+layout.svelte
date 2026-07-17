@@ -26,6 +26,47 @@
     document.documentElement.setAttribute('data-theme', darkMode ? 'dark' : '')
   }
 
+  // ── Versions-/Update-Check (nur Information) ────────────────────────────────
+  type VersionInfo = {
+    current: { gitShaShort: string; buildTime: string }
+    latest: { gitShaShort: string } | null
+    updateAvailable: boolean | null
+  }
+  let versionShort = $state('…')
+  let checkState = $state<'idle' | 'checking' | 'current' | 'update' | 'unknown'>('idle')
+  let checkMsg = $state('')
+
+  $effect(() => {
+    // Laufende Version einmalig laden (nur die kurze SHA fürs Badge).
+    fetch('/api/version')
+      .then((r) => r.json())
+      .then((v: VersionInfo) => { versionShort = v.current?.gitShaShort ?? 'unbekannt' })
+      .catch(() => { versionShort = 'unbekannt' })
+  })
+
+  async function checkForUpdate() {
+    checkState = 'checking'
+    checkMsg = 'Prüfe…'
+    try {
+      const res = await fetch('/api/version')
+      const v = (await res.json()) as VersionInfo
+      versionShort = v.current?.gitShaShort ?? 'unbekannt'
+      if (v.updateAvailable === true) {
+        checkState = 'update'
+        checkMsg = `Update verfügbar (${v.latest?.gitShaShort ?? 'neuer Commit'})`
+      } else if (v.updateAvailable === false) {
+        checkState = 'current'
+        checkMsg = 'Bereits aktuell'
+      } else {
+        checkState = 'unknown'
+        checkMsg = 'Prüfung nicht möglich'
+      }
+    } catch {
+      checkState = 'unknown'
+      checkMsg = 'Prüfung nicht möglich'
+    }
+  }
+
   const navLinks = [
     { href: '/',          label: 'Dashboard' },
     { href: '/inventar',  label: 'Inventar'  },
@@ -176,6 +217,18 @@
 
     <main class="main-content">
       {@render children()}
+
+      <footer class="version-footer">
+        <button
+          class="version-badge version-badge--{checkState}"
+          type="button"
+          onclick={checkForUpdate}
+          title="Auf Update prüfen"
+        >
+          <span class="version-dot" aria-hidden="true"></span>
+          stoqr · {versionShort}{#if checkMsg} — {checkMsg}{/if}
+        </button>
+      </footer>
     </main>
   </div>
 {:else}
@@ -191,6 +244,34 @@
     min-height: 100vh;
     background-color: var(--color-base);
   }
+
+  .version-footer {
+    display: flex;
+    justify-content: center;
+    padding: var(--space-6, 24px) var(--space-4, 16px) var(--space-8, 32px);
+  }
+  .version-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border: 1px solid var(--color-border);
+    background: var(--color-surface-raised, var(--color-surface));
+    color: var(--color-text-muted);
+    border-radius: 999px;
+    padding: 5px 12px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: border-color 120ms, color 120ms;
+  }
+  .version-badge:hover { border-color: var(--color-primary); color: var(--color-primary); }
+  .version-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--color-text-muted); flex-shrink: 0; }
+  .version-badge--checking .version-dot { background: #a16207; }
+  .version-badge--current { color: var(--color-success, #16a34a); border-color: var(--color-success, #16a34a); }
+  .version-badge--current .version-dot { background: var(--color-success, #16a34a); }
+  .version-badge--update { color: var(--color-primary); border-color: var(--color-primary); }
+  .version-badge--update .version-dot { background: var(--color-primary); }
+  .version-badge--unknown .version-dot { background: var(--color-danger, #dc2626); }
 
   /* ── Navbar ─────────────────────────────────────── */
 

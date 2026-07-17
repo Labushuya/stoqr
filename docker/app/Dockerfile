@@ -61,4 +61,14 @@ RUN chmod +x entrypoint.sh
 USER stoqr
 EXPOSE 3000
 ENV NODE_ENV=production
+
+# Build-Herkunft (fuer Versionsanzeige / Update-Check). Vom CI als build-args
+# gesetzt; Default 'unknown' bei lokalem Build ohne Angabe.
+ARG GIT_SHA=unknown
+ARG GIT_REF=unknown
+ARG BUILD_TIME=unknown
+ENV STOQR_GIT_SHA=$GIT_SHA
+ENV STOQR_GIT_REF=$GIT_REF
+ENV STOQR_BUILD_TIME=$BUILD_TIME
+
 CMD ["./entrypoint.sh"]
