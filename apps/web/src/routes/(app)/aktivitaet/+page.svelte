@@ -34,6 +34,7 @@
     product_stores: 'Artikel-Markt-Zuordnung',
     shopping_trips: 'Einkauf',
     shopping_trip_items: 'Einkauf-Position',
+    product_prices: 'Preis',
   }
 
   const ACTION_LABELS: Record<Entry['action'], string> = {
@@ -70,6 +71,10 @@
     status: 'Status',
     realStatus: 'Kaufstatus',
     tripId: 'Einkauf',
+    priceCt: 'Preis (Cent)',
+    isReduced: 'Reduziert',
+    isCurrent: 'Aktueller Preis',
+    source: 'Quelle',
   }
 
   function tableLabel(t: string): string {
