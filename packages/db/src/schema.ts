@@ -11,6 +11,7 @@ import {
   jsonb,
   bigserial,
   uniqueIndex,
+  index,
   type AnyPgColumn,
 } from 'drizzle-orm/pg-core'
 import { relations, sql } from 'drizzle-orm';
@@ -230,6 +231,67 @@ export const productStoresRelations = relations(productStores, ({ one }) => ({
   household: one(households, {
     fields: [productStores.householdId],
     references: [households.id],
+  }),
+}));
+
+// ---------------------------------------------------------------------------
+// product_prices — Preise je Artikel+Markt mit Historie (Block F / M3)
+//
+// Append-only Historie. Genau EIN Eintrag je (productId, storeId, householdId)
+// traegt isCurrent=true = der massgebliche Preis fuers Estimate (partieller
+// Unique-Index in der Migration erzwingt das). priceCt ist der Preis PRO Einheit
+// (unit). isReduced markiert ein Angebot; ein reduzierter Preis wird nur dann
+// isCurrent, wenn er ausdruecklich als Dauerpreis uebernommen wurde.
+// ---------------------------------------------------------------------------
+
+export const productPrices = pgTable(
+  'product_prices',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    householdId: text('household_id')
+      .notNull()
+      .references(() => households.id),
+    productId: uuid('product_id')
+      .notNull()
+      .references(() => products.id, { onDelete: 'cascade' }),
+    storeId: uuid('store_id')
+      .notNull()
+      .references(() => stores.id, { onDelete: 'cascade' }),
+    priceCt: integer('price_ct').notNull(),
+    unit: varchar('unit', { length: 16 }).notNull(),
+    isReduced: boolean('is_reduced').notNull().default(false),
+    isCurrent: boolean('is_current').notNull().default(false),
+    source: varchar('source', { length: 16 }).notNull().$type<'manual' | 'booked' | 'online'>(),
+    note: text('note'),
+    recordedAt: timestamp('recorded_at').notNull().defaultNow(),
+    createdBy: text('created_by').references(() => users.id),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+  },
+  (table) => ({
+    productHouseholdIdx: index('product_prices_product_household_idx').on(
+      table.productId,
+      table.householdId
+    ),
+    storeIdx: index('product_prices_store_idx').on(table.storeId),
+  })
+);
+
+export const productPricesRelations = relations(productPrices, ({ one }) => ({
+  product: one(products, {
+    fields: [productPrices.productId],
+    references: [products.id],
+  }),
+  store: one(stores, {
+    fields: [productPrices.storeId],
+    references: [stores.id],
+  }),
+  household: one(households, {
+    fields: [productPrices.householdId],
+    references: [households.id],
+  }),
+  creator: one(users, {
+    fields: [productPrices.createdBy],
+    references: [users.id],
   }),
 }));
 

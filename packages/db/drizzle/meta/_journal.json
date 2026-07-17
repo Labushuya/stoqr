@@ -77,6 +77,13 @@
       "when": 1783800005000,
       "tag": "0010_shopping_trips",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1783800006000,
+      "tag": "0011_product_prices",
+      "breakpoints": true
     }
   ]
 }
