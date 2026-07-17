@@ -269,6 +269,25 @@ const BLOCKS = [
     ]
   },
   {
+    tag: "F", name: "Preise & Kosten-Schätzung", desc: "Block F: Preise je Artikel+Markt mit Historie; Estimate in Einkaufsliste + Einkauf-Run.",
+    items: [
+      { id: "P1", title: "Preis beim Einbuchen erfassen", steps: ["Inventar → „Bestand hinzufügen“, Artikel + Markt „Globus“ wählen.", "Im Feld „Preis (pro …)“ z.B. 1,19 eingeben.", "„Speichern“."],
+        expect: "Preisfeld ist vorhanden (mit Haken „reduziert“ / „als Dauerpreis übernehmen“, sobald ein Markt gewählt ist). Nach dem Speichern ist der Preis erfasst." },
+      { id: "P2", title: "Preise-Card auf der Artikel-Detailseite", steps: ["Artikel-Detailseite öffnen.", "Abschnitt „Preise“ betrachten."],
+        expect: "„Preise“-Card zeigt je zugeordnetem Markt den aktuellen Preis (z.B. „1,19 € / Packung“) bzw. „kein Preis“. „Preis setzen“/„Ändern“ öffnet einen Inline-Editor (Preis + Einheit + 2 Haken)." },
+      { id: "P3", title: "Preis manuell je Markt setzen", steps: ["In der „Preise“-Card bei einem Markt „Preis setzen“/„Ändern“.", "Preis + Einheit eingeben, „Speichern“."],
+        expect: "Toast „Preis gespeichert“. Der neue Preis erscheint sofort als aktueller Preis des Markts." },
+      { id: "P4", title: "Reduziert vs. Dauerpreis", steps: ["Einen Preis mit Haken „reduziert“, aber OHNE „als Dauerpreis“ speichern.", "Danach das Estimate (Einkaufsliste/Run) prüfen.", "Dann denselben Preis mit „als Dauerpreis“ speichern."],
+        expect: "Ohne „als Dauerpreis“ zählt der reduzierte Preis NICHT fürs Estimate (der vorherige reguläre Preis bleibt maßgeblich). Mit „als Dauerpreis“ wird er der neue maßgebliche Preis. Angebot ist mit Badge „Angebot“ markiert." },
+      { id: "P5", title: "Estimate im Einkauf-Run", steps: ["Einkauf-Run mit Markt öffnen (Positionen vorhanden).", "Positionen + Kopfzeile betrachten."],
+        expect: "Jede Position zeigt „ca. ~X €“ (bzw. „kein Preis“ / „Einheit ≠“). Oben Summe „Einkauf ca. ~X €“. Bei Artikeln ohne Preis: Warnung „Schätzung unvollständig …“." },
+      { id: "P6", title: "Estimate in der Einkaufsliste", steps: ["Einkaufsliste öffnen.", "Oben „Einkauf bei“ → „Globus“ wählen."],
+        expect: "Pro Position „ca. ~X €“, oben Summe „Einkauf ca. ~X €“ + ggf. Warnung. Ohne gewählten Markt: Hinweis „Markt wählen für Preisschätzung“." },
+      { id: "P7", title: "Einheiten-Umrechnung im Estimate", steps: ["Für einen Artikel einen Preis „1,50 € / kg“ setzen.", "Einen Bedarf/eine Position mit 500 g dieses Artikels betrachten.", "Zum Vergleich: Preis pro „Packung“ setzen und Bedarf in „kg“ prüfen."],
+        expect: "500 g bei 1,50 €/kg → „ca. ~0,75 €“. Preis pro „Packung“ gegen Bedarf in „kg“ → „Einheit ≠“ (nicht vergleichbar, fließt nicht in die Summe)." },
+    ]
+  },
+  {
     tag: "D", name: "Audit / Aktivität", desc: "Vollständiges Änderungsprotokoll (Block D) — alle bisherigen Aktionen sollten hier auftauchen.",
     items: [
       { id: "AK1", title: "Aktivitätsseite erreichbar", steps: ["Einstellungen → „Aktivität ansehen“."],

@@ -3,7 +3,7 @@
 > Kanonisches Datenmodell und Entwicklungsplan. Diese Datei ist führend für Absicht,
 > Logik und Ziel von stoqr. Bei Widersprüchen zwischen Code und dieser Datei gilt diese Datei.
 
-Letzte Aktualisierung: 2026-07-16 (Block E / M2: Einkauf-Entität)
+Letzte Aktualisierung: 2026-07-17 (Block F / M3: Preise je Artikel+Markt mit Historie)
 
 ---
 
@@ -145,8 +145,11 @@ Kein Text-/Pipe-Export (existiert so in Bring! nicht).
   behebt das 2×2-Problem; „sichtbar aber gesperrt" in der Einkaufsliste + „In Einkauf legen"/Sammel-Aktion/verschieben;
   Ausverkauft-Status; Beenden blockiert bei nicht eingebuchten gekauften Positionen; eigene /einkauf-Seite;
   Split beim Einbuchen (N MHD-Zeilen). Migration 0010. Preise bewusst ausgeklammert → M3.
-- **M3 — Preise je Artikel+Markt** (geplant): product_prices + Historie, Estimate „ca. ~X €" + Warnhinweis,
-  realer Kaufpreis vor Einbuchen korrigierbar; opt-in Online-Abruf (Globus/Penny, Best-Effort).
+- **M3 — Preise je Artikel+Markt** (abgeschlossen, Test ausstehend): product_prices mit Historie (isCurrent =
+  massgeblicher Preis; isReduced = Angebot, nur als Dauerpreis massgeblich); Preis pro Einheit mit toBaseFactor-Umrechnung;
+  Kaufpreis beim Einbuchen (booked) + separate Pflege je Markt (manual, Detailseite); Estimate „ca. ~X €" + Summe +
+  Warnung in Einkaufsliste (client-reaktiv) und Einkauf-Run (server). Migration 0011. **Online-Abruf → F2 (separat).**
+- **M3b/F2 — Online-Preis-Abruf** (geplant): opt-in Globus/Penny (Best-Effort, DOM-Scraping); Penny ohne offene Quelle.
 - **M4 — Rezepte + Personen/Portionen** (geplant): recipes/recipe_ingredients/recipe_steps, persons,
   Zutaten-Ampel via aggregateStock/compareToTarget, fehlende Zutaten → Einkaufsliste.
 
@@ -166,6 +169,14 @@ Inventur (Ist erfassen) → Soll-Ist-Bedarf → Einkaufsliste (virtuelle Bestän
 ---
 
 ## Offene Punkte / noch zu testen (nicht bestätigt)
+
+**Block F / M3 — Preise (Commits 9bf1950, 6c5b0bd, bbea93d, 1351586, 8fbba90, 19579b0, 828c174) — Test auf Pi ausstehend:**
+- Migration 0011 (product_prices, Unique-Index product_prices_current_uniq)
+- Einbuchen mit Preis → purchasePriceCt am Bestand + Preis-Eintrag; Detailseite-„Preise"-Card zeigt ihn
+- reduziert ohne Dauerpreis → Estimate nutzt weiter regulären Preis; „als Dauerpreis" → neuer maßgeblicher Preis
+- Preis je Markt manuell auf der Detailseite setzen
+- Einkauf-Run/Einkaufsliste (Markt gewählt) → „ca. ~X €" pro Position + Summe + Warnung; ohne Markt „Markt wählen"
+- Einheiten: 1,50 €/kg bei 500 g → 0,75 €; Preis/Packung vs. Bedarf in kg → „Einheit ≠"
 
 **Block E / M2 — Einkauf-Entität (Commits 9a05157, d6b6f10, cc95666, 4775eda, 9482a9e, d327598, 01bc69e, 47a1ce9) — Test auf Pi ausstehend:**
 - Migration 0010 läuft (shopping_trips + shopping_trip_items, beide Unique-Indizes)

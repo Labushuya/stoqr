@@ -5,6 +5,46 @@ Neueste Einträge oben. Jeder Eintrag nennt den Commit-Kontext, damit andere LLM
 
 ---
 
+## [Unreleased] — Block F: Preise je Artikel+Markt mit Historie (implementiert, Test auf Pi ausstehend)
+
+Preis-Dimension ergänzt: Preise je (Artikel, Markt) mit Historie, Kosten-Schätzung in Einkaufsliste + Einkauf-Run.
+Online-Abruf (Globus/Penny) bewusst ausgeklammert — eigener Block F2. Additiv.
+
+### Datenmodell + Fundament (F-1, F-2)
+- `product_prices` (Historie): priceCt pro Einheit, isReduced, isCurrent, source manual|booked|online, recordedAt.
+  Migration 0011 (partieller Unique-Index `product_prices_current_uniq` = max 1 isCurrent je Artikel+Markt). `_journal` idx 11.
+- `queries/prices.ts`: recordPrice (transaktionale isCurrent-Umschaltung), getCurrentPrice(sForProducts/AllStores/ListProducts), listPriceHistory.
+- `lib/utils/prices.ts` (rein, 12 Vitest-Fälle): estimateLineCost (toBaseFactor mass/volume, count Symbol-Match), summarizeCosts, formatEuroApprox.
+
+### Kaufpreis erfassen (F-3, F-4)
+- **Einbuchen (easy-add):** formularweites Preisfeld (pro Einheit) + Haken „reduziert"/„als Dauerpreis"; schreibt
+  `inventory_items.purchasePriceCt` an jeder Charge + einen Preis-Historieneintrag (source=booked, nur erste Charge).
+- **Separate Pflege:** „Preise"-Card auf der Artikel-Detailseite je zugeordnetem Markt (aktueller Preis, Angebot-Badge,
+  Inline-Editor); neue Route `/api/products/[id]/prices` (GET current/history, POST manual).
+- **Reduziert/Dauerpreis:** ein reduzierter Preis wird nur maßgeblich (isCurrent), wenn ausdrücklich als Dauerpreis übernommen.
+
+### Estimate-Anzeige (F-5, F-6, F-7)
+- **Einkauf-Run:** server-seitig via trip.storeId — „ca. ~X €" pro Position + Kopf-Summe + Warnung bei fehlenden Preisen.
+- **Einkaufsliste:** client-reaktiv via selectedStore — Estimate pro Position + Summe + Warnung; ohne Markt „Markt wählen".
+- **Einheiten:** 1,50 €/kg bei 500 g Bedarf → 0,75 €; inkompatible Einheit → „Einheit ≠".
+- Aktivitäts-Labels für product_prices.
+
+### Commits
+9bf1950 (F-1) · 6c5b0bd (F-2) · bbea93d (F-3) · 1351586 (F-4) · 8fbba90 (F-5) · 19579b0 (F-6) · 828c174 (F-7)
+
+### Test-Steps (Pi)
+1. Container-Neustart → Migration 0011 (`product_prices`, Unique-Index).
+2. Bestand einbuchen mit Preis 1,19 €/Packung → Preis am Bestand + Preis-Eintrag; Detailseite-„Preise"-Card zeigt ihn.
+3. Reduziert ohne Dauerpreis → Estimate nutzt weiter den regulären Preis; mit „als Dauerpreis" → neuer maßgeblicher Preis.
+4. Detailseite: Preis je Markt manuell setzen.
+5. Einkauf-Run (Markt gesetzt) → Positionen „ca. ~X €" + Summe; Artikel ohne Preis → Warnung.
+6. Einkaufsliste, Markt „Globus" → Estimate + Summe; ohne Markt → „Markt wählen".
+7. Preis 1,50 €/kg, Bedarf 500 g → 0,75 €; Preis/Packung vs. Bedarf in kg → „Einheit ≠".
+
+### Ausblick: Block F2 (Online-Preis-Abruf Globus/Penny, opt-in, DOM-Scraping) — separater Block.
+
+---
+
 ## [Unreleased] — Block-E-Testing-Feedback: 2×2-Wurzelfix, leere Runs, Spenden/Entsorgen (implementiert, Test auf Pi ausstehend)
 
 Testlauf des Manifests A–E deckte drei Punkte auf:
