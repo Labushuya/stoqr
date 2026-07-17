@@ -2,6 +2,7 @@
   import type { PageData } from './$types'
   import { goto, invalidateAll } from '$app/navigation'
   import { toast } from '$lib/stores/toast'
+  import { formatEuroApprox, type LineEstimate, type CostSummary } from '$lib/utils/prices'
 
   let { data }: { data: PageData } = $props()
 
@@ -29,6 +30,8 @@
   const trip = $derived(data.trip as Trip)
   const units = $derived(data.units as Unit[])
   const isDone = $derived(trip.status === 'beendet')
+  const estimates = $derived((data.estimates as Record<string, LineEstimate>) ?? {})
+  const costSummary = $derived(data.costSummary as CostSummary | null)
 
   const STATUS_LABEL: Record<Trip['status'], string> = { begonnen: 'Aktiv', pausiert: 'Pausiert', beendet: 'Beendet' }
   const REAL_LABEL: Record<Item['realStatus'], string> = { offen: 'Offen', gekauft: 'Gekauft', ausverkauft: 'Ausverkauft' }
@@ -142,17 +145,39 @@
 
   <section class="card">
     <h2 class="section-title">Positionen <span class="section-sub">({trip.items.length})</span></h2>
+
+    {#if costSummary}
+      <div class="cost-summary">
+        <span class="cost-total">Einkauf {formatEuroApprox(costSummary.totalCents)}</span>
+        {#if costSummary.isPartial}
+          <span class="cost-warn">
+            ⚠ Schätzung unvollständig{#if costSummary.itemsWithoutPrice > 0}: {costSummary.itemsWithoutPrice} ohne Preis{/if}{#if costSummary.itemsNotComparable > 0}, {costSummary.itemsNotComparable} Einheit nicht vergleichbar{/if}
+          </span>
+        {/if}
+      </div>
+    {:else if !trip.storeId && trip.items.length > 0}
+      <p class="cost-hint">Kein Markt zugeordnet — keine Preisschätzung möglich.</p>
+    {/if}
+
     {#if trip.items.length === 0}
       <p class="empty-hint">Noch keine Positionen. Weise in der Einkaufsliste Bedarf diesem Einkauf zu.</p>
     {:else}
       <ul class="item-list">
         {#each trip.items as i (i.id)}
+          {@const est = estimates[i.id]}
           <li class="item" class:item--gekauft={i.realStatus === 'gekauft'} class:item--ausverkauft={i.realStatus === 'ausverkauft'}>
             <div class="item-main">
               <span class="item-name">{itemName(i)}</span>
               <span class="item-meta">
                 {qtyDisplay(i)}
                 <span class="real-badge real-badge--{i.realStatus}">{REAL_LABEL[i.realStatus]}</span>
+                {#if est && est.cents != null}
+                  <span class="cost-line">{formatEuroApprox(est.cents)}</span>
+                {:else if est && !est.hasPrice}
+                  <span class="cost-line cost-line--none">kein Preis</span>
+                {:else if est && !est.comparable}
+                  <span class="cost-line cost-line--none">Einheit ≠</span>
+                {/if}
               </span>
             </div>
             {#if !isDone}
@@ -231,4 +256,12 @@
     .page { padding: var(--space-4) var(--space-3) var(--space-12); }
     .card { padding: var(--space-4); }
   }
+
+  /* ── Kosten-Schätzung (Block F) ───────────────────────────────────────── */
+  .cost-summary { display: flex; flex-direction: column; gap: 2px; margin: 0 0 var(--space-3); padding: var(--space-2) var(--space-3); background: var(--color-surface-sunken); border-radius: var(--radius-md); }
+  .cost-total { font-size: var(--text-base); font-weight: 700; color: var(--color-text-primary); }
+  .cost-warn { font-size: var(--text-xs); color: #c2410c; }
+  .cost-hint { font-size: var(--text-xs); color: var(--color-text-muted); margin: 0 0 var(--space-3); }
+  .cost-line { font-weight: 600; color: var(--color-text-secondary); }
+  .cost-line--none { font-weight: 400; color: var(--color-text-muted); font-style: italic; }
 </style>
