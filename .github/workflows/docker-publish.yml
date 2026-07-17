@@ -45,6 +45,7 @@ jobs:
 
       - name: Extract metadata
         id: meta
+        continue-on-error: true
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
@@ -53,6 +54,22 @@ jobs:
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=sha,prefix=sha-,format=short
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      # Retry: der metadata-action-Aufruf schlug schon transient fehl
+      # (GitHub-API lieferte HTML). Bei Fehlschlag ein zweiter Versuch.
+      - name: Extract metadata (retry)
+        id: meta_retry
+        if: steps.meta.outcome == 'failure'
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha,prefix=sha-,format=short
+            type=raw,value=latest,enable={{is_default_branch}}
 
       - name: Build timestamp
         id: bt
@@ -65,7 +82,7 @@ jobs:
           context: .
           file: ./docker/app/Dockerfile
           platforms: ${{ matrix.platform }}
-          labels: ${{ steps.meta.outputs.labels }}
+          labels: ${{ steps.meta.outputs.labels || steps.meta_retry.outputs.labels }}
           build-args: |
             GIT_SHA=${{ github.sha }}
             GIT_REF=${{ github.ref_name }}
@@ -107,6 +124,7 @@ jobs:
 
       - name: Extract metadata
         id: meta
+        continue-on-error: true
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
@@ -115,6 +133,30 @@ jobs:
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=sha,prefix=sha-,format=short
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      # Retry bei transientem GitHub-API-Fehler (HTML statt JSON).
+      - name: Extract metadata (retry)
+        id: meta_retry
+        if: steps.meta.outcome == 'failure'
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha,prefix=sha-,format=short
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      # Fail-safe: brechen ab, wenn BEIDE metadata-Versuche fehlschlugen —
+      # damit kein Manifest ohne gueltige Tags (insb. 'latest') gepusht wird.
+      - name: Verify metadata available
+        run: |
+          if [ -z "$DOCKER_METADATA_OUTPUT_JSON" ]; then
+            echo "::error::metadata-action lieferte keine Tags — Manifest wird NICHT gepusht (latest bleibt unveraendert)."
+            exit 1
+          fi
 
       - name: Log in to GHCR
         uses: docker/login-action@v3
