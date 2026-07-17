@@ -9,6 +9,7 @@ import {
 } from '$lib/server/queries/products'
 import { requireHouseholdId } from '$lib/server/queries/households'
 import { writeAudit } from '$lib/server/queries/audit'
+import { recordPrice } from '$lib/server/queries/prices'
 import { db } from '$lib/server/db'
 import { places, storages, locations, nutrientTypes, productNutrients, products } from '@stoqr/db'
 import { eq, inArray } from 'drizzle-orm'
@@ -70,6 +71,12 @@ export const POST: RequestHandler = async ({ locals, request }) => {
     bestBeforeDate,
     notes,
     storeId,
+    // Preis (Block F): Kaufpreis am Bestand + optional Preis-Historieneintrag
+    purchasePriceCt,
+    priceUnit,
+    priceIsReduced,
+    pricePermanent,
+    recordPrice: doRecordPrice,
   } = body as {
     productId?: string
     productName?: string
@@ -87,6 +94,11 @@ export const POST: RequestHandler = async ({ locals, request }) => {
     bestBeforeDate?: string
     notes?: string
     storeId?: string
+    purchasePriceCt?: number | null
+    priceUnit?: string
+    priceIsReduced?: boolean
+    pricePermanent?: boolean
+    recordPrice?: boolean
   }
 
   const qty = Number(quantity)
@@ -217,6 +229,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
     notes: notes ?? undefined,
     storeId: storeId ?? undefined,
     gtin: gtin ?? undefined,
+    purchasePriceCt: purchasePriceCt ?? undefined,
   })
 
   // Audit-Log: neuer Bestandsartikel (nach erfolgreicher Mutation).
@@ -233,8 +246,43 @@ export const POST: RequestHandler = async ({ locals, request }) => {
       storeId: storeId ?? null,
       placeId: placeId ?? null,
       bestBeforeDate: bestBeforeDate ?? null,
+      purchasePriceCt: purchasePriceCt ?? null,
     },
   })
+
+  // Preis-Historie (Block F): nur wenn ausdrücklich angefordert, Preis + Markt vorhanden.
+  // Bei mehreren Chargen sendet nur die erste Zeile recordPrice=true (keine Dubletten).
+  if (doRecordPrice && purchasePriceCt != null && storeId) {
+    const priceRow = await recordPrice({
+      householdId,
+      productId: resolvedProductId as string,
+      storeId,
+      priceCt: purchasePriceCt,
+      unit: priceUnit ?? unit,
+      isReduced: priceIsReduced ?? false,
+      makePermanent: pricePermanent ?? false,
+      source: 'booked',
+      createdBy: locals.user.id,
+    })
+    if (priceRow) {
+      await writeAudit({
+        householdId,
+        userId: locals.user.id,
+        action: 'INSERT',
+        tableName: 'product_prices',
+        recordId: priceRow.id,
+        newValues: {
+          productId: resolvedProductId as string,
+          storeId,
+          priceCt: purchasePriceCt,
+          unit: priceUnit ?? unit,
+          isReduced: priceIsReduced ?? false,
+          isCurrent: priceRow.isCurrent,
+          source: 'booked',
+        },
+      })
+    }
+  }
 
   // Return the full item with product info (mirrors GET /api/inventory/[id])
   const fullItem = await getInventoryItem(item.id, householdId)

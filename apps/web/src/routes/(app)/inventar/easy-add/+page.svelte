@@ -84,6 +84,11 @@
   let formStoreId = $state((data.prefillStore as string | null) ?? '')
   let formNotes = $state('')
 
+  // Preis (Block F): optionaler Kaufpreis pro Einheit + Angebots-/Dauerpreis-Flags.
+  let formPrice = $state('') // Euro-String, z.B. "1,19"
+  let formPriceReduced = $state(false)
+  let formPricePermanent = $state(false)
+
   // svelte-ignore state_referenced_locally
   let storeOptions = $state(data.stores as { id: string; name: string; chain: string | null }[])
 
@@ -398,9 +403,13 @@
 
     saving = true
 
+    // Preis (Euro-String, Komma erlaubt) → Cent; nur wenn > 0.
+    const priceEuro = parseFloat(formPrice.replace(',', '.'))
+    const priceCt = !isNaN(priceEuro) && priceEuro > 0 ? Math.round(priceEuro * 100) : null
+
     try {
       const results = await Promise.allSettled(
-        mhdRows.map((row) =>
+        mhdRows.map((row, idx) =>
           fetch('/api/inventory', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -413,6 +422,12 @@
               storeId: formStoreId || undefined,
               gtin: scannedGtin || undefined,
               notes: formNotes.trim() || undefined,
+              // Preis: an jeder Charge als Kaufpreis; Historie nur einmal (erste Zeile).
+              purchasePriceCt: priceCt ?? undefined,
+              priceUnit: formUnit,
+              priceIsReduced: formPriceReduced,
+              pricePermanent: formPricePermanent,
+              recordPrice: priceCt != null && !!formStoreId && idx === 0,
             }),
           }).then((res) => {
             if (!res.ok) throw new Error(`HTTP ${res.status}`)
@@ -738,6 +753,41 @@
           <option value={s.id}>{s.name}{s.chain ? ` (${s.chain})` : ''}</option>
         {/each}
       </select>
+    </div>
+
+    <!-- Preis (optional; Historie nur bei gesetztem Markt) -->
+    <div class="field">
+      <label class="label" for="ea-price">
+        Preis <span class="optional">(optional, pro {formUnit})</span>
+      </label>
+      <div class="price-row">
+        <input
+          id="ea-price"
+          class="input"
+          type="number"
+          min="0"
+          step="0.01"
+          inputmode="decimal"
+          placeholder="z.B. 1.19"
+          bind:value={formPrice}
+          disabled={selectedProduct === null}
+        />
+        <span class="price-cur">€</span>
+      </div>
+      {#if formPrice.trim() !== '' && formStoreId}
+        <div class="price-flags">
+          <label class="flag-label">
+            <input type="checkbox" bind:checked={formPriceReduced} />
+            reduziert (Angebot)
+          </label>
+          <label class="flag-label">
+            <input type="checkbox" bind:checked={formPricePermanent} />
+            als Dauerpreis übernehmen
+          </label>
+        </div>
+      {:else if formPrice.trim() !== '' && !formStoreId}
+        <p class="price-hint">Preis wird nur als Kaufpreis gespeichert — für die Preis-Historie einen Markt wählen.</p>
+      {/if}
     </div>
 
     <!-- Notiz -->
@@ -1110,6 +1160,41 @@
   .optional {
     font-weight: 400;
     color: var(--color-text-muted);
+  }
+
+  /* ── Preis-Feld (Block F) ─────────────────────────────────────────────── */
+
+  .price-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+  .price-row .input {
+    flex: 1;
+  }
+  .price-cur {
+    font-size: var(--text-base);
+    color: var(--color-text-muted);
+    font-weight: 600;
+  }
+  .price-flags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+    margin-top: var(--space-2);
+  }
+  .flag-label {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    font-size: var(--text-sm);
+    color: var(--color-text-secondary);
+    cursor: pointer;
+  }
+  .price-hint {
+    font-size: var(--text-xs);
+    color: var(--color-text-muted);
+    margin: var(--space-2) 0 0;
   }
 
   /* ── Scan button ──────────────────────────────────────────────────────── */

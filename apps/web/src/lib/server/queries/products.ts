@@ -206,6 +206,7 @@ export async function createInventoryItem(data: {
 	unit?: string;
 	bestBeforeDate?: string;
 	purchaseDate?: string;
+	purchasePriceCt?: number;
 	notes?: string;
 	storeId?: string;
 	gtin?: string;
@@ -220,6 +221,7 @@ export async function createInventoryItem(data: {
 			unit: data.unit ?? 'piece',
 			bestBeforeDate: data.bestBeforeDate,
 			purchaseDate: data.purchaseDate,
+			purchasePriceCt: data.purchasePriceCt,
 			notes: data.notes,
 			storeId: data.storeId,
 			gtin: data.gtin,
