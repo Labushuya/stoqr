@@ -2,6 +2,8 @@
   import type { PageData } from './$types'
   import { invalidateAll } from '$app/navigation'
   import { toast } from '$lib/stores/toast'
+  import { buildUnitMetaMap } from '$lib/utils/stock'
+  import { estimateLineCost, summarizeCosts, formatEuroApprox } from '$lib/utils/prices'
 
   let { data }: { data: PageData } = $props()
 
@@ -45,6 +47,26 @@
 
   // Markt-Auswahl: '' = Alle. Ein Einkauf = ein Markt (Einzelauswahl).
   let selectedStore = $state('')
+
+  // ── Preis-Schätzung (Block F, client-reaktiv je gewähltem Markt) ───────────
+  type PriceRow = { productId: string; storeId: string; priceCt: number; unit: string; isReduced: boolean }
+  const priceRows = $derived((data.prices as PriceRow[]) ?? [])
+  const metaMap = $derived(buildUnitMetaMap(units))
+  // Lookup aktueller Preis für (productId, gewählter Markt).
+  function priceFor(productId: string | null): { priceCt: number; unit: string } | null {
+    if (!productId || !selectedStore) return null
+    const r = priceRows.find((p) => p.productId === productId && p.storeId === selectedStore)
+    return r ? { priceCt: r.priceCt, unit: r.unit } : null
+  }
+  function estimateFor(i: Item) {
+    return estimateLineCost(Number(i.quantity), i.unit, priceFor(i.productId), metaMap)
+  }
+  // Summe über die aktuell offenen, sichtbaren, NICHT reservierten Positionen.
+  const listSummary = $derived.by(() => {
+    if (!selectedStore) return null
+    const lines = openItems.filter((i) => !i.reservedTripId).map((i) => estimateFor(i))
+    return summarizeCosts(lines)
+  })
 
   function unitLabel(symbol: string): string {
     return units.find((u) => u.symbol === symbol)?.name ?? symbol
@@ -264,6 +286,18 @@
   </div>
   {#if selectedStore}
     <p class="filter-hint">Zeigt Artikel für diesen Markt + Einträge ohne Markt. Kein Mischen mehrerer Märkte.</p>
+    {#if listSummary}
+      <div class="cost-summary">
+        <span class="cost-total">Einkauf {formatEuroApprox(listSummary.totalCents)}</span>
+        {#if listSummary.isPartial}
+          <span class="cost-warn">
+            ⚠ Schätzung unvollständig{#if listSummary.itemsWithoutPrice > 0}: {listSummary.itemsWithoutPrice} ohne Preis{/if}{#if listSummary.itemsNotComparable > 0}, {listSummary.itemsNotComparable} Einheit nicht vergleichbar{/if}
+          </span>
+        {/if}
+      </div>
+    {/if}
+  {:else}
+    <p class="filter-hint">Markt wählen für Preisschätzung.</p>
   {/if}
 
   <!-- ── Offene Einträge ─────────────────────────────────────────────────── -->
@@ -275,6 +309,7 @@
       <ul class="item-list">
         {#each openItems as i (i.id)}
           {@const reserved = i.reservedTripId !== null}
+          {@const est = selectedStore && !reserved ? estimateFor(i) : null}
           <li class="item" class:item--reserved={reserved}>
             <button class="check" type="button" aria-label="Abhaken" disabled={reserved} onclick={() => toggle(i)}></button>
             <div class="item-main">
@@ -284,6 +319,9 @@
                 {#if i.source === 'auto'}<span class="src-badge">auto</span>{/if}
                 {#if i.preferredStore}· {i.preferredStore.name}{/if}
                 {#if reserved}<span class="res-badge">reserviert · {reservedName(i)}</span>{/if}
+                {#if est && est.cents != null}<span class="cost-line">{formatEuroApprox(est.cents)}</span>
+                {:else if est && !est.hasPrice}<span class="cost-line cost-line--none">kein Preis</span>
+                {:else if est && !est.comparable}<span class="cost-line cost-line--none">Einheit ≠</span>{/if}
               </span>
             </div>
             <div class="item-actions">
@@ -411,4 +449,11 @@
     .card { padding: var(--space-4); }
     .add-row .input:first-child { flex-basis: 100%; }
   }
+
+  /* ── Kosten-Schätzung (Block F) ───────────────────────────────────────── */
+  .cost-summary { display: flex; flex-direction: column; gap: 2px; margin: 0 0 var(--space-4); padding: var(--space-2) var(--space-3); background: var(--color-surface-sunken); border-radius: var(--radius-md); }
+  .cost-total { font-size: var(--text-base); font-weight: 700; color: var(--color-text-primary); }
+  .cost-warn { font-size: var(--text-xs); color: #c2410c; }
+  .cost-line { font-weight: 600; color: var(--color-text-secondary); }
+  .cost-line--none { font-weight: 400; color: var(--color-text-muted); font-style: italic; }
 </style>

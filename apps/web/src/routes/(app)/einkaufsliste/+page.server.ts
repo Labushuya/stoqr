@@ -2,6 +2,7 @@ import { redirect } from '@sveltejs/kit'
 import { requireHouseholdId, getUnits } from '$lib/server/queries/households'
 import { getShoppingList } from '$lib/server/queries/shopping-list'
 import { listTrips } from '$lib/server/queries/shopping-trips'
+import { getCurrentPricesForListProducts } from '$lib/server/queries/prices'
 import { db } from '$lib/server/db'
 import { stores } from '@stoqr/db'
 import { asc } from 'drizzle-orm'
@@ -21,10 +22,13 @@ export const load: PageServerLoad = async ({ locals }) => {
       }),
       listTrips(householdId),
     ])
-    return { items, units, stores: storeRows, trips, loadError: null }
+    // Aktuelle Preise (alle Märkte) der Listen-Produkte — Client rechnet reaktiv je Markt.
+    const productIds = [...new Set(items.map((i) => i.productId).filter((p): p is string => !!p))]
+    const prices = await getCurrentPricesForListProducts(householdId, productIds)
+    return { items, units, stores: storeRows, trips, prices, loadError: null }
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err)
     console.error('[einkaufsliste] load error:', msg)
-    return { items: [], units: [], stores: [], trips: [], loadError: 'Einkaufsliste konnte nicht geladen werden.' }
+    return { items: [], units: [], stores: [], trips: [], prices: [], loadError: 'Einkaufsliste konnte nicht geladen werden.' }
   }
 }
