@@ -404,7 +404,7 @@
     saving = true
 
     // Preis (Euro-String, Komma erlaubt) → Cent; nur wenn > 0.
-    const priceEuro = parseFloat(formPrice.replace(',', '.'))
+    const priceEuro = parseFloat(String(formPrice).replace(',', '.'))
     const priceCt = !isNaN(priceEuro) && priceEuro > 0 ? Math.round(priceEuro * 100) : null
 
     try {
@@ -764,11 +764,9 @@
         <input
           id="ea-price"
           class="input"
-          type="number"
-          min="0"
-          step="0.01"
+          type="text"
           inputmode="decimal"
-          placeholder="z.B. 1.19"
+          placeholder="z.B. 1,19"
           bind:value={formPrice}
           disabled={selectedProduct === null}
         />

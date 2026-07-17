@@ -290,7 +290,7 @@
   }
 
   async function savePrice(storeId: string) {
-    const euro = parseFloat(priceInput.replace(',', '.'))
+    const euro = parseFloat(String(priceInput).replace(',', '.'))
     if (isNaN(euro) || euro < 0) { showToast('Preis muss eine Zahl >= 0 sein.', 'error'); return }
     priceSaving = true
     try {
@@ -728,7 +728,7 @@
               <div class="price-edit">
                 <span class="price-store">{s.name}{s.chain ? ` (${s.chain})` : ''}</span>
                 <div class="price-edit-row">
-                  <input class="input price-input" type="number" min="0" step="0.01" inputmode="decimal" placeholder="z.B. 1.19" bind:value={priceInput} aria-label="Preis" />
+                  <input class="input price-input" type="text" inputmode="decimal" placeholder="z.B. 1,19" bind:value={priceInput} aria-label="Preis" />
                   <span class="price-cur">€ / </span>
                   <select class="input price-unit" bind:value={priceUnitInput} aria-label="Einheit">
                     {#each units as u (u.id)}<option value={u.symbol}>{u.name}</option>{/each}
