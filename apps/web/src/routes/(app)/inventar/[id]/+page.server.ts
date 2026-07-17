@@ -17,6 +17,7 @@ import { deleteProduct, listInventoryForProduct } from '$lib/server/queries/prod
 import { getNutrientTypes } from '$lib/server/queries/nutrients'
 import { getStockTargetForProduct } from '$lib/server/queries/stock-targets'
 import { listStoresForProduct } from '$lib/server/queries/product-stores'
+import { getCurrentPricesForProductAllStores } from '$lib/server/queries/prices'
 import { buildUnitMetaMap, aggregateStock, compareToTarget } from '$lib/utils/stock'
 
 // ---------------------------------------------------------------------------
@@ -138,6 +139,9 @@ export const load: PageServerLoad = async ({ params, locals }) => {
   const productStoreRows = await listStoresForProduct(item.productId, householdId);
   const productStoreIds = productStoreRows.map((r) => r.storeId);
 
+  // Aktuelle Preise je Markt (Block F).
+  const currentPrices = await getCurrentPricesForProductAllStores(item.productId, householdId);
+
   return {
     item,
     product: item.product,
@@ -146,6 +150,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
     units,
     availableStores,
     productStoreIds,
+    currentPrices,
     allLocations,
     expirySettings,
     stockTotals,

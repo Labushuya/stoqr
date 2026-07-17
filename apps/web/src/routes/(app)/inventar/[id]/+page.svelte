@@ -253,6 +253,73 @@
     }
   }
 
+  // ── Preise je Markt (Block F) ─────────────────────────────────────────────
+  type CurrentPrice = {
+    id: string
+    storeId: string
+    priceCt: number
+    unit: string
+    isReduced: boolean
+    store: { id: string; name: string; chain: string | null } | null
+  }
+  const currentPrices = $derived((data.currentPrices as CurrentPrice[]) ?? [])
+  function priceForStore(storeId: string): CurrentPrice | undefined {
+    return currentPrices.find((p) => p.storeId === storeId)
+  }
+  function fmtPrice(cents: number): string {
+    return (cents / 100).toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })
+  }
+
+  let priceEditStore = $state<string | null>(null)
+  let priceInput = $state('')
+  let priceUnitInput = $state('')
+  let priceReduced = $state(false)
+  let pricePermanent = $state(false)
+  let priceSaving = $state(false)
+
+  function startPriceEdit(storeId: string) {
+    const existing = priceForStore(storeId)
+    priceEditStore = storeId
+    priceInput = existing ? String(existing.priceCt / 100).replace('.', ',') : ''
+    priceUnitInput = existing?.unit ?? (product.defaultUnit as string) ?? 'piece'
+    priceReduced = existing?.isReduced ?? false
+    pricePermanent = false
+  }
+  function cancelPriceEdit() {
+    priceEditStore = null
+  }
+
+  async function savePrice(storeId: string) {
+    const euro = parseFloat(priceInput.replace(',', '.'))
+    if (isNaN(euro) || euro < 0) { showToast('Preis muss eine Zahl >= 0 sein.', 'error'); return }
+    priceSaving = true
+    try {
+      const res = await fetch(`/api/products/${product.id}/prices`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          storeId,
+          priceCt: Math.round(euro * 100),
+          unit: priceUnitInput,
+          isReduced: priceReduced,
+          makePermanent: pricePermanent,
+        }),
+      })
+      if (!res.ok) {
+        const b = await res.json().catch(() => ({}))
+        showToast(b?.error ?? 'Fehler beim Speichern des Preises', 'error')
+        return
+      }
+      showToast('Preis gespeichert')
+      priceEditStore = null
+      await invalidateAll()
+    } catch {
+      showToast('Netzwerkfehler.', 'error')
+    } finally {
+      priceSaving = false
+    }
+  }
+
 
   function expiryOf(bestBeforeDate: string | null) {
     if (!bestBeforeDate) return { label: '⚠ Kein MHD', cls: 'mhd-none' }
@@ -639,6 +706,60 @@
           >
             {isStoreLinked(s.id) ? '✓ ' : ''}{s.name}{s.chain ? ` (${s.chain})` : ''}
           </button>
+        {/each}
+      </div>
+    {/if}
+  </div>
+
+  <!-- ── Preise (je zugeordnetem Markt) ─────────────────────────────────── -->
+  <div class="card">
+    <div class="section-header">
+      <h2 class="section-title">Preise <span class="section-subtitle">je Markt</span></h2>
+    </div>
+    <p class="scope-hint">Der aktuelle Preis je Markt fließt in die Einkaufs-Schätzung ein. Angebotspreise nur mit „als Dauerpreis übernehmen".</p>
+    {#if productStoreIds.length === 0}
+      <p class="empty-hint">Erst oben Märkte zuordnen, dann Preise pflegen.</p>
+    {:else}
+      <div class="price-list">
+        {#each (data.availableStores as StoreOpt[]).filter((s) => productStoreIds.includes(s.id)) as s (s.id)}
+          {@const cp = priceForStore(s.id)}
+          <div class="price-item">
+            {#if priceEditStore === s.id}
+              <div class="price-edit">
+                <span class="price-store">{s.name}{s.chain ? ` (${s.chain})` : ''}</span>
+                <div class="price-edit-row">
+                  <input class="input price-input" type="number" min="0" step="0.01" inputmode="decimal" placeholder="z.B. 1.19" bind:value={priceInput} aria-label="Preis" />
+                  <span class="price-cur">€ / </span>
+                  <select class="input price-unit" bind:value={priceUnitInput} aria-label="Einheit">
+                    {#each units as u (u.id)}<option value={u.symbol}>{u.name}</option>{/each}
+                  </select>
+                </div>
+                <div class="price-flags">
+                  <label class="flag-label"><input type="checkbox" bind:checked={priceReduced} /> reduziert</label>
+                  <label class="flag-label"><input type="checkbox" bind:checked={pricePermanent} /> als Dauerpreis</label>
+                </div>
+                <div class="price-actions">
+                  <button class="btn-save-inline" type="button" disabled={priceSaving} onclick={() => savePrice(s.id)}>Speichern</button>
+                  <button class="btn-cancel-inline" type="button" onclick={cancelPriceEdit}>Abbrechen</button>
+                </div>
+              </div>
+            {:else}
+              <div class="price-view">
+                <span class="price-store">{s.name}{s.chain ? ` (${s.chain})` : ''}</span>
+                <span class="price-value">
+                  {#if cp}
+                    {fmtPrice(cp.priceCt)} / {cp.unit}
+                    {#if cp.isReduced}<span class="price-badge">Angebot</span>{/if}
+                  {:else}
+                    <span class="price-none">kein Preis</span>
+                  {/if}
+                </span>
+                <button class="btn-edit-inline" type="button" onclick={() => startPriceEdit(s.id)}>
+                  {cp ? 'Ändern' : 'Preis setzen'}
+                </button>
+              </div>
+            {/if}
+          </div>
         {/each}
       </div>
     {/if}
@@ -1251,4 +1372,26 @@
     .toast-container { left: var(--space-4); right: var(--space-4); transform: none; }
     .toast { width: 100%; text-align: center; }
   }
+
+  /* ── Preise-Card (Block F) ────────────────────────────────────────────── */
+  .price-list { display: flex; flex-direction: column; gap: var(--space-2); }
+  .price-item { border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: var(--space-3); }
+  .price-view { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; }
+  .price-store { font-size: var(--text-sm); font-weight: 600; color: var(--color-text-primary); flex: 1; min-width: 0; }
+  .price-value { font-size: var(--text-sm); color: var(--color-text-secondary); display: inline-flex; align-items: center; gap: var(--space-2); }
+  .price-none { color: var(--color-text-muted); font-style: italic; }
+  .price-badge { background: #fff7ed; color: #c2410c; border-radius: var(--radius-full); padding: 0 var(--space-2); font-size: 10px; font-weight: 700; }
+  .price-edit { display: flex; flex-direction: column; gap: var(--space-2); }
+  .price-edit-row { display: flex; align-items: center; gap: var(--space-2); }
+  .price-input { flex: 0 1 110px; }
+  .price-unit { flex: 0 1 140px; }
+  .price-cur { color: var(--color-text-muted); font-weight: 600; }
+  .price-flags { display: flex; flex-wrap: wrap; gap: var(--space-3); }
+  .flag-label { display: inline-flex; align-items: center; gap: var(--space-1); font-size: var(--text-sm); color: var(--color-text-secondary); cursor: pointer; }
+  .price-actions { display: flex; gap: var(--space-2); }
+  .btn-save-inline { border: none; background: var(--color-primary); color: var(--color-text-inverse); border-radius: var(--radius-md); height: 32px; padding: 0 var(--space-3); font-size: var(--text-xs); font-weight: 600; cursor: pointer; }
+  .btn-save-inline:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-cancel-inline { border: 1px solid var(--color-border); background: transparent; color: var(--color-text-muted); border-radius: var(--radius-md); height: 32px; padding: 0 var(--space-3); font-size: var(--text-xs); font-weight: 500; cursor: pointer; }
+  .btn-edit-inline { border: 1px solid var(--color-border); background: transparent; color: var(--color-primary); border-radius: var(--radius-md); height: 30px; padding: 0 var(--space-3); font-size: var(--text-xs); font-weight: 600; cursor: pointer; flex-shrink: 0; }
+  .btn-edit-inline:hover { background: var(--color-primary-subtle); border-color: var(--color-primary); }
 </style>
