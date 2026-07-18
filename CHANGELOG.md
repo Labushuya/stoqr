@@ -31,7 +31,7 @@ Opt-in DOM-Scraping von Marktpreisen. Abgerufene Preise landen **nie** direkt ma
   „Online-Abruf aktiv"-Badge. Audit-Label `scrapeUrl`; Env `PRICE_SCRAPE_ENABLED` in `.env.example` + docker-compose.
 
 ### Commits
-(folgen beim Commit)
+dbd097a (F2 — Datenmodell, Parser, Query-Layer, Scraper, API, UI, Doku als ein Block)
 
 ---
 
