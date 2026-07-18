@@ -28,7 +28,7 @@ Pflicht, Adress-Autocomplete via OpenStreetMap, und der Globus-Abruf nutzt jetzt
 - ROADMAP-Abschnitt „Artikel- vs. Bestands-Ebene" (Priorisierung/Vererbung).
 
 ### Commits
-(G2 folgt beim Commit) · G1 = 8348d0b
+G2 = d756d54 · G1 = 8348d0b
 
 ---
 
