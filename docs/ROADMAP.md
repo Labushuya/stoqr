@@ -3,7 +3,7 @@
 > Kanonisches Datenmodell und Entwicklungsplan. Diese Datei ist führend für Absicht,
 > Logik und Ziel von stoqr. Bei Widersprüchen zwischen Code und dieser Datei gilt diese Datei.
 
-Letzte Aktualisierung: 2026-07-17 (Block F / M3: Preise je Artikel+Markt mit Historie)
+Letzte Aktualisierung: 2026-07-18 (Block F getestet ✓; neue Feature-Blöcke aufgenommen — F2 als nächstes)
 
 ---
 
@@ -145,13 +145,37 @@ Kein Text-/Pipe-Export (existiert so in Bring! nicht).
   behebt das 2×2-Problem; „sichtbar aber gesperrt" in der Einkaufsliste + „In Einkauf legen"/Sammel-Aktion/verschieben;
   Ausverkauft-Status; Beenden blockiert bei nicht eingebuchten gekauften Positionen; eigene /einkauf-Seite;
   Split beim Einbuchen (N MHD-Zeilen). Migration 0010. Preise bewusst ausgeklammert → M3.
-- **M3 — Preise je Artikel+Markt** (abgeschlossen, Test ausstehend): product_prices mit Historie (isCurrent =
+- **M3 — Preise je Artikel+Markt** (abgeschlossen, **auf Pi getestet ✓ 2026-07-18**): product_prices mit Historie (isCurrent =
   massgeblicher Preis; isReduced = Angebot, nur als Dauerpreis massgeblich); Preis pro Einheit mit toBaseFactor-Umrechnung;
   Kaufpreis beim Einbuchen (booked) + separate Pflege je Markt (manual, Detailseite); Estimate „ca. ~X €" + Summe +
-  Warnung in Einkaufsliste (client-reaktiv) und Einkauf-Run (server). Migration 0011. **Online-Abruf → F2 (separat).**
-- **M3b/F2 — Online-Preis-Abruf** (geplant): opt-in Globus/Penny (Best-Effort, DOM-Scraping); Penny ohne offene Quelle.
+  Warnung in Einkaufsliste (client-reaktiv) und Einkauf-Run (server). Migration 0011.
+- **F2 — Online-Preis-Abruf + Staging (NÄCHSTES)** (geplant, eigene Feinplanung vor Bau): opt-in Preis-Abruf von Globus
+  (DOM-Scraping, Best-Effort; Penny ohne offene Quelle). **Staging-Phase:** abgerufene Preise landen NICHT direkt als
+  isCurrent, sondern in einem „vorgeschlagen"-Zustand → User segnet ab oder korrigiert, erst dann massgeblich. Erfordert
+  Erweiterung des Preis-Modells (bisher nur binäres isCurrent) um einen Vorschlags-/Review-Zustand. Bestehendes
+  externes-Fetch-Muster: api/barcode/[gtin] (cache-first, User-Agent, 502-Pfade).
 - **M4 — Rezepte + Personen/Portionen** (geplant): recipes/recipe_ingredients/recipe_steps, persons,
   Zutaten-Ampel via aggregateStock/compareToTarget, fehlende Zutaten → Einkaufsliste.
+
+### Weitere geplante Features (aufgenommen 2026-07-18, Reihenfolge offen)
+- **Pfand / Leergut** (geplant, eigener Block — volles Handling gewünscht): Pfand-Betrag am Artikel + Leergut als eigener
+  Bestand/Kategorie mit Rückgabe-/Rückbuchungs-Logik; Pfand fließt ins Einkaufs-Estimate. (Migration: deposit-Felder +
+  ggf. Leergut-Verknüpfung.)
+- **Einkäufe umbenennen** (klein): `shopping_trips.name` existiert und ist beim Anlegen setzbar — es fehlt nur ein
+  Umbenennen eines laufenden Runs in der UI (updateTrip-Route existiert bereits, PATCH name).
+- **Inventar-Ansicht „Artikel" (Toggle)** (geplant): Übersicht zeigt derzeit einzelne Bestände. Toggle „Bestand ↔ Artikel":
+  Artikel-Ansicht aggregiert Bestände je Artikel (auf-/zuklappbar, darunter die zugehörigen Bestände). Aggregation existiert
+  bereits auf der Detailseite (aggregateStock) — wiederverwendbar.
+- **„Verbraucht"-Handling + Wiederherstellen** (geplant, enthält kleinen Bug-Fix): verbrauchte Bestände werden aktuell
+  serverseitig gar nicht geladen → der „Nur verfügbare"-Toggle ist wirkungslos. Zu klären: wie lange/ob verbrauchte
+  Bestände sichtbar bleiben (Zeitfenster?) + „Wiederherstellen" (status zurück auf available, consumedAt nullen).
+- **Günstigster-Preis-Hinweis (Einkaufsliste)** (geplant): mit product_prices je Markt (Block F) datenseitig möglich —
+  UI-Hinweis, welcher Markt für einen Artikel den günstigsten Preis hat (Bsp. Mineralwasser Penny 0,69 € vs. Globus 0,29 €).
+  Preisvergleich pro Basiseinheit (via toBaseFactor), damit z.B. 1,5-l-Vergleiche fair sind.
+- **Einheiten-Umrechnung „Flasche 1,5 l" (Gebinde-Größe je Artikel)** (geplant): pro Artikel eine Gebinde-Größe hinterlegen
+  (nutzt vorhandenes `products.defaultVolumeMl`/`defaultWeightG`) → Bestand in count-Einheit „Flasche" wird fürs
+  Soll-Ist/Estimate auf Volumen/Masse umgerechnet. Erweitert die Aggregations-/Vergleichslogik (stock.ts) um den
+  produktspezifischen Gebinde-Faktor.
 
 ### Kreislauf (Zielbild)
 Inventur (Ist erfassen) → Soll-Ist-Bedarf → Einkaufsliste (virtuelle Bestände) → Einkauf → Einbuchen
@@ -170,7 +194,7 @@ Inventur (Ist erfassen) → Soll-Ist-Bedarf → Einkaufsliste (virtuelle Bestän
 
 ## Offene Punkte / noch zu testen (nicht bestätigt)
 
-**Block F / M3 — Preise (Commits 9bf1950, 6c5b0bd, bbea93d, 1351586, 8fbba90, 19579b0, 828c174) — Test auf Pi ausstehend:**
+**Block F / M3 — Preise (Commits 9bf1950, 6c5b0bd, bbea93d, 1351586, 8fbba90, 19579b0, 828c174; P1-Fix 050fad3) — auf Pi getestet ✓ 2026-07-18 (Test-Manifest vollständig, keine Auffälligkeiten):**
 - Migration 0011 (product_prices, Unique-Index product_prices_current_uniq)
 - Einbuchen mit Preis → purchasePriceCt am Bestand + Preis-Eintrag; Detailseite-„Preise"-Card zeigt ihn
 - reduziert ohne Dauerpreis → Estimate nutzt weiter regulären Preis; „als Dauerpreis" → neuer maßgeblicher Preis

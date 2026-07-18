@@ -5,7 +5,20 @@ Neueste Einträge oben. Jeder Eintrag nennt den Commit-Kontext, damit andere LLM
 
 ---
 
-## [Unreleased] — Block F: Preise je Artikel+Markt mit Historie (implementiert, Test auf Pi ausstehend)
+## [Unreleased] — Block F auf Pi getestet ✓ + Roadmap fortgeschrieben (2026-07-18)
+
+- **P1-Fix** (050fad3): Preisfeld (easy-add + Detailseite) war `type="number"` an String-State gebunden → Svelte-5-Zahl-Coerce
+  ließ `.trim()`/`.replace()` crashen. Auf `type="text" inputmode="decimal"` umgestellt + defensive `String(...)`.
+- **Block F vollständig auf dem Pi getestet** (Test-Manifest komplett grün, keine Auffälligkeiten). E4/K1 aus der vorigen
+  Runde waren reines Deploy-Lag (Code war korrekt) — nach Deployment des aktuellen Images ebenfalls unauffällig.
+- **Roadmap fortgeschrieben:** F2 (Online-Preis-Abruf **mit Staging/Freigabe**) als nächster Block bestätigt; neue geplante
+  Features aufgenommen: Pfand/Leergut (volles Handling), Einkäufe umbenennen, Inventar „Artikel"-Toggle, „Verbraucht"-Handling +
+  Wiederherstellen (inkl. wirkungsloser „Nur verfügbare"-Toggle-Fix), günstigster-Preis-Hinweis, Einheiten-Umrechnung
+  „Flasche 1,5 l" via Gebinde-Größe je Artikel.
+
+---
+
+## [Unreleased] — Block F: Preise je Artikel+Markt mit Historie (implementiert, auf Pi getestet ✓ 2026-07-18)
 
 Preis-Dimension ergänzt: Preise je (Artikel, Markt) mit Historie, Kosten-Schätzung in Einkaufsliste + Einkauf-Run.
 Online-Abruf (Globus/Penny) bewusst ausgeklammert — eigener Block F2. Additiv.
