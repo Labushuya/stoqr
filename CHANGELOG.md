@@ -5,6 +5,39 @@ Neueste Einträge oben. Jeder Eintrag nennt den Commit-Kontext, damit andere LLM
 
 ---
 
+## [Unreleased] — Einheiten-System v2: Gebinde-Größe je Artikel (implementiert, Test auf Pi ausstehend)
+
+Zwei Einheiten-Themen: (a) Einheiten untereinander umrechenbar; (b) „Flasche" kann verschiedene Größen haben.
+Kern-Erkenntnis: mass/volume waren via `toBaseFactor` schon umrechenbar — das echte „nicht vergleichbar" ist ein
+Artikel-Problem („Flasche = welche Größe?"). Daher: (a) = UI-Klarstellung, (b) = Gebinde-Größe je Artikel.
+
+- **KEINE Migration nötig** — `products.defaultVolumeMl`/`defaultWeightG`/`defaultQuantity` existieren seit Migration 0000.
+- **stock.ts:** neue Primitive `PackSize`, `resolveUnitMeta(unit, metaMap, packSize?)`, `buildPackSize(product)`.
+  `aggregateStock`/`compareToTarget`/`planInventoryAdjustment` nehmen optionalen `packSize` — eine count-Einheit („Flasche")
+  wird auf Volumen/Masse überführt; FIFO rechnet korrekt in Gebinde-Einheit zurück. `StockGroup.packCount` für Dual-Anzeige.
+  Fallback ohne Gebinde = exakt heutiges Verhalten. (G2/G3)
+- **prices.ts:** `estimateLineCost` mit `packSize` (need+price) → „Preis pro Flasche" gegen Bedarf in l vergleichbar. (G4)
+- **Artikel-Felder editierbar:** `updateProduct` + PATCH `/api/products/[id]` nehmen `packDimension`/`packSize` (genau eine
+  Dimension; l/kg-Eingabe → ml/g gespeichert). (G5)
+- **Verdrahtung:** getProductStockTotals, inventar/[id]-Loader, inventory-adjust, generateAutoNeeds, einkauf/[id] +
+  einkaufsliste (Estimate) reichen packSize durch. (G6/G7)
+- **UI:** Gebinde-Zeile auf der Artikel-Detailseite („1 Flasche = 1,5 l", nur bei count-defaultUnit); Gesamtbestand-
+  Dual-Anzeige „3 Flasche (4,5 l)". Einstellungen→Einheiten: count zeigt „Größe je Artikel (Gebinde)". (G8/G9)
+- 18 neue Vitest-Fälle (buildPackSize/resolveUnitMeta/Gebinde-Aggregation/-Vergleich/-FIFO/-Preis), 50 Tests gesamt grün.
+
+### Commits
+d7b1adb (G1+G2) · 9e20c52 (G3) · 4e2906c (G4) · 9fa1096 (G5) · 5ca1bbc (G6) · 8228dbc (G7) · 0960a5d (G8) · 4d92f88 (G9)
+
+### Test-Steps (Pi)
+1. Artikel „Sprudel", defaultUnit „Flasche" → Detailseite → Gebinde „1,5 l" festlegen.
+2. 3 Flaschen als Bestand → Gesamtbestand „3 Flasche (4,5 l)".
+3. Soll „6 l" → Bedarf-Indikator vergleicht (nicht mehr „nicht vergleichbar"); Fehlmenge stimmig.
+4. Preis „0,29 € pro Flasche" → Estimate rechnet gegen Bedarf in l fair.
+5. Fallback: Artikel ohne Gebinde verhält sich wie bisher.
+6. Einstellungen→Einheiten: count-Einheit zeigt „Größe je Artikel (Gebinde)".
+
+---
+
 ## [Unreleased] — Block F auf Pi getestet ✓ + Roadmap fortgeschrieben (2026-07-18)
 
 - **P1-Fix** (050fad3): Preisfeld (easy-add + Detailseite) war `type="number"` an String-State gebunden → Svelte-5-Zahl-Coerce

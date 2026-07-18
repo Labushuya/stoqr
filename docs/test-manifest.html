@@ -288,6 +288,23 @@ const BLOCKS = [
     ]
   },
   {
+    tag: "G", name: "Einheiten v2 & Gebinde-Größe", desc: "Gebinde-Größe je Artikel: count-Einheit (Flasche) auf Volumen/Masse umrechenbar.",
+    items: [
+      { id: "G-1", title: "Gebinde-Größe je Artikel festlegen", steps: ["Artikel mit Standard-Einheit „Flasche“ öffnen (Detailseite).", "In der Produkt-Card die Gebinde-Zeile suchen → „Gebinde festlegen“.", "Wert 1,5 + „Liter (l)“ wählen, „Speichern“."],
+        expect: "Gebinde-Zeile erscheint nur bei Stückzahl-Einheiten. Nach dem Speichern: „1 Flasche = 1,5 l“. Toast „Gebinde-Größe gespeichert“." },
+      { id: "G-2", title: "Dual-Anzeige im Gesamtbestand", steps: ["Für diesen Artikel 3 Flaschen als Bestand anlegen (falls noch nicht).", "Gesamtbestand auf der Detailseite betrachten."],
+        expect: "Gesamtbestand zeigt „3 Flasche (4,5 l)“ — Stückzahl führend, Umrechnung in Klammern." },
+      { id: "G-3", title: "Soll-Ist vergleichbar trotz anderer Einheit", steps: ["Soll-Bestand „6 l“ für den Flaschen-Artikel setzen.", "Bedarf-Indikator betrachten."],
+        expect: "Indikator vergleicht korrekt (z.B. „Unter Soll — nachkaufen“ bei 4,5 l < 6 l), NICHT mehr „nicht vergleichbar“. In der Einkaufsliste entsteht ein stimmiger Bedarf." },
+      { id: "G-4", title: "Preis-Estimate mit Gebinde", steps: ["Preis „0,29 € pro Flasche“ setzen.", "In Einkauf-Run/Einkaufsliste (Markt gewählt) das Estimate betrachten, wenn der Bedarf in l vorliegt."],
+        expect: "„Preis pro Flasche“ wird gegen Bedarf in Litern fair umgerechnet (kein „Einheit ≠“ mehr für diesen Artikel)." },
+      { id: "G-5", title: "Fallback ohne Gebinde", steps: ["Einen count-Artikel OHNE Gebinde (z.B. „Packung“, kein Volumen/Gewicht) betrachten."],
+        expect: "Verhält sich exakt wie bisher: Anzeige „N Packung“ (kein Dual), Soll-Ist ggf. „nicht vergleichbar“ bei abweichender Einheit." },
+      { id: "G-6", title: "Einheiten-Seite Klarstellung", steps: ["Einstellungen → Einheiten öffnen.", "Eine Stückzahl-Einheit (Flasche, Packung) betrachten."],
+        expect: "Statt „—“ steht bei count-Einheiten „Größe je Artikel (Gebinde)“; die Seitenbeschreibung verweist auf das Gebinde je Artikel." },
+    ]
+  },
+  {
     tag: "D", name: "Audit / Aktivität", desc: "Vollständiges Änderungsprotokoll (Block D) — alle bisherigen Aktionen sollten hier auftauchen.",
     items: [
       { id: "AK1", title: "Aktivitätsseite erreichbar", steps: ["Einstellungen → „Aktivität ansehen“."],

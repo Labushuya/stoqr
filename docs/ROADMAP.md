@@ -3,7 +3,7 @@
 > Kanonisches Datenmodell und Entwicklungsplan. Diese Datei ist führend für Absicht,
 > Logik und Ziel von stoqr. Bei Widersprüchen zwischen Code und dieser Datei gilt diese Datei.
 
-Letzte Aktualisierung: 2026-07-18 (Block F getestet ✓; Einheiten-System v2 als nächster Block, dann F2)
+Letzte Aktualisierung: 2026-07-18 (Einheiten-System v2 implementiert; F2 als nächster Block)
 
 ---
 
@@ -149,17 +149,14 @@ Kein Text-/Pipe-Export (existiert so in Bring! nicht).
   massgeblicher Preis; isReduced = Angebot, nur als Dauerpreis massgeblich); Preis pro Einheit mit toBaseFactor-Umrechnung;
   Kaufpreis beim Einbuchen (booked) + separate Pflege je Markt (manual, Detailseite); Estimate „ca. ~X €" + Summe +
   Warnung in Einkaufsliste (client-reaktiv) und Einkauf-Run (server). Migration 0011.
-- **Einheiten-System v2 (NÄCHSTES)** (geplant, eigene Feinplanung vor Bau) — betrifft das Fundament (`units` + `lib/utils/stock.ts`),
-  daher VOR F2, weil Estimates/Soll-Ist davon profitieren. Zwei zusammengehörige Aspekte:
-  - **(a) Base-Unit-of-Measure-Mapping:** In Einstellungen→Einheiten soll man Einheiten untereinander umrechenbar machen —
-    per **Faktor auf eine frei wählbare Basiseinheit** (statt der starren mass/volume/count-Silos). Bsp.: „Becher" → Faktor 200
-    auf „ml" macht Becher automatisch mit allen ml/l-Einheiten kompatibel. Erweitert das bestehende `toBaseFactor`-Modell um
-    eine wählbare Basis-Referenz; behebt den Fall „Umrechnung nicht möglich", wenn eine Einheit anders gepflegt wurde als der Rest.
-  - **(b) Gebinde-Größen (pro Artikel):** dieselbe count-Einheit „Flasche" kann verschiedene Größen haben (0,33/0,5/1/1,5/2 l).
-    Die Größe wird PRO ARTIKEL hinterlegt (nutzt `products.defaultVolumeMl`/`defaultWeightG`) → Bestand in „Flasche" wird fürs
-    Soll-Ist/Estimate/Preisvergleich auf Volumen/Masse umgerechnet. Voll in Aggregation/Vergleich (stock.ts) eingebettet, nicht nur
-    ein loses Feld. Zwei Artikel dürfen dieselbe Einheit „Flasche" mit unterschiedlicher Größe haben.
-- **F2 — Online-Preis-Abruf + Staging** (geplant, eigene Feinplanung vor Bau; nach Einheiten v2): opt-in Preis-Abruf von Globus
+- **Einheiten-System v2** (abgeschlossen, Test auf Pi ausstehend) — Fundament (`units` + `lib/utils/stock.ts`):
+  - **(a) Base-Klarstellung:** mass/volume waren via `toBaseFactor` bereits umrechenbar; „nicht vergleichbar" ist ein
+    Artikel-Problem. Umgesetzt als UI-Klarstellung (count zeigt „Größe je Artikel (Gebinde)"). KEINE units.baseUnit-Spalte.
+  - **(b) Gebinde-Größe je Artikel:** count-Einheit „Flasche" wird über `products.defaultVolumeMl`/`defaultWeightG` auf
+    Volumen/Masse umgerechnet (PackSize/resolveUnitMeta in stock.ts; aggregateStock/compareToTarget/planInventoryAdjustment/
+    estimateLineCost packSize-aware; Dual-Anzeige „3 Flasche (4,5 l)"). Editierbar auf der Detailseite. Keine Migration
+    (Felder existierten seit 0000). Fallback = heutiges Verhalten. Commits d7b1adb…4d92f88.
+- **F2 — Online-Preis-Abruf + Staging (NÄCHSTES)** (geplant, eigene Feinplanung vor Bau): opt-in Preis-Abruf von Globus
   (DOM-Scraping, Best-Effort; Penny ohne offene Quelle). **Staging-Phase:** abgerufene Preise landen NICHT direkt als
   isCurrent, sondern in einem „vorgeschlagen"-Zustand → User segnet ab oder korrigiert, erst dann massgeblich. Erfordert
   Erweiterung des Preis-Modells (bisher nur binäres isCurrent) um einen Vorschlags-/Review-Zustand. Bestehendes
@@ -201,6 +198,12 @@ Inventur (Ist erfassen) → Soll-Ist-Bedarf → Einkaufsliste (virtuelle Bestän
 ---
 
 ## Offene Punkte / noch zu testen (nicht bestätigt)
+
+**Einheiten-System v2 (Commits d7b1adb, 9e20c52, 4e2906c, 9fa1096, 5ca1bbc, 8228dbc, 0960a5d, 4d92f88) — Test auf Pi ausstehend (keine Migration):**
+- Artikel mit count-defaultUnit „Flasche" → Detailseite → Gebinde „1,5 l" festlegen
+- 3 Flaschen → Gesamtbestand „3 Flasche (4,5 l)"; Soll „6 l" vergleicht korrekt (kein „nicht vergleichbar")
+- Preis „0,29 €/Flasche" → Estimate gegen Bedarf in l fair; Fallback ohne Gebinde = wie bisher
+- Einstellungen→Einheiten: count zeigt „Größe je Artikel (Gebinde)"
 
 **Block F / M3 — Preise (Commits 9bf1950, 6c5b0bd, bbea93d, 1351586, 8fbba90, 19579b0, 828c174; P1-Fix 050fad3) — auf Pi getestet ✓ 2026-07-18 (Test-Manifest vollständig, keine Auffälligkeiten):**
 - Migration 0011 (product_prices, Unique-Index product_prices_current_uniq)
