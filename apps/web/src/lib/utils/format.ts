@@ -42,6 +42,7 @@ export function daysFromNow(date: Date | string | null): number | null {
 
 /**
  * Formatiert einen aggregierten Gesamtbestand, z.B. "2 Packung + 1,5 kg".
+ * Gebinde (Einheiten v2): Gruppen mit packCount zeigen Dual „3 Flasche (4,5 l)".
  * Leere Gruppen → "—".
  */
 export function formatStockTotal(totals: StockTotals): string {
@@ -49,6 +50,10 @@ export function formatStockTotal(totals: StockTotals): string {
   return totals.groups
     .map((g) => {
       const value = g.displayValue.toLocaleString('de-DE', { maximumFractionDigits: 3 });
+      if (g.packCount) {
+        const pc = g.packCount.value.toLocaleString('de-DE', { maximumFractionDigits: 3 });
+        return `${pc} ${g.packCount.unit} (${value} ${g.displayUnit})`;
+      }
       return `${value} ${g.displayUnit}`;
     })
     .join(' + ');

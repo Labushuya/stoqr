@@ -320,6 +320,54 @@
     }
   }
 
+  // ── Gebinde-Größe (Einheiten v2) ──────────────────────────────────────────
+  // Ein Gebinde macht die count-Standard-Einheit des Artikels (z.B. "Flasche")
+  // auf Volumen/Masse umrechenbar. Genau eine Dimension; leer = kein Gebinde.
+  // svelte-ignore state_referenced_locally
+  let packDim = $state<'none' | 'volume' | 'mass'>(
+    Number(product.defaultVolumeMl) > 0 ? 'volume' : Number(product.defaultWeightG) > 0 ? 'mass' : 'none'
+  )
+  // Eingabe in l bzw. kg (nutzerfreundlich); DB speichert ml bzw. g.
+  // svelte-ignore state_referenced_locally
+  let packVal = $state(
+    Number(product.defaultVolumeMl) > 0
+      ? String(Number(product.defaultVolumeMl) / 1000)
+      : Number(product.defaultWeightG) > 0
+        ? String(Number(product.defaultWeightG) / 1000)
+        : ''
+  )
+  let packSaving = $state(false)
+  let packEditing = $state(false)
+
+  async function savePack() {
+    packSaving = true
+    try {
+      // l/kg → ml/g für die Speicherung.
+      const val = Number(String(packVal).replace(',', '.'))
+      const baseVal = packDim !== 'none' && Number.isFinite(val) && val > 0 ? val * 1000 : null
+      const res = await fetch(`/api/products/${product.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          packDimension: baseVal == null ? 'none' : packDim,
+          packSize: baseVal,
+        }),
+      })
+      if (!res.ok) {
+        const b = await res.json().catch(() => ({}))
+        showToast(b?.error ?? 'Fehler beim Speichern der Gebinde-Größe', 'error')
+        return
+      }
+      showToast('Gebinde-Größe gespeichert')
+      packEditing = false
+      await invalidateAll()
+    } catch {
+      showToast('Netzwerkfehler.', 'error')
+    } finally {
+      packSaving = false
+    }
+  }
+
 
   function expiryOf(bestBeforeDate: string | null) {
     if (!bestBeforeDate) return { label: '⚠ Kein MHD', cls: 'mhd-none' }
@@ -626,6 +674,36 @@
         <button class="target-edit-btn" type="button" onclick={openTargetModal}>+ Soll-Bestand festlegen</button>
       {/if}
     </div>
+
+    <!-- Gebinde-Größe (nur sinnvoll, wenn die Standard-Einheit eine Stückzahl-Einheit ist) -->
+    {#if (units.find((u) => u.symbol === product.defaultUnit)?.dimension ?? 'count') === 'count'}
+      <div class="pack-row">
+        {#if packEditing}
+          <div class="pack-edit">
+            <span class="pack-label">1 {unitLabel(product.defaultUnit)} =</span>
+            <input class="input pack-input" type="text" inputmode="decimal" placeholder="z.B. 1,5"
+                   bind:value={packVal} disabled={packDim === 'none'} aria-label="Gebinde-Größe" />
+            <select class="input pack-dim" bind:value={packDim} aria-label="Einheit der Gebinde-Größe">
+              <option value="none">— kein Gebinde</option>
+              <option value="volume">Liter (l)</option>
+              <option value="mass">Kilogramm (kg)</option>
+            </select>
+            <button class="btn-save-inline" type="button" disabled={packSaving} onclick={savePack}>Speichern</button>
+            <button class="btn-cancel-inline" type="button" onclick={() => (packEditing = false)}>Abbrechen</button>
+          </div>
+        {:else}
+          <span class="pack-view">
+            Gebinde:
+            {#if packDim === 'volume'}<strong>1 {unitLabel(product.defaultUnit)} = {(Number(product.defaultVolumeMl) / 1000).toLocaleString('de-DE', { maximumFractionDigits: 3 })} l</strong>
+            {:else if packDim === 'mass'}<strong>1 {unitLabel(product.defaultUnit)} = {(Number(product.defaultWeightG) / 1000).toLocaleString('de-DE', { maximumFractionDigits: 3 })} kg</strong>
+            {:else}<span class="pack-none">nicht hinterlegt</span>{/if}
+          </span>
+          <button class="target-edit-btn" type="button" onclick={() => (packEditing = true)}>
+            {packDim === 'none' ? 'Gebinde festlegen' : 'Ändern'}
+          </button>
+        {/if}
+      </div>
+    {/if}
   </div>
 
   <!-- ── Nutrients editor (product-wide) ────────────────────────────────── -->
@@ -1394,4 +1472,14 @@
   .btn-cancel-inline { border: 1px solid var(--color-border); background: transparent; color: var(--color-text-muted); border-radius: var(--radius-md); height: 32px; padding: 0 var(--space-3); font-size: var(--text-xs); font-weight: 500; cursor: pointer; }
   .btn-edit-inline { border: 1px solid var(--color-border); background: transparent; color: var(--color-primary); border-radius: var(--radius-md); height: 30px; padding: 0 var(--space-3); font-size: var(--text-xs); font-weight: 600; cursor: pointer; flex-shrink: 0; }
   .btn-edit-inline:hover { background: var(--color-primary-subtle); border-color: var(--color-primary); }
+
+  /* ── Gebinde-Größe (Einheiten v2) ─────────────────────────────────────── */
+  .pack-row { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; margin-top: var(--space-3); padding-top: var(--space-3); border-top: 1px solid var(--color-border-subtle); }
+  .pack-view { font-size: var(--text-sm); color: var(--color-text-secondary); flex: 1; min-width: 0; }
+  .pack-view strong { color: var(--color-text-primary); }
+  .pack-none { color: var(--color-text-muted); font-style: italic; }
+  .pack-edit { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; flex: 1; }
+  .pack-label { font-size: var(--text-sm); color: var(--color-text-secondary); }
+  .pack-input { flex: 0 1 90px; }
+  .pack-dim { flex: 0 1 150px; }
 </style>
