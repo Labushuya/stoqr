@@ -31,6 +31,10 @@ export type StockGroup = {
   displayValue: number // ggf. skaliert (>=1000 g -> kg)
   displayUnit: string // Symbol der Anzeige-Einheit
   displayName: string // Anzeige-Name (z.B. "Packung", "kg")
+  // Einheiten v2: wenn diese (mass/volume-)Gruppe aus einem Gebinde (count→Volumen/Masse)
+  // entstand, hält packCount die ursprüngliche Stückzahl + Einheit für die Dual-Anzeige
+  // („3 Flasche (4,5 l)"). Sonst undefined.
+  packCount?: { value: number; unit: string }
 }
 
 export type StockTotals = {
@@ -127,36 +131,43 @@ export function buildPackSize(product: {
  */
 export function aggregateStock(
   items: Array<{ quantity: string | number; unit: string; status: string }>,
-  metaMap: Map<string, UnitMeta>
+  metaMap: Map<string, UnitMeta>,
+  packSize?: PackSize
 ): StockTotals {
   const available = items.filter((i) => i.status === 'available')
 
   // Gruppierungsschlüssel: mass/volume pro Dimension zusammenfassen,
   // count pro Symbol getrennt.
-  const buckets = new Map<string, { dimension: Dimension; totalInBase: number; unitSymbol: string }>()
+  const buckets = new Map<
+    string,
+    { dimension: Dimension; totalInBase: number; unitSymbol: string; packCount: number }
+  >()
 
   for (const item of available) {
-    const meta =
-      metaMap.get(item.unit) ??
-      ({ symbol: item.unit, name: item.unit, dimension: 'count', toBaseFactor: 1 } as UnitMeta)
+    const meta = resolveUnitMeta(item.unit, metaMap, packSize)
     const qty = parseFloat(String(item.quantity)) || 0
     const key = meta.dimension === 'count' ? `count:${meta.symbol}` : meta.dimension
+    // Gebinde: diese Zeile trägt zur Dual-Anzeige bei, wenn ihre Einheit die
+    // packSize-Einheit ist (sie wurde per packSize nach mass/volume überführt).
+    const isPack = packSize != null && item.unit === packSize.unitSymbol
 
     const bucket = buckets.get(key)
     if (bucket) {
       bucket.totalInBase += qty * meta.toBaseFactor
+      if (isPack) bucket.packCount += qty
     } else {
       buckets.set(key, {
         dimension: meta.dimension,
         totalInBase: qty * meta.toBaseFactor,
         unitSymbol: meta.symbol,
+        packCount: isPack ? qty : 0,
       })
     }
   }
 
   const groups: StockGroup[] = []
   for (const b of buckets.values()) {
-    groups.push(toDisplayGroup(b, metaMap))
+    groups.push(toDisplayGroup(b, metaMap, packSize))
   }
 
   groups.sort((a, b) => {
@@ -169,23 +180,29 @@ export function aggregateStock(
 
 // Wählt die Anzeige-Einheit einer Gruppe (mass >=1000g -> kg, volume >=1000ml -> l).
 function toDisplayGroup(
-  bucket: { dimension: Dimension; totalInBase: number; unitSymbol: string },
-  metaMap: Map<string, UnitMeta>
+  bucket: { dimension: Dimension; totalInBase: number; unitSymbol: string; packCount: number },
+  metaMap: Map<string, UnitMeta>,
+  packSize?: PackSize
 ): StockGroup {
   const { dimension, totalInBase } = bucket
+  // Dual-Anzeige: nur wenn diese mass/volume-Gruppe aus einem Gebinde entstand.
+  const packCount =
+    packSize && bucket.packCount > 0
+      ? { value: bucket.packCount, unit: nameFor(packSize.unitSymbol, metaMap, packSize.unitSymbol) }
+      : undefined
 
   if (dimension === 'mass') {
     if (totalInBase >= 1000) {
-      return { dimension, totalInBase, displayValue: totalInBase / 1000, displayUnit: 'kg', displayName: nameFor('kg', metaMap, 'kg') }
+      return { dimension, totalInBase, displayValue: totalInBase / 1000, displayUnit: 'kg', displayName: nameFor('kg', metaMap, 'kg'), packCount }
     }
-    return { dimension, totalInBase, displayValue: totalInBase, displayUnit: 'g', displayName: nameFor('g', metaMap, 'g') }
+    return { dimension, totalInBase, displayValue: totalInBase, displayUnit: 'g', displayName: nameFor('g', metaMap, 'g'), packCount }
   }
 
   if (dimension === 'volume') {
     if (totalInBase >= 1000) {
-      return { dimension, totalInBase, displayValue: totalInBase / 1000, displayUnit: 'l', displayName: nameFor('l', metaMap, 'l') }
+      return { dimension, totalInBase, displayValue: totalInBase / 1000, displayUnit: 'l', displayName: nameFor('l', metaMap, 'l'), packCount }
     }
-    return { dimension, totalInBase, displayValue: totalInBase, displayUnit: 'ml', displayName: nameFor('ml', metaMap, 'ml') }
+    return { dimension, totalInBase, displayValue: totalInBase, displayUnit: 'ml', displayName: nameFor('ml', metaMap, 'ml'), packCount }
   }
 
   // count: das Symbol selbst ist die Anzeige-Einheit
@@ -233,11 +250,10 @@ export type TargetStatus = {
 export function compareToTarget(
   totals: StockTotals,
   target: TargetInput,
-  metaMap: Map<string, UnitMeta>
+  metaMap: Map<string, UnitMeta>,
+  packSize?: PackSize
 ): TargetStatus {
-  const meta =
-    metaMap.get(target.unit) ??
-    ({ symbol: target.unit, name: target.unit, dimension: 'count', toBaseFactor: 1 } as UnitMeta)
+  const meta = resolveUnitMeta(target.unit, metaMap, packSize)
 
   const targetQty = parseFloat(String(target.targetQuantity)) || 0
   const targetInBase = targetQty * meta.toBaseFactor
@@ -320,14 +336,13 @@ export function planInventoryAdjustment(
   items: AdjustItem[],
   newTotalInBase: number,
   match: { dimension: Dimension; symbol?: string },
-  metaMap: Map<string, UnitMeta>
+  metaMap: Map<string, UnitMeta>,
+  packSize?: PackSize
 ): AdjustmentPlan {
   // Passende available-Zeilen dieser Gruppe.
   const relevant = items.filter((i) => {
     if (i.status !== 'available') return false
-    const meta =
-      metaMap.get(i.unit) ??
-      ({ symbol: i.unit, name: i.unit, dimension: 'count', toBaseFactor: 1 } as UnitMeta)
+    const meta = resolveUnitMeta(i.unit, metaMap, packSize)
     if (match.dimension === 'count') return meta.dimension === 'count' && meta.symbol === match.symbol
     return meta.dimension === match.dimension
   })
@@ -340,8 +355,7 @@ export function planInventoryAdjustment(
   })
 
   const currentInBase = sorted.reduce((sum, i) => {
-    const meta = metaMap.get(i.unit)
-    const f = meta ? meta.toBaseFactor : 1
+    const f = resolveUnitMeta(i.unit, metaMap, packSize).toBaseFactor
     return sum + (parseFloat(String(i.quantity)) || 0) * f
   }, 0)
 
@@ -360,8 +374,7 @@ export function planInventoryAdjustment(
   let toRemoveInBase = currentInBase - newTotalInBase
   for (const item of sorted) {
     if (toRemoveInBase <= 0) break
-    const meta = metaMap.get(item.unit)
-    const f = meta ? meta.toBaseFactor : 1
+    const f = resolveUnitMeta(item.unit, metaMap, packSize).toBaseFactor
     const qty = parseFloat(String(item.quantity)) || 0
     const itemInBase = qty * f
     if (itemInBase <= toRemoveInBase) {

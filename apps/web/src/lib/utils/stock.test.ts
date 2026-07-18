@@ -245,3 +245,84 @@ describe('resolveUnitMeta', () => {
     expect(kg.toBaseFactor).toBe(1000)
   })
 })
+
+// ── Einheiten v2: Gebinde-Umrechnung in den Kernfunktionen ──────────────────
+
+describe('aggregateStock mit packSize (Gebinde)', () => {
+  const flaschePack = { unitSymbol: 'Flasche', baseFactor: 1500, dimension: 'volume' as const }
+
+  it('rechnet 3 Flaschen à 1,5 l auf 4,5 l Volumen um + Dual-Anzeige', () => {
+    const totals = aggregateStock([{ quantity: '3', unit: 'Flasche', status: 'available' }], meta, flaschePack)
+    expect(totals.groups).toHaveLength(1)
+    const g = totals.groups[0]
+    expect(g.dimension).toBe('volume')
+    expect(g.totalInBase).toBe(4500)
+    expect(g.displayUnit).toBe('l')
+    expect(g.displayValue).toBe(4.5)
+    expect(g.packCount).toEqual({ value: 3, unit: 'Flasche' }) // Dual: "3 Flasche (4,5 l)"
+  })
+
+  it('Gebinde-Flaschen + lose Liter landen in EINER Volumen-Gruppe', () => {
+    const totals = aggregateStock(
+      [
+        { quantity: '2', unit: 'Flasche', status: 'available' }, // 3000 ml
+        { quantity: '1', unit: 'l', status: 'available' }, // 1000 ml
+      ],
+      meta,
+      flaschePack
+    )
+    expect(totals.groups).toHaveLength(1)
+    expect(totals.groups[0].totalInBase).toBe(4000)
+    expect(totals.groups[0].packCount).toEqual({ value: 2, unit: 'Flasche' })
+  })
+
+  it('Fallback ohne packSize: Flasche bleibt count (kein packCount)', () => {
+    const totals = aggregateStock([{ quantity: '3', unit: 'Flasche', status: 'available' }], meta)
+    expect(totals.groups[0].dimension).toBe('count')
+    expect(totals.groups[0].displayUnit).toBe('Flasche')
+    expect(totals.groups[0].packCount).toBeUndefined()
+  })
+})
+
+describe('compareToTarget mit packSize', () => {
+  const flaschePack = { unitSymbol: 'Flasche', baseFactor: 1500, dimension: 'volume' as const }
+
+  it('Soll in Liter vs. Ist in Flaschen ist jetzt vergleichbar (nicht not_comparable)', () => {
+    const totals = aggregateStock([{ quantity: '3', unit: 'Flasche', status: 'available' }], meta, flaschePack)
+    const r = compareToTarget(totals, { targetQuantity: '6', unit: 'l' }, meta, flaschePack)
+    // Ist 4,5 l < Soll 6 l
+    expect(r.status).toBe('below_target')
+    expect(r.currentInBase).toBe(4500)
+    expect(r.targetInBase).toBe(6000)
+  })
+
+  it('Soll in Flaschen (per packSize zu Volumen) vs. Ist Flaschen -> ok', () => {
+    const totals = aggregateStock([{ quantity: '4', unit: 'Flasche', status: 'available' }], meta, flaschePack)
+    const r = compareToTarget(totals, { targetQuantity: '3', unit: 'Flasche' }, meta, flaschePack)
+    // Ist 6000 ml >= Soll 4500 ml
+    expect(r.status).toBe('ok')
+  })
+})
+
+describe('planInventoryAdjustment mit packSize (FIFO in Flaschen)', () => {
+  const flaschePack = { unitSymbol: 'Flasche', baseFactor: 1500, dimension: 'volume' as const }
+  const items = [
+    { id: 'a', quantity: '2', unit: 'Flasche', status: 'available', bestBeforeDate: '2026-01-01' }, // 3000 ml
+    { id: 'b', quantity: '2', unit: 'Flasche', status: 'available', bestBeforeDate: '2026-06-01' }, // 3000 ml
+  ]
+
+  it('reduziert auf 3000 ml (=2 Flaschen): a ganz weg, b bleibt bei 2', () => {
+    // Ist 6000 ml, Ziel 3000 ml -> 3000 ml entfernen: a (3000 ml) ganz.
+    const plan = planInventoryAdjustment(items, 3000, { dimension: 'volume' }, meta, flaschePack)
+    expect(plan.updates).toContainEqual({ id: 'a', newQuantity: 0 })
+    // b unberührt (kein Update)
+    expect(plan.updates.find((u) => u.id === 'b')).toBeUndefined()
+  })
+
+  it('teilweise Reduktion gibt Flaschen zurueck (nicht ml)', () => {
+    // Ist 6000 ml, Ziel 4500 ml -> 1500 ml entfernen: a von 3000 auf 1500 ml = 1 Flasche.
+    const plan = planInventoryAdjustment(items, 4500, { dimension: 'volume' }, meta, flaschePack)
+    const aUpd = plan.updates.find((u) => u.id === 'a')
+    expect(aUpd?.newQuantity).toBeCloseTo(1, 5) // 1 Flasche, NICHT 1500
+  })
+})
