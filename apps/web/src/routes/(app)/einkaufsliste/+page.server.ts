@@ -4,8 +4,8 @@ import { getShoppingList } from '$lib/server/queries/shopping-list'
 import { listTrips } from '$lib/server/queries/shopping-trips'
 import { getCurrentPricesForListProducts } from '$lib/server/queries/prices'
 import { db } from '$lib/server/db'
-import { stores } from '@stoqr/db'
-import { asc } from 'drizzle-orm'
+import { stores, products } from '@stoqr/db'
+import { asc, inArray } from 'drizzle-orm'
 import type { PageServerLoad } from './$types'
 
 export const load: PageServerLoad = async ({ locals }) => {
@@ -25,10 +25,17 @@ export const load: PageServerLoad = async ({ locals }) => {
     // Aktuelle Preise (alle Märkte) der Listen-Produkte — Client rechnet reaktiv je Markt.
     const productIds = [...new Set(items.map((i) => i.productId).filter((p): p is string => !!p))]
     const prices = await getCurrentPricesForListProducts(householdId, productIds)
-    return { items, units, stores: storeRows, trips, prices, loadError: null }
+    // Gebinde-Felder der Listen-Produkte (für die client-seitige Estimate-Umrechnung).
+    const packs = productIds.length
+      ? await db.query.products.findMany({
+          where: inArray(products.id, productIds),
+          columns: { id: true, defaultUnit: true, defaultVolumeMl: true, defaultWeightG: true },
+        })
+      : []
+    return { items, units, stores: storeRows, trips, prices, packs, loadError: null }
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err)
     console.error('[einkaufsliste] load error:', msg)
-    return { items: [], units: [], stores: [], trips: [], prices: [], loadError: 'Einkaufsliste konnte nicht geladen werden.' }
+    return { items: [], units: [], stores: [], trips: [], prices: [], packs: [], loadError: 'Einkaufsliste konnte nicht geladen werden.' }
   }
 }

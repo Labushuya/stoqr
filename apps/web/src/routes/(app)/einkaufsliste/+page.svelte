@@ -2,7 +2,7 @@
   import type { PageData } from './$types'
   import { invalidateAll } from '$app/navigation'
   import { toast } from '$lib/stores/toast'
-  import { buildUnitMetaMap } from '$lib/utils/stock'
+  import { buildUnitMetaMap, buildPackSize } from '$lib/utils/stock'
   import { estimateLineCost, summarizeCosts, formatEuroApprox } from '$lib/utils/prices'
 
   let { data }: { data: PageData } = $props()
@@ -50,8 +50,13 @@
 
   // ── Preis-Schätzung (Block F, client-reaktiv je gewähltem Markt) ───────────
   type PriceRow = { productId: string; storeId: string; priceCt: number; unit: string; isReduced: boolean }
+  type PackRow = { id: string; defaultUnit: string | null; defaultVolumeMl: string | null; defaultWeightG: string | null }
   const priceRows = $derived((data.prices as PriceRow[]) ?? [])
   const metaMap = $derived(buildUnitMetaMap(units))
+  // Gebinde-Größe je Produkt (Einheiten v2) für die Estimate-Umrechnung.
+  const packByProduct = $derived(
+    new Map(((data.packs as PackRow[]) ?? []).map((p) => [p.id, buildPackSize(p)]))
+  )
   // Lookup aktueller Preis für (productId, gewählter Markt).
   function priceFor(productId: string | null): { priceCt: number; unit: string } | null {
     if (!productId || !selectedStore) return null
@@ -59,7 +64,8 @@
     return r ? { priceCt: r.priceCt, unit: r.unit } : null
   }
   function estimateFor(i: Item) {
-    return estimateLineCost(Number(i.quantity), i.unit, priceFor(i.productId), metaMap)
+    const packSize = i.productId ? packByProduct.get(i.productId) : undefined
+    return estimateLineCost(Number(i.quantity), i.unit, priceFor(i.productId), metaMap, packSize)
   }
   // Summe über die aktuell offenen, sichtbaren, NICHT reservierten Positionen.
   const listSummary = $derived.by(() => {
