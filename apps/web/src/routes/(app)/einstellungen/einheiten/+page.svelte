@@ -95,7 +95,9 @@
 
   // ── Helpers ────────────────────────────────────────────────────────────
   function factorDisplay(u: Unit): string {
-    if (u.dimension === 'count') return '—'
+    // Stückzahl-Einheiten (Flasche, Packung, …) sind nicht global umrechenbar —
+    // die konkrete Größe wird pro Artikel als Gebinde hinterlegt (Einheiten v2).
+    if (u.dimension === 'count') return 'Größe je Artikel (Gebinde)'
     const base = u.dimension === 'mass' ? 'g' : 'ml'
     return `1 ${u.symbol} = ${Number(u.toBaseFactor).toLocaleString('de-DE', { maximumFractionDigits: 4 })} ${base}`
   }
@@ -233,7 +235,8 @@
     <p class="page-desc">
       Verwalte Mengeneinheiten und ihre Umrechnung. Masse-/Volumen-Einheiten werden über einen Faktor auf
       die Basiseinheit (g bzw. ml) umgerechnet; Stückzahl-Einheiten (Stück, Packung, …) bleiben eigenständig.
-      System-Einheiten sind schreibgeschützt.
+      Damit z.B. „Flasche" gegen Liter vergleichbar wird, hinterlege die Größe pro Artikel als Gebinde
+      (Artikel-Detailseite → „Gebinde"). System-Einheiten sind schreibgeschützt.
     </p>
   </header>
 
