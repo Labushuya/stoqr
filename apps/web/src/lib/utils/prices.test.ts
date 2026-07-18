@@ -96,3 +96,26 @@ describe('formatEuroApprox', () => {
     expect(s).toContain('€')
   })
 })
+
+describe('estimateLineCost mit packSize (Gebinde)', () => {
+  const flaschePack = { unitSymbol: 'Flasche', baseFactor: 1500, dimension: 'volume' as const }
+
+  it('Preis pro Flasche, Bedarf in l → vergleichbar', () => {
+    // Preis 0,29 €/Flasche (1,5 l) = 29 ct / 1500 ml. Bedarf 3 l = 3000 ml → 2 Flaschen = 58 ct.
+    const r = estimateLineCost(3, 'l', { priceCt: 29, unit: 'Flasche' }, meta, flaschePack)
+    expect(r.comparable).toBe(true)
+    expect(r.cents).toBe(58)
+  })
+
+  it('Preis pro Flasche, Bedarf in Flaschen → Stückpreis', () => {
+    const r = estimateLineCost(2, 'Flasche', { priceCt: 29, unit: 'Flasche' }, meta, flaschePack)
+    expect(r.cents).toBe(58)
+    expect(r.comparable).toBe(true)
+  })
+
+  it('ohne packSize: Flasche vs. l bleibt nicht vergleichbar (Fallback)', () => {
+    const r = estimateLineCost(3, 'l', { priceCt: 29, unit: 'Flasche' }, meta)
+    expect(r.comparable).toBe(false)
+    expect(r.cents).toBeNull()
+  })
+})

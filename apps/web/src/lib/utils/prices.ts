@@ -8,7 +8,7 @@
 // exakt gleichem Symbol. Ist keine Umrechnung möglich → nicht vergleichbar.
 // ---------------------------------------------------------------------------
 
-import type { UnitMeta } from './stock'
+import { resolveUnitMeta, type UnitMeta, type PackSize } from './stock'
 
 export type PriceInfo = {
   priceCt: number // Preis pro Einheit (Cent)
@@ -32,11 +32,14 @@ export function estimateLineCost(
   needUnit: string,
   price: PriceInfo | null | undefined,
   metaMap: Map<string, UnitMeta>,
+  packSize?: PackSize,
 ): LineEstimate {
   if (!price) return { cents: null, comparable: true, hasPrice: false }
 
-  const needMeta = metaMap.get(needUnit) ?? { symbol: needUnit, name: needUnit, dimension: 'count' as const, toBaseFactor: 1 }
-  const priceMeta = metaMap.get(price.unit) ?? { symbol: price.unit, name: price.unit, dimension: 'count' as const, toBaseFactor: 1 }
+  // packSize (Gebinde des Artikels) wird auf BEIDE Symbole angewandt, damit
+  // „Preis pro Flasche" gegen „Bedarf in l" (und umgekehrt) vergleichbar wird.
+  const needMeta = resolveUnitMeta(needUnit, metaMap, packSize)
+  const priceMeta = resolveUnitMeta(price.unit, metaMap, packSize)
 
   // count ist nur bei exakt gleichem Symbol vergleichbar.
   if (needMeta.dimension === 'count' || priceMeta.dimension === 'count') {
