@@ -305,6 +305,33 @@ const BLOCKS = [
     ]
   },
   {
+    tag: "F2", name: "Online-Preis-Abruf & Staging", desc: "Opt-in Globus-Scraping; abgerufene Preise landen als Vorschlag (proposed) und werden erst nach Freigabe maßgeblich. Failsafe & Env-Toggle.",
+    items: [
+      { id: "F2-0", title: "Voraussetzung: PRICE_SCRAPE_ENABLED", steps: ["Für die AN-Tests im Deployment `PRICE_SCRAPE_ENABLED=true` setzen und neu starten.", "Für den AUS-Test die Variable ungesetzt/`false` lassen."],
+        expect: "Ist ein Deployment-Schritt, kein Klick in der App. Ohne die Variable ist das Feature komplett inaktiv (siehe F2-1)." },
+      { id: "F2-1", title: "Feature AUS: keine Abruf-UI", steps: ["Mit ungesetztem `PRICE_SCRAPE_ENABLED` die Artikel-Detailseite + Einstellungen→Märkte öffnen."],
+        expect: "Kein „Online abrufen“-Button (Detailseite) und kein „Preise abrufen“-Button (Märkte). Preise/Vorschläge funktionieren unverändert." },
+      { id: "F2-2", title: "Abruf-URL am Markt hinterlegen", steps: ["Einstellungen → Märkte → Markt „Globus“ bearbeiten.", "Im Feld „Abruf-URL für Online-Preise“ eine gültige Globus-Produkt-URL eintragen, „Speichern“.", "Auch: eine ungültige URL (z.B. „abc“) testen."],
+        expect: "Gültige http/https-URL wird gespeichert; „Online-Abruf aktiv“-Badge erscheint. Ungültige URL → Fehlermeldung „Ungültige Abruf-URL“." },
+      { id: "F2-3", title: "Online-Preis abrufen → Vorschlag", steps: ["Feature AN. Artikel-Detailseite → „Preise“-Card → beim Markt mit Abruf-URL „Online abrufen“."],
+        expect: "Bei Treffer: Toast + neuer Block „Vorschlag: Online-Preis X € / Einheit“ mit Buttons Übernehmen/Korrigieren/Verwerfen. Der Vorschlag zählt NICHT zum aktuellen Preis / Estimate." },
+      { id: "F2-4", title: "Übernehmen macht maßgeblich", steps: ["Beim Vorschlag „Übernehmen“ klicken."],
+        expect: "Der Preis wird aktueller Preis (fließt ins Estimate), der Vorschlag-Block verschwindet." },
+      { id: "F2-5", title: "Korrigieren", steps: ["Erneut abrufen (neuer Vorschlag).", "„Korrigieren“ → Editor öffnet vorbefüllt → Wert ändern → „Speichern“."],
+        expect: "Der korrigierte Wert wird maßgeblich; der offene Vorschlag ist danach erledigt (weg)." },
+      { id: "F2-6", title: "Verwerfen", steps: ["Erneut abrufen (neuer Vorschlag).", "„Verwerfen“ klicken."],
+        expect: "Vorschlag verschwindet; aktueller Preis bleibt unverändert (Vorschlag bleibt als Historie/Audit erhalten)." },
+      { id: "F2-7", title: "Nur ein offener Vorschlag", steps: ["Mehrfach hintereinander „Online abrufen“ beim selben Markt."],
+        expect: "Es steht immer nur EIN offener Vorschlag je Markt (der jüngste); keine Vorschlags-Flut." },
+      { id: "F2-8", title: "Failsafe bei Fehler/Miss", steps: ["Markt-Abruf-URL auf eine tote/ungültige Seite setzen (oder ohne Preis-Element).", "„Online abrufen“."],
+        expect: "Toast „Kein Online-Preis gefunden“ — KEIN Absturz, keine Fehlerseite, kein Server-Fehler." },
+      { id: "F2-9", title: "Sammel-Abruf je Markt", steps: ["Einstellungen → Märkte → beim Markt „Preise abrufen“ klicken."],
+        expect: "Ergebnis-Toast „X Vorschläge, Y übersprungen“. (Hinweis: ohne artikelspezifische URL werden Artikel übersprungen — das ist erwartet, das Gerüst läuft ohne Fehler.)" },
+      { id: "F2-10", title: "Audit protokolliert Übergänge", steps: ["Einstellungen → Aktivität öffnen."],
+        expect: "Preis-Einträge zeigen die Staging-Übergänge (Vorschlag angelegt, dann übernommen/verworfen) mit Status + Quelle „online“." },
+    ]
+  },
+  {
     tag: "D", name: "Audit / Aktivität", desc: "Vollständiges Änderungsprotokoll (Block D) — alle bisherigen Aktionen sollten hier auftauchen.",
     items: [
       { id: "AK1", title: "Aktivitätsseite erreichbar", steps: ["Einstellungen → „Aktivität ansehen“."],

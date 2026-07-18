@@ -3,7 +3,7 @@
 > Kanonisches Datenmodell und Entwicklungsplan. Diese Datei ist führend für Absicht,
 > Logik und Ziel von stoqr. Bei Widersprüchen zwischen Code und dieser Datei gilt diese Datei.
 
-Letzte Aktualisierung: 2026-07-18 (Einheiten-System v2 implementiert; F2 als nächster Block)
+Letzte Aktualisierung: 2026-07-18 (F2 Online-Preis-Abruf + Staging implementiert, Test auf Pi ausstehend)
 
 ---
 
@@ -156,11 +156,12 @@ Kein Text-/Pipe-Export (existiert so in Bring! nicht).
     Volumen/Masse umgerechnet (PackSize/resolveUnitMeta in stock.ts; aggregateStock/compareToTarget/planInventoryAdjustment/
     estimateLineCost packSize-aware; Dual-Anzeige „3 Flasche (4,5 l)"). Editierbar auf der Detailseite. Keine Migration
     (Felder existierten seit 0000). Fallback = heutiges Verhalten. Commits d7b1adb…4d92f88.
-- **F2 — Online-Preis-Abruf + Staging (NÄCHSTES)** (geplant, eigene Feinplanung vor Bau): opt-in Preis-Abruf von Globus
+- **F2 — Online-Preis-Abruf + Staging** (implementiert, Test auf Pi ausstehend): opt-in Preis-Abruf von Globus
   (DOM-Scraping, Best-Effort; Penny ohne offene Quelle). **Staging-Phase:** abgerufene Preise landen NICHT direkt als
-  isCurrent, sondern in einem „vorgeschlagen"-Zustand → User segnet ab oder korrigiert, erst dann massgeblich. Erfordert
-  Erweiterung des Preis-Modells (bisher nur binäres isCurrent) um einen Vorschlags-/Review-Zustand. Bestehendes
-  externes-Fetch-Muster: api/barcode/[gtin] (cache-first, User-Agent, 502-Pfade).
+  isCurrent, sondern als `proposed` (product_prices.status) → User übernimmt/korrigiert/verwirft, erst dann massgeblich.
+  Kern-Invariante `status != 'confirmed' ⇒ isCurrent = false`. Migration 0012 (status + proposed_uniq + stores.scrapeUrl).
+  Env-Toggle `PRICE_SCRAPE_ENABLED` (default AUS), failsafe (8s Timeout, jeder Fehler → null, kein 5xx bei Miss).
+  Einzel- + Sammel-Abruf. Sammel-Abruf ist Gerüst (eine URL je Markt; artikelspezifische URL folgt später).
 - **M4 — Rezepte + Personen/Portionen** (geplant): recipes/recipe_ingredients/recipe_steps, persons,
   Zutaten-Ampel via aggregateStock/compareToTarget, fehlende Zutaten → Einkaufsliste.
 
@@ -199,7 +200,16 @@ Inventur (Ist erfassen) → Soll-Ist-Bedarf → Einkaufsliste (virtuelle Bestän
 
 ## Offene Punkte / noch zu testen (nicht bestätigt)
 
-**Einheiten-System v2 (Commits d7b1adb, 9e20c52, 4e2906c, 9fa1096, 5ca1bbc, 8228dbc, 0960a5d, 4d92f88) — Test auf Pi ausstehend (keine Migration):**
+**F2 — Online-Preis-Abruf + Staging (Migration 0012) — Test auf Pi ausstehend:**
+- Container-Neustart → Migration 0012 läuft (status/scrape_url/proposed_uniq); Bestandspreise bleiben `confirmed`/isCurrent
+- Feature AUS (`PRICE_SCRAPE_ENABLED` ungesetzt): kein „Online abrufen"-Button, API-Fetch → 403
+- Markt „Globus" → Abruf-URL hinterlegen (Einstellungen→Märkte, „Online-Abruf aktiv"-Badge)
+- Feature AN: Detailseite → „Online abrufen" → Vorschlag-Badge, fließt NICHT ins Estimate; Übernehmen→maßgeblich,
+  Korrigieren→editierter Wert, Verwerfen→weg (Historie); erneuter Abruf → nur 1 offener Vorschlag
+- Tote/ungültige URL, Timeout, geändertes HTML → Toast „Kein Online-Preis gefunden", kein Crash/5xx
+- Sammel-Abruf (Einstellungen→Märkte) → Aggregat-Toast „X Vorschläge, Y übersprungen"; /aktivitaet zeigt die Übergänge
+
+**Einheiten-System v2 (Commits d7b1adb…4d92f88) — auf Pi getestet ✓ 2026-07-18 (Test-Manifest vollständig, keine Auffälligkeiten):**
 - Artikel mit count-defaultUnit „Flasche" → Detailseite → Gebinde „1,5 l" festlegen
 - 3 Flaschen → Gesamtbestand „3 Flasche (4,5 l)"; Soll „6 l" vergleicht korrekt (kein „nicht vergleichbar")
 - Preis „0,29 €/Flasche" → Estimate gegen Bedarf in l fair; Fallback ohne Gebinde = wie bisher

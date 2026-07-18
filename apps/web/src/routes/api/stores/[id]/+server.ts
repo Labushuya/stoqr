@@ -5,6 +5,7 @@ import { stores, inventoryItems } from '@stoqr/db'
 import { eq, and, count } from 'drizzle-orm'
 import { requireHouseholdId } from '$lib/server/queries/households'
 import { writeAudit } from '$lib/server/queries/audit'
+import { normalizeScrapeUrl, INVALID_URL } from '$lib/server/scrape/globus'
 
 // ---------------------------------------------------------------------------
 // GET /api/stores/[id]
@@ -40,13 +41,26 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 
   const householdId = await requireHouseholdId(locals.user.id)
   const body = await request.json()
-  const { name, chain, address, city } = body as { name?: string; chain?: string; address?: string; city?: string }
+  const { name, chain, address, city, scrapeUrl } = body as {
+    name?: string
+    chain?: string
+    address?: string
+    city?: string
+    scrapeUrl?: string | null
+  }
 
   const patch: Partial<typeof stores.$inferInsert> = {}
   if (name !== undefined) patch.name = name
   if (chain !== undefined) patch.chain = chain ?? null
   if (address !== undefined) patch.address = address ?? null
   if (city !== undefined) patch.city = city ?? null
+  if (scrapeUrl !== undefined) {
+    const normalized = normalizeScrapeUrl(scrapeUrl)
+    if (normalized === INVALID_URL) {
+      return json({ error: 'Ungültige Abruf-URL (nur http/https)' }, { status: 400 })
+    }
+    patch.scrapeUrl = normalized
+  }
 
   if (Object.keys(patch).length === 0) {
     return json({ error: 'No fields to update' }, { status: 400 })

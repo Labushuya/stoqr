@@ -12,6 +12,7 @@ services:
       PUBLIC_APP_URL: https://${DOMAIN}
       ENCRYPTION_KEY: ${ENCRYPTION_KEY}
       OFF_USER_AGENT: stoqr/0.1.0 (https://github.com/Labushuya/stoqr)
+      PRICE_SCRAPE_ENABLED: ${PRICE_SCRAPE_ENABLED:-false}
       TZ: ${TZ:-Europe/Berlin}
       NODE_ENV: production
     depends_on:

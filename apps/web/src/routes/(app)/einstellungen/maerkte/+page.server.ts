@@ -3,6 +3,7 @@ import { db } from '$lib/server/db'
 import { stores } from '@stoqr/db'
 import { eq, asc } from 'drizzle-orm'
 import { requireHouseholdId } from '$lib/server/queries/households'
+import { normalizeScrapeUrl, INVALID_URL, isPriceScrapeEnabled } from '$lib/server/scrape/globus'
 import type { PageServerLoad, Actions } from './$types'
 
 export const load: PageServerLoad = async ({ locals }) => {
@@ -20,14 +21,19 @@ export const load: PageServerLoad = async ({ locals }) => {
         chain: true,
         address: true,
         city: true,
+        scrapeUrl: true,
       },
     })
 
-    return { stores: storeRows, loadError: null }
+    return { stores: storeRows, priceScrapeEnabled: isPriceScrapeEnabled(), loadError: null }
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err)
     console.error('[maerkte] load error:', msg)
-    return { stores: [], loadError: 'Märkte konnten nicht geladen werden. Bitte Seite neu laden.' }
+    return {
+      stores: [],
+      priceScrapeEnabled: isPriceScrapeEnabled(),
+      loadError: 'Märkte konnten nicht geladen werden. Bitte Seite neu laden.',
+    }
   }
 }
 
@@ -42,15 +48,19 @@ export const actions: Actions = {
     const chain = String(data.get('chain') ?? '').trim() || null
     const address = String(data.get('address') ?? '').trim() || null
     const city = String(data.get('city') ?? '').trim() || null
+    const scrapeUrl = normalizeScrapeUrl(String(data.get('scrapeUrl') ?? ''))
 
     if (!name) {
       return fail(400, { action: 'addStore', error: 'Name ist erforderlich.' })
     }
+    if (scrapeUrl === INVALID_URL) {
+      return fail(400, { action: 'addStore', error: 'Ungültige Abruf-URL (nur http/https).' })
+    }
 
     const [created] = await db
       .insert(stores)
-      .values({ householdId, name, chain, address, city })
-      .returning({ id: stores.id, name: stores.name, chain: stores.chain, address: stores.address, city: stores.city })
+      .values({ householdId, name, chain, address, city, scrapeUrl })
+      .returning({ id: stores.id, name: stores.name, chain: stores.chain, address: stores.address, city: stores.city, scrapeUrl: stores.scrapeUrl })
 
     return { action: 'addStore', success: true, store: created }
   },
@@ -66,16 +76,20 @@ export const actions: Actions = {
     const chain = String(data.get('chain') ?? '').trim() || null
     const address = String(data.get('address') ?? '').trim() || null
     const city = String(data.get('city') ?? '').trim() || null
+    const scrapeUrl = normalizeScrapeUrl(String(data.get('scrapeUrl') ?? ''))
 
     if (!id || !name) {
       return fail(400, { action: 'editStore', error: 'ID und Name sind erforderlich.' })
     }
+    if (scrapeUrl === INVALID_URL) {
+      return fail(400, { action: 'editStore', error: 'Ungültige Abruf-URL (nur http/https).' })
+    }
 
     const [updated] = await db
       .update(stores)
-      .set({ name, chain, address, city })
+      .set({ name, chain, address, city, scrapeUrl })
       .where(eq(stores.id, id))
-      .returning({ id: stores.id, name: stores.name, chain: stores.chain, address: stores.address, city: stores.city })
+      .returning({ id: stores.id, name: stores.name, chain: stores.chain, address: stores.address, city: stores.city, scrapeUrl: stores.scrapeUrl })
 
     if (!updated) {
       return fail(404, { action: 'editStore', error: 'Markt nicht gefunden.' })

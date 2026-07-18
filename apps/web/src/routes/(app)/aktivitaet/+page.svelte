@@ -75,6 +75,7 @@
     isReduced: 'Reduziert',
     isCurrent: 'Aktueller Preis',
     source: 'Quelle',
+    scrapeUrl: 'Abruf-URL',
   }
 
   function tableLabel(t: string): string {

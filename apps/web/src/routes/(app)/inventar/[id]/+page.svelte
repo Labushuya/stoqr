@@ -217,7 +217,7 @@
 
   // ── Markt-Zuordnung (M:N, Planung — M1) ─────────────────────────────────────
 
-  type StoreOpt = { id: string; name: string; chain: string | null }
+  type StoreOpt = { id: string; name: string; chain: string | null; scrapeUrl?: string | null }
 
   // svelte-ignore state_referenced_locally
   let productStoreIds = $state<string[]>([...(data.productStoreIds as string[])])
@@ -276,6 +276,7 @@
   let priceReduced = $state(false)
   let pricePermanent = $state(false)
   let priceSaving = $state(false)
+  let correctingProposalId = $state<string | null>(null)
 
   function startPriceEdit(storeId: string) {
     const existing = priceForStore(storeId)
@@ -287,6 +288,7 @@
   }
   function cancelPriceEdit() {
     priceEditStore = null
+    correctingProposalId = null
   }
 
   async function savePrice(storeId: string) {
@@ -312,12 +314,103 @@
       }
       showToast('Preis gespeichert')
       priceEditStore = null
+      // „Korrigieren"-Fluss: den offenen Vorschlag danach als erledigt verwerfen.
+      if (correctingProposalId) {
+        const pid = correctingProposalId
+        correctingProposalId = null
+        await fetch(`/api/products/${product.id}/prices/proposals/${pid}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'reject' }),
+        }).catch(() => {})
+      }
       await invalidateAll()
     } catch {
       showToast('Netzwerkfehler.', 'error')
     } finally {
       priceSaving = false
     }
+  }
+
+  // ── Online-Preis-Vorschläge (Block F2, Staging) ────────────────────────────
+  type ProposedPrice = {
+    id: string
+    storeId: string
+    priceCt: number
+    unit: string
+    store: { id: string; name: string; chain: string | null } | null
+  }
+  const proposedPrices = $derived((data.proposedPrices as ProposedPrice[]) ?? [])
+  const priceScrapeEnabled = $derived(data.priceScrapeEnabled ?? false)
+  function proposalForStore(storeId: string): ProposedPrice | undefined {
+    return proposedPrices.find((p) => p.storeId === storeId)
+  }
+
+  let fetchingStore = $state<string | null>(null)
+  let proposalBusy = $state<string | null>(null)
+
+  async function fetchOnlinePrice(storeId: string) {
+    fetchingStore = storeId
+    try {
+      const res = await fetch(`/api/products/${product.id}/prices/fetch`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ storeId }),
+      })
+      const b = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        showToast(b?.error ?? `Fehler ${res.status}`, 'error')
+        return
+      }
+      if (!b?.proposed) {
+        showToast('Kein Online-Preis gefunden')
+        return
+      }
+      showToast('Online-Preis abgerufen — als Vorschlag hinterlegt')
+      await invalidateAll()
+    } catch {
+      showToast('Netzwerkfehler beim Abruf.', 'error')
+    } finally {
+      fetchingStore = null
+    }
+  }
+
+  async function actOnProposal(
+    proposalId: string,
+    action: 'confirm' | 'reject',
+    extra?: { makePermanent?: boolean; priceCt?: number; unit?: string; isReduced?: boolean },
+  ) {
+    proposalBusy = proposalId
+    try {
+      const res = await fetch(`/api/products/${product.id}/prices/proposals/${proposalId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, ...extra }),
+      })
+      const b = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        showToast(b?.error ?? `Fehler ${res.status}`, 'error')
+        return
+      }
+      showToast(action === 'confirm' ? 'Vorschlag übernommen' : 'Vorschlag verworfen')
+      await invalidateAll()
+    } catch {
+      showToast('Netzwerkfehler.', 'error')
+    } finally {
+      proposalBusy = null
+    }
+  }
+
+  // „Korrigieren": öffnet den bestehenden Preis-Edit-Block mit den Vorschlagswerten
+  // vorbefüllt; Speichern läuft über savePrice (legt einen bestätigten Preis an) und
+  // der offene Vorschlag wird danach verworfen.
+  function correctProposal(p: ProposedPrice) {
+    priceEditStore = p.storeId
+    priceInput = String(p.priceCt / 100).replace('.', ',')
+    priceUnitInput = p.unit
+    priceReduced = false
+    pricePermanent = false
+    correctingProposalId = p.id
   }
 
   // ── Gebinde-Größe (Einheiten v2) ──────────────────────────────────────────
@@ -801,6 +894,7 @@
       <div class="price-list">
         {#each (data.availableStores as StoreOpt[]).filter((s) => productStoreIds.includes(s.id)) as s (s.id)}
           {@const cp = priceForStore(s.id)}
+          {@const prop = proposalForStore(s.id)}
           <div class="price-item">
             {#if priceEditStore === s.id}
               <div class="price-edit">
@@ -832,10 +926,30 @@
                     <span class="price-none">kein Preis</span>
                   {/if}
                 </span>
-                <button class="btn-edit-inline" type="button" onclick={() => startPriceEdit(s.id)}>
-                  {cp ? 'Ändern' : 'Preis setzen'}
-                </button>
+                <div class="price-view-actions">
+                  {#if priceScrapeEnabled && s.scrapeUrl}
+                    <button class="btn-edit-inline" type="button" disabled={fetchingStore === s.id} onclick={() => fetchOnlinePrice(s.id)}>
+                      {fetchingStore === s.id ? 'Abruf…' : 'Online abrufen'}
+                    </button>
+                  {/if}
+                  <button class="btn-edit-inline" type="button" onclick={() => startPriceEdit(s.id)}>
+                    {cp ? 'Ändern' : 'Preis setzen'}
+                  </button>
+                </div>
               </div>
+              {#if prop}
+                <div class="price-proposal">
+                  <div class="proposal-head">
+                    <span class="proposal-badge">Vorschlag</span>
+                    <span class="proposal-value">Online-Preis: {fmtPrice(prop.priceCt)} / {prop.unit}</span>
+                  </div>
+                  <div class="proposal-actions">
+                    <button class="btn-save-inline" type="button" disabled={proposalBusy === prop.id} onclick={() => actOnProposal(prop.id, 'confirm')}>Übernehmen</button>
+                    <button class="btn-edit-inline" type="button" disabled={proposalBusy === prop.id} onclick={() => correctProposal(prop)}>Korrigieren</button>
+                    <button class="btn-cancel-inline" type="button" disabled={proposalBusy === prop.id} onclick={() => actOnProposal(prop.id, 'reject')}>Verwerfen</button>
+                  </div>
+                </div>
+              {/if}
             {/if}
           </div>
         {/each}
@@ -1472,6 +1586,16 @@
   .btn-cancel-inline { border: 1px solid var(--color-border); background: transparent; color: var(--color-text-muted); border-radius: var(--radius-md); height: 32px; padding: 0 var(--space-3); font-size: var(--text-xs); font-weight: 500; cursor: pointer; }
   .btn-edit-inline { border: 1px solid var(--color-border); background: transparent; color: var(--color-primary); border-radius: var(--radius-md); height: 30px; padding: 0 var(--space-3); font-size: var(--text-xs); font-weight: 600; cursor: pointer; flex-shrink: 0; }
   .btn-edit-inline:hover { background: var(--color-primary-subtle); border-color: var(--color-primary); }
+  .price-view-actions { display: inline-flex; gap: var(--space-2); flex-shrink: 0; }
+  .btn-edit-inline:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-cancel-inline:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  /* ── Online-Preis-Vorschlag (Block F2, Staging) ───────────────────────── */
+  .price-proposal { margin-top: var(--space-2); padding-top: var(--space-2); border-top: 1px dashed var(--color-border); display: flex; flex-direction: column; gap: var(--space-2); }
+  .proposal-head { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
+  .proposal-badge { background: var(--color-primary-subtle); color: var(--color-primary); border-radius: var(--radius-full); padding: 0 var(--space-2); font-size: 10px; font-weight: 700; }
+  .proposal-value { font-size: var(--text-sm); color: var(--color-text-secondary); }
+  .proposal-actions { display: flex; gap: var(--space-2); flex-wrap: wrap; }
 
   /* ── Gebinde-Größe (Einheiten v2) ─────────────────────────────────────── */
   .pack-row { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; margin-top: var(--space-3); padding-top: var(--space-3); border-top: 1px solid var(--color-border-subtle); }

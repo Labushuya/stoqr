@@ -261,6 +261,13 @@ export const productPrices = pgTable(
     unit: varchar('unit', { length: 16 }).notNull(),
     isReduced: boolean('is_reduced').notNull().default(false),
     isCurrent: boolean('is_current').notNull().default(false),
+    // Freigabe-Status: 'proposed' = Online-Vorschlag (Staging, nie is_current),
+    // 'confirmed' = vom User bestaetigt/maßgeblich, 'rejected' = verworfen (Historie).
+    // Kern-Invariante: status != 'confirmed' => is_current = false.
+    status: varchar('status', { length: 16 })
+      .notNull()
+      .default('confirmed')
+      .$type<'proposed' | 'confirmed' | 'rejected'>(),
     source: varchar('source', { length: 16 }).notNull().$type<'manual' | 'booked' | 'online'>(),
     note: text('note'),
     recordedAt: timestamp('recorded_at').notNull().defaultNow(),
@@ -273,6 +280,10 @@ export const productPrices = pgTable(
       table.householdId
     ),
     storeIdx: index('product_prices_store_idx').on(table.storeId),
+    // Max. 1 offener Vorschlag je Artikel+Markt+Haushalt (verhindert Vorschlags-Flut).
+    proposedUniq: uniqueIndex('product_prices_proposed_uniq')
+      .on(table.productId, table.storeId, table.householdId)
+      .where(sql`status = 'proposed'`),
   })
 );
 
@@ -373,6 +384,8 @@ export const stores = pgTable('stores', {
   latitude: numeric('latitude', { precision: 9, scale: 6 }),
   longitude: numeric('longitude', { precision: 9, scale: 6 }),
   bringListUuid: varchar('bring_list_uuid', { length: 128 }),
+  // Optionale Produkt-/Regions-URL fuer den Online-Preis-Abruf (F2). NULL = kein Abruf moeglich.
+  scrapeUrl: text('scrape_url'),
   isFavorite: boolean('is_favorite').notNull().default(false),
   notes: text('notes'),
   createdAt: timestamp('created_at').notNull().defaultNow(),

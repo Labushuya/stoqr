@@ -5,7 +5,37 @@ Neueste Einträge oben. Jeder Eintrag nennt den Commit-Kontext, damit andere LLM
 
 ---
 
-## [Unreleased] — Einheiten-System v2: Gebinde-Größe je Artikel (implementiert, Test auf Pi ausstehend)
+## [Unreleased] — F2: Online-Preis-Abruf (Globus) + Staging/Freigabe (implementiert, Test auf Pi ausstehend)
+
+Opt-in DOM-Scraping von Marktpreisen. Abgerufene Preise landen **nie** direkt maßgeblich, sondern als **Vorschlag**
+(Staging); der User übernimmt, korrigiert oder verwirft. Failsafe „in jeder Hinsicht": Env-Toggle default AUS,
+8s-Timeout, jeder Fehler → `null`, kein 5xx bei Scrape-Miss, kein Auto-Confirm.
+
+- **Migration 0012_price_staging** (additiv/idempotent): `product_prices.status` (`proposed`/`confirmed`/`rejected`,
+  DEFAULT `confirmed` → Bestandszeilen gebackfillt); partieller Unique-Index `product_prices_proposed_uniq`
+  (max. 1 offener Vorschlag je Artikel+Markt+Haushalt); `stores.scrape_url` (nullable).
+- **Kern-Invariante** `status != 'confirmed' ⇒ isCurrent = false` (hart im Code) → Vorschläge fließen nie ins Estimate;
+  alle `isCurrent`-Getter bleiben unberührt.
+- **Parser** `lib/utils/globus-price.ts` (rein, `node-html-parser`, Selektor-Konstante `div.unit-price .discount-price`,
+  `parseEuroToCents` komma/punkt-tolerant) + 14 Vitest-Fälle. **Scrape-Wrapper** `lib/server/scrape/globus.ts`
+  (AbortController 8s, UA + `Accept-Language`, try/catch → null, `isPriceScrapeEnabled`, `normalizeScrapeUrl`).
+- **Query-Layer** `prices.ts`: `recordProposedPrice` (superseded alte offene Vorschläge), `listProposedForProduct`,
+  `getProposedForProducts`, `confirmProposedPrice` (in-place → confirmed, recordPrice-Semantik), `rejectProposedPrice`;
+  `status:'confirmed'` explizit in `recordPrice`.
+- **API:** `POST /api/products/[id]/prices/fetch` (Einzel, Env-Guard, Miss=200 `{proposed:null}`),
+  `POST /api/products/[id]/prices/proposals/[proposalId]` (confirm/reject, nicht geguarded),
+  `POST /api/stores/[id]/prices/fetch-all` (sequenziell + Rate-Limit, Aggregat, immer 200; Gerüst — ohne
+  artikelspezifische URL werden Artikel `skipped`). Store-`scrapeUrl` in PATCH/POST `/api/stores` + Märkte-Form.
+- **UI:** Preise-Card (inventar/[id]) zeigt Online-Vorschlag mit **Übernehmen/Korrigieren/Verwerfen** + „Online abrufen"
+  je Markt (nur bei `scrapeUrl` + Feature an). Einstellungen→Märkte: Abruf-URL-Feld + „Preise abrufen"-Sammel-Button +
+  „Online-Abruf aktiv"-Badge. Audit-Label `scrapeUrl`; Env `PRICE_SCRAPE_ENABLED` in `.env.example` + docker-compose.
+
+### Commits
+(folgen beim Commit)
+
+---
+
+## [Unreleased] — Einheiten-System v2: Gebinde-Größe je Artikel (auf Pi getestet ✓ 2026-07-18)
 
 Zwei Einheiten-Themen: (a) Einheiten untereinander umrechenbar; (b) „Flasche" kann verschiedene Größen haben.
 Kern-Erkenntnis: mass/volume waren via `toBaseFactor` schon umrechenbar — das echte „nicht vergleichbar" ist ein

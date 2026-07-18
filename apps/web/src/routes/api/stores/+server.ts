@@ -5,6 +5,7 @@ import { stores } from '@stoqr/db'
 import { eq, asc } from 'drizzle-orm'
 import { requireHouseholdId } from '$lib/server/queries/households'
 import { writeAudit } from '$lib/server/queries/audit'
+import { normalizeScrapeUrl, INVALID_URL } from '$lib/server/scrape/globus'
 
 // ---------------------------------------------------------------------------
 // GET /api/stores
@@ -37,10 +38,21 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 
   const householdId = await requireHouseholdId(locals.user.id)
   const body = await request.json()
-  const { name, chain, address, city } = body as { name?: string; chain?: string; address?: string; city?: string }
+  const { name, chain, address, city, scrapeUrl } = body as {
+    name?: string
+    chain?: string
+    address?: string
+    city?: string
+    scrapeUrl?: string | null
+  }
 
   if (!name) {
     return json({ error: 'name is required' }, { status: 400 })
+  }
+
+  const normalizedUrl = normalizeScrapeUrl(scrapeUrl)
+  if (normalizedUrl === INVALID_URL) {
+    return json({ error: 'Ungültige Abruf-URL (nur http/https)' }, { status: 400 })
   }
 
   const [store] = await db
@@ -51,6 +63,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
       chain: chain ?? null,
       address: address ?? null,
       city: city ?? null,
+      scrapeUrl: normalizedUrl,
     })
     .returning()
 

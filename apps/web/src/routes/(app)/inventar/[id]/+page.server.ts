@@ -17,8 +17,9 @@ import { deleteProduct, listInventoryForProduct } from '$lib/server/queries/prod
 import { getNutrientTypes } from '$lib/server/queries/nutrients'
 import { getStockTargetForProduct } from '$lib/server/queries/stock-targets'
 import { listStoresForProduct } from '$lib/server/queries/product-stores'
-import { getCurrentPricesForProductAllStores } from '$lib/server/queries/prices'
+import { getCurrentPricesForProductAllStores, listProposedForProduct } from '$lib/server/queries/prices'
 import { buildUnitMetaMap, aggregateStock, compareToTarget, buildPackSize } from '$lib/utils/stock'
+import { isPriceScrapeEnabled } from '$lib/server/scrape/globus'
 
 // ---------------------------------------------------------------------------
 // Location-Breadcrumb aus einem (geladenen) place-Objekt bauen
@@ -87,7 +88,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
     db.query.stores.findMany({
       where: eq(stores.householdId, householdId),
       orderBy: asc(stores.name),
-      columns: { id: true, name: true, chain: true },
+      columns: { id: true, name: true, chain: true, scrapeUrl: true },
     }),
   ]);
 
@@ -145,6 +146,9 @@ export const load: PageServerLoad = async ({ params, locals }) => {
   // Aktuelle Preise je Markt (Block F).
   const currentPrices = await getCurrentPricesForProductAllStores(item.productId, householdId);
 
+  // Offene Online-Preis-Vorschläge je Markt (Block F2, Staging).
+  const proposedPrices = await listProposedForProduct(item.productId, householdId);
+
   return {
     item,
     product: item.product,
@@ -154,6 +158,8 @@ export const load: PageServerLoad = async ({ params, locals }) => {
     availableStores,
     productStoreIds,
     currentPrices,
+    proposedPrices,
+    priceScrapeEnabled: isPriceScrapeEnabled(),
     allLocations,
     expirySettings,
     stockTotals,
