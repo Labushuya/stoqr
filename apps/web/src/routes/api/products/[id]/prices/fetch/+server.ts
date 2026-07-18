@@ -6,14 +6,15 @@ import { eq, and } from 'drizzle-orm'
 import { requireHouseholdId } from '$lib/server/queries/households'
 import { writeAudit } from '$lib/server/queries/audit'
 import { recordProposedPrice } from '$lib/server/queries/prices'
-import { scrapeGlobusPrice, isPriceScrapeEnabled } from '$lib/server/scrape/globus'
+import { scrapeGlobusPrice, isPriceScrapeEnabled, resolveScrapeUrl } from '$lib/server/scrape/globus'
 
 // ---------------------------------------------------------------------------
-// POST /api/products/[id]/prices/fetch  { storeId }  — Online-Preis-Abruf (F2)
+// POST /api/products/[id]/prices/fetch  { storeId }  — Online-Preis-Abruf (F2/G2)
 //
-// Failsafe: Env-Guard (403 wenn aus), ohne scrapeUrl 400, Scrape-Miss = 200
-// { proposed: null }. Treffer → Vorschlag (status='proposed', isCurrent=false)
-// + Audit. Kein Auto-Confirm, kein 5xx bei erwartbarem Miss.
+// Failsafe: Env-Guard (403 wenn aus). Abruf-URL = scrapeUrl-Override ODER
+// scrapeRegion + products.gtin (Barcode-Search). Keine Quelle → 200
+// { proposed: null }. Scrape-Miss = 200 { proposed: null }. Treffer → Vorschlag
+// (status='proposed', isCurrent=false) + Audit. Kein Auto-Confirm, kein 5xx bei Miss.
 // ---------------------------------------------------------------------------
 
 export const POST: RequestHandler = async ({ locals, params, request }) => {
@@ -28,21 +29,24 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
     if (!body.storeId) return json({ error: 'storeId fehlt' }, { status: 400 })
 
     const [store] = await db
-      .select({ id: stores.id, name: stores.name, scrapeUrl: stores.scrapeUrl })
+      .select({ id: stores.id, name: stores.name, scrapeUrl: stores.scrapeUrl, scrapeRegion: stores.scrapeRegion })
       .from(stores)
       .where(and(eq(stores.id, body.storeId), eq(stores.householdId, householdId)))
     if (!store) return json({ error: 'Markt nicht gefunden' }, { status: 404 })
-    if (!store.scrapeUrl) {
-      return json({ error: 'Für diesen Markt ist keine Abruf-URL hinterlegt' }, { status: 400 })
-    }
 
     const product = await db.query.products.findFirst({
       where: eq(products.id, params.id),
-      columns: { id: true, defaultUnit: true },
+      columns: { id: true, defaultUnit: true, gtin: true },
     })
     if (!product) return json({ error: 'Artikel nicht gefunden' }, { status: 404 })
 
-    const parsed = await scrapeGlobusPrice(store.scrapeUrl)
+    const url = resolveScrapeUrl(store, product.gtin)
+    if (!url) {
+      // Weder Override-URL noch (Region + EAN) → nichts abrufbar (kein Fehler).
+      return json({ proposed: null, reason: 'no-source' })
+    }
+
+    const parsed = await scrapeGlobusPrice(url)
     if (!parsed) return json({ proposed: null, reason: 'no-price' })
 
     const row = await recordProposedPrice({

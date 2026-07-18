@@ -1,6 +1,8 @@
 <script lang="ts">
   import type { PageData } from './$types'
   import { toast } from '$lib/stores/toast'
+  import AddressAutocomplete from '$lib/components/AddressAutocomplete.svelte'
+  import type { GeoSuggestion } from '$lib/utils/geo'
 
   // ── Props ──────────────────────────────────────────────────────────────────
 
@@ -8,7 +10,17 @@
 
   // ── Store list state ────────────────────────────────────────────────────────
 
-  type Store = { id: string; name: string; chain: string | null; address: string | null; city: string | null; scrapeUrl: string | null }
+  type Store = {
+    id: string
+    name: string
+    chain: string | null
+    address: string | null
+    city: string | null
+    latitude: string | null
+    longitude: string | null
+    scrapeUrl: string | null
+    scrapeRegion: string | null
+  }
 
   // svelte-ignore state_referenced_locally
   let storeRows = $state<Store[]>(data.stores as Store[])
@@ -23,6 +35,9 @@
   let newChain = $state('')
   let newAddress = $state('')
   let newCity = $state('')
+  let newRegion = $state('')
+  let newLat = $state<string | null>(null)
+  let newLon = $state<string | null>(null)
   let newScrapeUrl = $state('')
   let adding = $state(false)
   let addError = $state<string | null>(null)
@@ -34,6 +49,9 @@
   let editingChain = $state('')
   let editingAddress = $state('')
   let editingCity = $state('')
+  let editingRegion = $state('')
+  let editingLat = $state<string | null>(null)
+  let editingLon = $state<string | null>(null)
   let editingScrapeUrl = $state('')
   let editSaving = $state(false)
   let editError = $state<string | null>(null)
@@ -48,12 +66,27 @@
 
   // ── Helpers ────────────────────────────────────────────────────────────────
 
+  // Adress-Vorschlag (OSM) übernehmen: Stadt + Koordinaten mitfüllen (Add-Form).
+  function applyNewSuggestion(s: GeoSuggestion) {
+    if (s.city) newCity = s.city
+    newLat = s.lat
+    newLon = s.lon
+  }
+  function applyEditSuggestion(s: GeoSuggestion) {
+    if (s.city) editingCity = s.city
+    editingLat = s.lat
+    editingLon = s.lon
+  }
+
   function startEdit(store: Store) {
     editingId = store.id
     editingName = store.name
     editingChain = store.chain ?? ''
     editingAddress = store.address ?? ''
     editingCity = store.city ?? ''
+    editingRegion = store.scrapeRegion ?? ''
+    editingLat = store.latitude
+    editingLon = store.longitude
     editingScrapeUrl = store.scrapeUrl ?? ''
     editError = null
   }
@@ -66,11 +99,14 @@
   async function saveEdit(id: string) {
     const name = editingName.trim()
     const chain = editingChain.trim() || null
+    const address = editingAddress.trim()
+    const city = editingCity.trim()
+    const region = editingRegion.trim()
 
-    if (!name) {
-      editError = 'Name ist erforderlich.'
-      return
-    }
+    if (!name) { editError = 'Name ist erforderlich.'; return }
+    if (!address) { editError = 'Adresse ist erforderlich.'; return }
+    if (!city) { editError = 'Stadt ist erforderlich.'; return }
+    if (!region) { editError = 'Filiale/Region ist erforderlich (z.B. „hockenheim").'; return }
 
     editSaving = true
     editError = null
@@ -79,8 +115,11 @@
     formData.set('id', id)
     formData.set('name', name)
     if (chain) formData.set('chain', chain)
-    if (editingAddress.trim()) formData.set('address', editingAddress.trim())
-    if (editingCity.trim()) formData.set('city', editingCity.trim())
+    formData.set('address', address)
+    formData.set('city', city)
+    formData.set('scrapeRegion', region)
+    if (editingLat) formData.set('latitude', editingLat)
+    if (editingLon) formData.set('longitude', editingLon)
     formData.set('scrapeUrl', editingScrapeUrl.trim())
 
     try {
@@ -106,7 +145,7 @@
       } else {
         storeRows = storeRows.map((s) =>
           s.id === id
-            ? { ...s, name, chain, address: editingAddress.trim() || null, city: editingCity.trim() || null, scrapeUrl: editingScrapeUrl.trim() || null }
+            ? { ...s, name, chain, address: address || null, city: city || null, scrapeRegion: region || null, latitude: editingLat, longitude: editingLon, scrapeUrl: editingScrapeUrl.trim() || null }
             : s
         )
       }
@@ -158,14 +197,15 @@
   async function addStore() {
     const name = newName.trim()
     const chain = newChain.trim() || null
-    const address = newAddress.trim() || null
-    const city = newCity.trim() || null
+    const address = newAddress.trim()
+    const city = newCity.trim()
+    const region = newRegion.trim()
     const scrapeUrl = newScrapeUrl.trim() || null
 
-    if (!name) {
-      addError = 'Name ist erforderlich.'
-      return
-    }
+    if (!name) { addError = 'Name ist erforderlich.'; return }
+    if (!address) { addError = 'Adresse ist erforderlich.'; return }
+    if (!city) { addError = 'Stadt ist erforderlich.'; return }
+    if (!region) { addError = 'Filiale/Region ist erforderlich (z.B. „hockenheim").'; return }
 
     adding = true
     addError = null
@@ -174,7 +214,7 @@
       const res = await fetch('/api/stores', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, chain, address, city, scrapeUrl }),
+        body: JSON.stringify({ name, chain, address, city, scrapeRegion: region, latitude: newLat, longitude: newLon, scrapeUrl }),
       })
       const created: Store | { error?: string } = await res.json().catch(() => ({}))
 
@@ -189,6 +229,9 @@
       newChain = ''
       newAddress = ''
       newCity = ''
+      newRegion = ''
+      newLat = null
+      newLon = null
       newScrapeUrl = ''
       toast.success('Markt hinzugefügt')
     } catch {
@@ -309,25 +352,33 @@
                   />
                 </div>
                 <div class="edit-fields edit-fields--address">
-                  <input
-                    class="input input--address"
-                    type="text"
+                  <AddressAutocomplete
                     bind:value={editingAddress}
-                    placeholder="Adresse (optional)"
-                    maxlength="255"
-                    aria-label="Adresse"
-                    onkeydown={(e) => {
-                      if (e.key === 'Enter') saveEdit(store.id)
-                      if (e.key === 'Escape') cancelEdit()
-                    }}
+                    placeholder="Adresse suchen (Pflicht)"
+                    ariaLabel="Adresse"
+                    onselect={applyEditSuggestion}
                   />
                   <input
                     class="input input--city"
                     type="text"
                     bind:value={editingCity}
-                    placeholder="Ort/Stadt (optional)"
+                    placeholder="Ort/Stadt (Pflicht)"
                     maxlength="128"
                     aria-label="Ort/Stadt"
+                    onkeydown={(e) => {
+                      if (e.key === 'Enter') saveEdit(store.id)
+                      if (e.key === 'Escape') cancelEdit()
+                    }}
+                  />
+                </div>
+                <div class="edit-fields">
+                  <input
+                    class="input"
+                    type="text"
+                    bind:value={editingRegion}
+                    placeholder="Filiale/Region (Pflicht) — z.B. hockenheim"
+                    maxlength="64"
+                    aria-label="Filiale/Region"
                     onkeydown={(e) => {
                       if (e.key === 'Enter') saveEdit(store.id)
                       if (e.key === 'Escape') cancelEdit()
@@ -340,7 +391,7 @@
                     type="url"
                     inputmode="url"
                     bind:value={editingScrapeUrl}
-                    placeholder="Abruf-URL für Online-Preise (optional)"
+                    placeholder="Abruf-URL Override (optional)"
                     maxlength="1024"
                     aria-label="Abruf-URL"
                     onkeydown={(e) => {
@@ -393,17 +444,17 @@
                     {[store.address, store.city].filter(Boolean).join(', ')}
                   </span>
                 {/if}
-                {#if store.scrapeUrl}
-                  <span class="scrape-badge" title={store.scrapeUrl}>
+                {#if store.scrapeUrl || store.scrapeRegion}
+                  <span class="scrape-badge" title={store.scrapeUrl ?? `Filiale: ${store.scrapeRegion}`}>
                     <svg width="11" height="11" viewBox="0 0 12 12" fill="none" aria-hidden="true">
                       <path d="M4.5 7.5l3-3M5 3.5l.7-.7a2 2 0 012.8 2.8l-.7.7M7 8.5l-.7.7a2 2 0 01-2.8-2.8l.7-.7" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
                     </svg>
-                    Online-Abruf aktiv
+                    Online-Abruf aktiv{store.scrapeRegion ? ` (${store.scrapeRegion})` : ''}
                   </span>
                 {/if}
               </div>
               <div class="store-actions">
-                {#if priceScrapeEnabled && store.scrapeUrl}
+                {#if priceScrapeEnabled && (store.scrapeUrl || store.scrapeRegion)}
                   <button
                     class="btn-edit-inline"
                     type="button"
@@ -499,22 +550,30 @@
         />
       </div>
       <div class="add-fields add-fields--address">
-        <input
-          class="input input--address"
-          type="text"
+        <AddressAutocomplete
           bind:value={newAddress}
-          placeholder="Adresse (optional)"
-          maxlength="255"
-          aria-label="Adresse des neuen Markts"
-          onkeydown={(e) => { if (e.key === 'Enter') addStore() }}
+          placeholder="Adresse suchen (Pflicht)"
+          ariaLabel="Adresse des neuen Markts"
+          onselect={applyNewSuggestion}
         />
         <input
           class="input input--city"
           type="text"
           bind:value={newCity}
-          placeholder="Ort/Stadt (optional)"
+          placeholder="Ort/Stadt (Pflicht)"
           maxlength="128"
           aria-label="Ort/Stadt des neuen Markts"
+          onkeydown={(e) => { if (e.key === 'Enter') addStore() }}
+        />
+      </div>
+      <div class="add-fields">
+        <input
+          class="input"
+          type="text"
+          bind:value={newRegion}
+          placeholder="Filiale/Region (Pflicht) — z.B. hockenheim"
+          maxlength="64"
+          aria-label="Filiale/Region des neuen Markts"
           onkeydown={(e) => { if (e.key === 'Enter') addStore() }}
         />
       </div>
@@ -524,7 +583,7 @@
           type="url"
           inputmode="url"
           bind:value={newScrapeUrl}
-          placeholder="Abruf-URL für Online-Preise (optional)"
+          placeholder="Abruf-URL Override (optional)"
           maxlength="1024"
           aria-label="Abruf-URL des neuen Markts"
           onkeydown={(e) => { if (e.key === 'Enter') addStore() }}
@@ -821,10 +880,6 @@
 
   .input--chain {
     flex: 1 1 200px;
-  }
-
-  .input--address {
-    flex: 2 1 220px;
   }
 
   .input--city {

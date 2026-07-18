@@ -8,7 +8,7 @@
 // ---------------------------------------------------------------------------
 
 import { env } from '$env/dynamic/private'
-import { parseGlobusPriceHtml, type ParsedPrice } from '$lib/utils/globus-price'
+import { parseGlobusPriceHtml, buildGlobusSearchUrl, type ParsedPrice } from '$lib/utils/globus-price'
 
 const TIMEOUT_MS = 8000
 const DEFAULT_USER_AGENT = 'stoqr-price/0.1'
@@ -16,6 +16,19 @@ const DEFAULT_USER_AGENT = 'stoqr-price/0.1'
 /** Feature-Flag: Online-Preis-Abruf nur aktiv, wenn ausdruecklich eingeschaltet. */
 export function isPriceScrapeEnabled(): boolean {
   return env.PRICE_SCRAPE_ENABLED === 'true'
+}
+
+/**
+ * Ermittelt die Abruf-URL fuer (Markt, Artikel) (G2): scrapeUrl gewinnt als
+ * manueller Override, sonst scrapeRegion + gtin → Barcode-Search-URL. Keine
+ * Quelle → null (Aufrufer ueberspringt/meldet „keine Quelle").
+ */
+export function resolveScrapeUrl(
+  store: { scrapeUrl?: string | null; scrapeRegion?: string | null },
+  gtin: string | null | undefined,
+): string | null {
+  if (store.scrapeUrl && store.scrapeUrl.trim() !== '') return store.scrapeUrl
+  return buildGlobusSearchUrl(store.scrapeRegion, gtin)
 }
 
 /** Sentinel: Eingabe war eine nicht-leere, aber ungueltige URL. */

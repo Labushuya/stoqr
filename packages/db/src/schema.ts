@@ -386,6 +386,9 @@ export const stores = pgTable('stores', {
   bringListUuid: varchar('bring_list_uuid', { length: 128 }),
   // Optionale Produkt-/Regions-URL fuer den Online-Preis-Abruf (F2). NULL = kein Abruf moeglich.
   scrapeUrl: text('scrape_url'),
+  // Globus-Filiale/Region fuer die Barcode-Search-URL (G2), z.B. "hockenheim".
+  // Standard-Quelle: scrapeRegion + products.gtin -> Search-URL; scrapeUrl bleibt manueller Override.
+  scrapeRegion: varchar('scrape_region', { length: 64 }),
   isFavorite: boolean('is_favorite').notNull().default(false),
   notes: text('notes'),
   createdAt: timestamp('created_at').notNull().defaultNow(),

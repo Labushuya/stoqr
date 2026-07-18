@@ -3,7 +3,7 @@
 > Kanonisches Datenmodell und Entwicklungsplan. Diese Datei ist führend für Absicht,
 > Logik und Ziel von stoqr. Bei Widersprüchen zwischen Code und dieser Datei gilt diese Datei.
 
-Letzte Aktualisierung: 2026-07-18 (F2 Online-Preis-Abruf + Staging implementiert, Test auf Pi ausstehend)
+Letzte Aktualisierung: 2026-07-19 (G1 Fixes + G2 Markt-Pflichtfelder/OSM/Globus-Barcode-Search implementiert, Test auf Pi ausstehend)
 
 ---
 
@@ -222,6 +222,13 @@ Inventur (Ist erfassen) → Soll-Ist-Bedarf → Einkaufsliste (virtuelle Bestän
 ---
 
 ## Offene Punkte / noch zu testen (nicht bestätigt)
+
+**G1/G2 (Migration 0013) — Test auf Pi ausstehend:**
+- **G1-1:** Bestand auf der Detailseite per „Bearbeiten" verringern → Gesamtbestand oben SOFORT aktuell (ohne Refresh); ebenso nach Verbraucht/Gespendet/Entsorgt/Entfernt.
+- **G1-2:** Bestand mit Kaufpreis anlegen → Detailseite → „Bearbeiten" zeigt Kaufpreis-Feld, änderbar, bleibt nach Speichern (auch nach Refresh); Anzeige „Kaufpreis X €" in der Bestandszeile.
+- **G2 Pflichtfelder:** Markt ohne Adresse/Stadt/Region anlegen/bearbeiten → Fehlermeldung; Kette leer lassen → OK. Bestehende Märkte bleiben nach Migration ladbar.
+- **G2 OSM:** Im Markt-Formular Adresse tippen → OSM-Vorschläge; Auswahl füllt Adresse + Stadt (+ Koordinaten). Manuelle Eingabe weiter möglich; Netzwerkfehler → keine Vorschläge, kein Absturz.
+- **G2 Globus:** Markt „Globus" mit Filiale „hockenheim", Artikel mit EAN → „Online abrufen"/Sammel-Abruf → Preis-Vorschlag über Search-URL. Artikel ohne EAN → sauber übersprungen (skipped), kein Fehler. `scrapeUrl`-Override (falls gesetzt) gewinnt weiter.
 
 **F2 — Online-Preis-Abruf + Staging (Migration 0012) — Test auf Pi ausstehend:**
 - Container-Neustart → Migration 0012 läuft (status/scrape_url/proposed_uniq); Bestandspreise bleiben `confirmed`/isCurrent

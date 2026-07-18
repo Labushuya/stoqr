@@ -5,6 +5,33 @@ Neueste Einträge oben. Jeder Eintrag nennt den Commit-Kontext, damit andere LLM
 
 ---
 
+## [Unreleased] — G1/G2: Reaktivität + Bestand-Kaufpreis + Markt-Pflichtfelder/OSM + Globus-Barcode-Search (implementiert, Test auf Pi ausstehend)
+
+Folge-Themen nach F2-Test. **G1** (Fixes, eigener Commit 8348d0b): siehe unten. **G2** (dieser Block): Markt-Daten werden
+Pflicht, Adress-Autocomplete via OpenStreetMap, und der Globus-Abruf nutzt jetzt die echte Barcode-Search-URL.
+
+**G2 — Markt-Pflichtfelder + OSM-Autocomplete + Barcode-Search:**
+- **Migration 0013_stores_scrape_region** (additiv): `stores.scrape_region varchar(64)`. `scrape_url` (F2) bleibt als Override.
+- **Pflichtfelder** beim Anlegen/Bearbeiten eines Markts: Name + Adresse + Stadt + Filiale/Region; **Kette optional**.
+  Nur in Actions/API erzwungen (kein DB-NOT-NULL) → bestehende Märkte bleiben ladbar (sanfte Migration).
+- **OSM/Nominatim-Autocomplete:** Server-Proxy `GET /api/geo/search` (User-Agent-Pflicht, 1 req/s-Guard, Timeout, Fehler→[]),
+  reine `mapNominatimResult` in `lib/utils/geo.ts` (+6 Vitest), Komponente `AddressAutocomplete.svelte` (Debounce 500ms).
+  Adress-Auswahl füllt Stadt + Koordinaten (lat/lon existierten schon als numeric).
+- **Barcode-Search-URL:** reine `buildGlobusSearchUrl(region, gtin)` (+6 Vitest) → `https://produkte.globus.de/{region}/search?query={gtin}`.
+  Zentrale `resolveScrapeUrl(store, gtin)`: `scrapeUrl`-Override gewinnt, sonst `scrapeRegion + products.gtin`, sonst skip.
+  Einzel-Abruf (`prices/fetch`) und Sammel-Abruf (`stores/[id]/prices/fetch-all`) nutzen sie; Artikel ohne EAN → `skipped`.
+  Failsafe wie F2 (8s Timeout, jeder Fehler → null, Miss=200).
+
+**G1 (Commit 8348d0b) — Reaktivität + Bestand-Kaufpreis + Konzept-Doku:**
+- invalidateAll() in saveRow/consumeRow/setRowStatus/deleteRow (Gesamtbestand sofort aktuell).
+- `inventory_items.purchasePriceCt` auf der Detailseite nachträglich editierbar (Backend unterstützte es bereits).
+- ROADMAP-Abschnitt „Artikel- vs. Bestands-Ebene" (Priorisierung/Vererbung).
+
+### Commits
+(G2 folgt beim Commit) · G1 = 8348d0b
+
+---
+
 ## [Unreleased] — F2: Online-Preis-Abruf (Globus) + Staging/Freigabe (implementiert, Test auf Pi ausstehend)
 
 Opt-in DOM-Scraping von Marktpreisen. Abgerufene Preise landen **nie** direkt maßgeblich, sondern als **Vorschlag**

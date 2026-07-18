@@ -6,6 +6,29 @@ import { requireHouseholdId } from '$lib/server/queries/households'
 import { normalizeScrapeUrl, INVALID_URL, isPriceScrapeEnabled } from '$lib/server/scrape/globus'
 import type { PageServerLoad, Actions } from './$types'
 
+// Koordinate defensiv parsen: leer/ungueltig -> null, sonst als String (Drizzle numeric).
+function parseCoord(raw: string): string | null {
+  const t = raw.trim()
+  if (t === '') return null
+  const n = Number(t)
+  return Number.isFinite(n) ? String(n) : null
+}
+
+// Pflichtfelder (G2): Name + Adresse + Stadt + Filiale/Region. Kette optional.
+// Gibt eine Fehlermeldung zurueck oder null, wenn alles vorhanden ist.
+function validateRequired(
+  name: string,
+  address: string | null,
+  city: string | null,
+  scrapeRegion: string | null,
+): string | null {
+  if (!name) return 'Name ist erforderlich.'
+  if (!address) return 'Adresse ist erforderlich.'
+  if (!city) return 'Stadt ist erforderlich.'
+  if (!scrapeRegion) return 'Filiale/Region ist erforderlich (z.B. „hockenheim").'
+  return null
+}
+
 export const load: PageServerLoad = async ({ locals }) => {
   if (!locals.user) redirect(302, '/login')
 
@@ -21,7 +44,10 @@ export const load: PageServerLoad = async ({ locals }) => {
         chain: true,
         address: true,
         city: true,
+        latitude: true,
+        longitude: true,
         scrapeUrl: true,
+        scrapeRegion: true,
       },
     })
 
@@ -48,10 +74,14 @@ export const actions: Actions = {
     const chain = String(data.get('chain') ?? '').trim() || null
     const address = String(data.get('address') ?? '').trim() || null
     const city = String(data.get('city') ?? '').trim() || null
+    const scrapeRegion = String(data.get('scrapeRegion') ?? '').trim() || null
+    const latitude = parseCoord(String(data.get('latitude') ?? ''))
+    const longitude = parseCoord(String(data.get('longitude') ?? ''))
     const scrapeUrl = normalizeScrapeUrl(String(data.get('scrapeUrl') ?? ''))
 
-    if (!name) {
-      return fail(400, { action: 'addStore', error: 'Name ist erforderlich.' })
+    const reqErr = validateRequired(name, address, city, scrapeRegion)
+    if (reqErr) {
+      return fail(400, { action: 'addStore', error: reqErr })
     }
     if (scrapeUrl === INVALID_URL) {
       return fail(400, { action: 'addStore', error: 'Ungültige Abruf-URL (nur http/https).' })
@@ -59,8 +89,8 @@ export const actions: Actions = {
 
     const [created] = await db
       .insert(stores)
-      .values({ householdId, name, chain, address, city, scrapeUrl })
-      .returning({ id: stores.id, name: stores.name, chain: stores.chain, address: stores.address, city: stores.city, scrapeUrl: stores.scrapeUrl })
+      .values({ householdId, name, chain, address, city, latitude, longitude, scrapeUrl, scrapeRegion })
+      .returning()
 
     return { action: 'addStore', success: true, store: created }
   },
@@ -76,10 +106,17 @@ export const actions: Actions = {
     const chain = String(data.get('chain') ?? '').trim() || null
     const address = String(data.get('address') ?? '').trim() || null
     const city = String(data.get('city') ?? '').trim() || null
+    const scrapeRegion = String(data.get('scrapeRegion') ?? '').trim() || null
+    const latitude = parseCoord(String(data.get('latitude') ?? ''))
+    const longitude = parseCoord(String(data.get('longitude') ?? ''))
     const scrapeUrl = normalizeScrapeUrl(String(data.get('scrapeUrl') ?? ''))
 
-    if (!id || !name) {
-      return fail(400, { action: 'editStore', error: 'ID und Name sind erforderlich.' })
+    if (!id) {
+      return fail(400, { action: 'editStore', error: 'ID ist erforderlich.' })
+    }
+    const reqErr = validateRequired(name, address, city, scrapeRegion)
+    if (reqErr) {
+      return fail(400, { action: 'editStore', error: reqErr })
     }
     if (scrapeUrl === INVALID_URL) {
       return fail(400, { action: 'editStore', error: 'Ungültige Abruf-URL (nur http/https).' })
@@ -87,9 +124,9 @@ export const actions: Actions = {
 
     const [updated] = await db
       .update(stores)
-      .set({ name, chain, address, city, scrapeUrl })
+      .set({ name, chain, address, city, latitude, longitude, scrapeUrl, scrapeRegion })
       .where(eq(stores.id, id))
-      .returning({ id: stores.id, name: stores.name, chain: stores.chain, address: stores.address, city: stores.city, scrapeUrl: stores.scrapeUrl })
+      .returning()
 
     if (!updated) {
       return fail(404, { action: 'editStore', error: 'Markt nicht gefunden.' })

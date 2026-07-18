@@ -91,6 +91,13 @@
       "when": 1783800007000,
       "tag": "0012_price_staging",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1783800008000,
+      "tag": "0013_stores_scrape_region",
+      "breakpoints": true
     }
   ]
 }

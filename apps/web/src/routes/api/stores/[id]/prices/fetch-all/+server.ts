@@ -6,39 +6,22 @@ import { eq, and, inArray } from 'drizzle-orm'
 import { requireHouseholdId } from '$lib/server/queries/households'
 import { writeAudit } from '$lib/server/queries/audit'
 import { recordProposedPrice } from '$lib/server/queries/prices'
-import { scrapeGlobusPrice, isPriceScrapeEnabled } from '$lib/server/scrape/globus'
+import { scrapeGlobusPrice, isPriceScrapeEnabled, resolveScrapeUrl } from '$lib/server/scrape/globus'
 import { listProductIdsForStore } from '$lib/server/queries/product-stores'
 
 // ---------------------------------------------------------------------------
-// POST /api/stores/[id]/prices/fetch-all  — Sammel-Abruf je Markt (F2)
+// POST /api/stores/[id]/prices/fetch-all  — Sammel-Abruf je Markt (F2/G2)
 //
-// Failsafe/Gerüst: sequenziell + Rate-Limit (Sleep), jeder Artikel isoliert
+// Failsafe: sequenziell + Rate-Limit (Sleep), jeder Artikel isoliert
 // (try/catch → failed++, nie Abbruch), immer 200 (ausser Auth/Guard).
-//
-// Realitäts-Grenze: stores.scrapeUrl ist EINE URL je Markt. Ohne artikel-
-// spezifische URL-Vorlage ist pro Artikel keine eigene Produkt-URL auflösbar
-// → solche Artikel werden „skipped" gezählt (kein Silent-Cap; Aggregat sichtbar).
-// Ein späterer Block ergänzt eine artikelspezifische URL (z.B. product_stores.scrapeUrl),
-// dann liefert resolveArticleUrl() echte URLs.
+// Abruf-URL je Artikel = scrapeUrl-Override ODER scrapeRegion + products.gtin
+// (Barcode-Search). Artikel ohne aufloesbare URL (z.B. ohne EAN) → skipped.
 // ---------------------------------------------------------------------------
 
 const RATE_LIMIT_MS = 800
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
-}
-
-/**
- * Ermittelt die Produkt-URL für einen Artikel an diesem Markt. Aktuell existiert
- * nur die markt-weite stores.scrapeUrl (keine artikel-spezifische) → null, d.h.
- * bis eine artikelspezifische URL-Vorlage existiert, wird jeder Artikel „skipped".
- * Sobald ein product_stores.scrapeUrl-Feld existiert, wird es hier aufgelöst.
- */
-function resolveArticleUrl(productId: string, storeScrapeUrl: string): string | null {
-  // Platzhalter für die spätere artikelspezifische Auflösung (F2-Folge-Block).
-  void productId
-  void storeScrapeUrl
-  return null
 }
 
 export const POST: RequestHandler = async ({ locals, params }) => {
@@ -50,31 +33,31 @@ export const POST: RequestHandler = async ({ locals, params }) => {
   const householdId = await requireHouseholdId(locals.user.id)
 
   const [store] = await db
-    .select({ id: stores.id, scrapeUrl: stores.scrapeUrl })
+    .select({ id: stores.id, scrapeUrl: stores.scrapeUrl, scrapeRegion: stores.scrapeRegion })
     .from(stores)
     .where(and(eq(stores.id, params.id), eq(stores.householdId, householdId)))
   if (!store) return json({ error: 'Markt nicht gefunden' }, { status: 404 })
-  if (!store.scrapeUrl) {
-    return json({ error: 'Für diesen Markt ist keine Abruf-URL hinterlegt' }, { status: 400 })
+  if (!store.scrapeUrl && !store.scrapeRegion) {
+    return json({ error: 'Für diesen Markt ist keine Abruf-Quelle (URL oder Filiale) hinterlegt' }, { status: 400 })
   }
 
   const productIds = await listProductIdsForStore(store.id, householdId)
-  const unitRows = productIds.length
+  const prodRows = productIds.length
     ? await db
-        .select({ id: products.id, defaultUnit: products.defaultUnit })
+        .select({ id: products.id, defaultUnit: products.defaultUnit, gtin: products.gtin })
         .from(products)
         .where(inArray(products.id, productIds))
     : []
-  const unitOf = new Map(unitRows.map((r) => [r.id, r.defaultUnit ?? 'piece']))
 
   let proposedCreated = 0
   let skipped = 0
   let failed = 0
 
-  for (let i = 0; i < productIds.length; i++) {
-    const productId = productIds[i]
-    const url = resolveArticleUrl(productId, store.scrapeUrl)
+  for (let i = 0; i < prodRows.length; i++) {
+    const p = prodRows[i]
+    const url = resolveScrapeUrl(store, p.gtin)
     if (!url) {
+      // Keine aufloesbare URL (z.B. Artikel ohne EAN, nur Region hinterlegt).
       skipped++
       continue
     }
@@ -87,10 +70,10 @@ export const POST: RequestHandler = async ({ locals, params }) => {
       }
       const row = await recordProposedPrice({
         householdId,
-        productId,
+        productId: p.id,
         storeId: store.id,
         priceCt: parsed.priceCt,
-        unit: unitOf.get(productId) ?? 'piece',
+        unit: p.defaultUnit ?? 'piece',
         createdBy: locals.user.id,
       })
       proposedCreated++
@@ -109,10 +92,10 @@ export const POST: RequestHandler = async ({ locals, params }) => {
         },
       })
     } catch (err) {
-      console.error('[prices/fetch-all] Artikel fehlgeschlagen', productId, err)
+      console.error('[prices/fetch-all] Artikel fehlgeschlagen', p.id, err)
       failed++
     }
   }
 
-  return json({ requested: productIds.length, proposedCreated, skipped, failed })
+  return json({ requested: prodRows.length, proposedCreated, skipped, failed })
 }

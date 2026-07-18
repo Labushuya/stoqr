@@ -41,12 +41,21 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 
   const householdId = await requireHouseholdId(locals.user.id)
   const body = await request.json()
-  const { name, chain, address, city, scrapeUrl } = body as {
+  const { name, chain, address, city, latitude, longitude, scrapeUrl, scrapeRegion } = body as {
     name?: string
     chain?: string
     address?: string
     city?: string
+    latitude?: string | number | null
+    longitude?: string | number | null
     scrapeUrl?: string | null
+    scrapeRegion?: string | null
+  }
+
+  const coordToDb = (v: string | number | null | undefined): string | null => {
+    if (v === null || v === undefined || v === '') return null
+    const n = Number(v)
+    return Number.isFinite(n) ? String(n) : null
   }
 
   const patch: Partial<typeof stores.$inferInsert> = {}
@@ -54,6 +63,9 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
   if (chain !== undefined) patch.chain = chain ?? null
   if (address !== undefined) patch.address = address ?? null
   if (city !== undefined) patch.city = city ?? null
+  if (latitude !== undefined) patch.latitude = coordToDb(latitude)
+  if (longitude !== undefined) patch.longitude = coordToDb(longitude)
+  if (scrapeRegion !== undefined) patch.scrapeRegion = (scrapeRegion ?? '').trim() || null
   if (scrapeUrl !== undefined) {
     const normalized = normalizeScrapeUrl(scrapeUrl)
     if (normalized === INVALID_URL) {

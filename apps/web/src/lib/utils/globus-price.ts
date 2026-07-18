@@ -12,6 +12,27 @@ import { parse } from 'node-html-parser'
 // Zentrale Selektor-Konstante: bei HTML-Aenderungen auf Globus nur hier anpassen.
 export const GLOBUS_PRICE_SELECTOR = 'div.unit-price .discount-price'
 
+// Basis-Host der Globus-Produktsuche (Filiale wird als erstes Pfadsegment eingesetzt).
+const GLOBUS_SEARCH_BASE = 'https://produkte.globus.de'
+
+/**
+ * Baut die Barcode-Search-URL fuer eine Globus-Filiale (G2).
+ *   https://produkte.globus.de/<region>/search?query=<gtin>
+ * Nur ein Barcode als query leitet direkt auf die Artikel-Detailseite weiter.
+ * Defensiv: leere/ungueltige Region oder GTIN → null (kein Abruf).
+ */
+export function buildGlobusSearchUrl(
+  region: string | null | undefined,
+  gtin: string | null | undefined,
+): string | null {
+  const r = typeof region === 'string' ? region.trim() : ''
+  const g = typeof gtin === 'string' ? gtin.trim() : ''
+  if (r === '' || g === '') return null
+  // Region ist ein Pfadsegment (keine Slashes/Sonderzeichen zulassen).
+  const safeRegion = encodeURIComponent(r).replace(/%2F/gi, '')
+  return `${GLOBUS_SEARCH_BASE}/${safeRegion}/search?query=${encodeURIComponent(g)}`
+}
+
 export type ParsedPrice = {
   priceCt: number
   raw: string

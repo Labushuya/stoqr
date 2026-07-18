@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { parseEuroToCents, parseGlobusPriceHtml, GLOBUS_PRICE_SELECTOR } from './globus-price'
+import { parseEuroToCents, parseGlobusPriceHtml, buildGlobusSearchUrl, GLOBUS_PRICE_SELECTOR } from './globus-price'
 
 describe('parseEuroToCents', () => {
   it('parst „Ab 1,19 €" → 119', () => {
@@ -68,5 +68,33 @@ describe('parseGlobusPriceHtml', () => {
 
   it('exportiert die Selektor-Konstante fuer zentrale Anpassung', () => {
     expect(GLOBUS_PRICE_SELECTOR).toBe('div.unit-price .discount-price')
+  })
+})
+
+describe('buildGlobusSearchUrl', () => {
+  it('baut die Search-URL aus Region + GTIN', () => {
+    expect(buildGlobusSearchUrl('hockenheim', '4001234567890')).toBe(
+      'https://produkte.globus.de/hockenheim/search?query=4001234567890',
+    )
+  })
+
+  it('trimmt Region und GTIN', () => {
+    expect(buildGlobusSearchUrl('  hockenheim  ', '  123  ')).toBe(
+      'https://produkte.globus.de/hockenheim/search?query=123',
+    )
+  })
+
+  it('liefert null bei leerer Region oder GTIN', () => {
+    expect(buildGlobusSearchUrl('', '123')).toBeNull()
+    expect(buildGlobusSearchUrl('hockenheim', '')).toBeNull()
+    expect(buildGlobusSearchUrl(null, '123')).toBeNull()
+    expect(buildGlobusSearchUrl('hockenheim', null)).toBeNull()
+    expect(buildGlobusSearchUrl(undefined, undefined)).toBeNull()
+  })
+
+  it('encoded Sonderzeichen in der GTIN', () => {
+    expect(buildGlobusSearchUrl('hockenheim', 'a b&c')).toBe(
+      'https://produkte.globus.de/hockenheim/search?query=a%20b%26c',
+    )
   })
 })
