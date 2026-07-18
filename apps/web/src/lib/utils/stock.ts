@@ -62,6 +62,66 @@ export function buildUnitMetaMap(units: UnitRow[]): Map<string, UnitMeta> {
 // Reihenfolge der Gruppen: count zuerst, dann mass, dann volume (deterministisch).
 const DIMENSION_ORDER: Record<Dimension, number> = { count: 0, mass: 1, volume: 2 }
 
+// ---------------------------------------------------------------------------
+// Gebinde-Größe (Einheiten v2): eine count-Einheit eines Artikels (z.B. "Flasche")
+// wird für Aggregation/Vergleich/Preis auf Volumen (ml) bzw. Masse (g) umgerechnet.
+// packSize gilt PRO ARTIKEL und nur für dessen defaultUnit. Fehlt sie, bleibt alles
+// wie bisher (count je Symbol, nicht umrechenbar).
+// ---------------------------------------------------------------------------
+
+export type PackSize = {
+  unitSymbol: string // die count-Einheit, die ein Gebinde ist (z.B. "Flasche")
+  baseFactor: number // 1 unitSymbol = baseFactor Basiseinheiten (ml bzw. g)
+  dimension: 'mass' | 'volume'
+}
+
+/**
+ * Liefert die UnitMeta für ein Symbol. Ist ein packSize für genau dieses Symbol
+ * gesetzt, wird eine virtuelle Meta zurückgegeben, die das Gebinde auf mass/volume
+ * abbildet (statt count). Sonst normale metaMap-Auflösung mit count/1-Fallback.
+ */
+export function resolveUnitMeta(
+  unitSymbol: string,
+  metaMap: Map<string, UnitMeta>,
+  packSize?: PackSize
+): UnitMeta {
+  if (packSize && unitSymbol === packSize.unitSymbol) {
+    return {
+      symbol: unitSymbol,
+      name: metaMap.get(unitSymbol)?.name ?? unitSymbol,
+      dimension: packSize.dimension,
+      toBaseFactor: packSize.baseFactor,
+    }
+  }
+  return (
+    metaMap.get(unitSymbol) ?? { symbol: unitSymbol, name: unitSymbol, dimension: 'count', toBaseFactor: 1 }
+  )
+}
+
+/**
+ * Baut aus den Artikel-Stammdaten eine PackSize — oder undefined, wenn kein Gebinde
+ * hinterlegt ist. Bedingung: es ist genau eines von defaultVolumeMl/defaultWeightG > 0.
+ * (numeric-Felder kommen als String aus der DB.) Volumen gewinnt, falls beide gesetzt
+ * wären — die UI erzwingt aber Einzelauswahl.
+ */
+export function buildPackSize(product: {
+  defaultUnit?: string | null
+  defaultVolumeMl?: string | number | null
+  defaultWeightG?: string | number | null
+}): PackSize | undefined {
+  const unit = product.defaultUnit
+  if (!unit) return undefined
+  const vol = product.defaultVolumeMl != null ? parseFloat(String(product.defaultVolumeMl)) : NaN
+  const wt = product.defaultWeightG != null ? parseFloat(String(product.defaultWeightG)) : NaN
+  if (Number.isFinite(vol) && vol > 0) {
+    return { unitSymbol: unit, baseFactor: vol, dimension: 'volume' }
+  }
+  if (Number.isFinite(wt) && wt > 0) {
+    return { unitSymbol: unit, baseFactor: wt, dimension: 'mass' }
+  }
+  return undefined
+}
+
 /**
  * Aggregiert available-Bestände zu einer nach Einheit gruppierten Gesamtsumme.
  */

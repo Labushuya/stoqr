@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { buildUnitMetaMap, aggregateStock, compareToTarget, planInventoryAdjustment, type UnitRow } from './stock'
+import { buildUnitMetaMap, aggregateStock, compareToTarget, planInventoryAdjustment, resolveUnitMeta, buildPackSize, type UnitRow } from './stock'
 import { formatStockTotal } from './format'
 
 // Repräsentative System-Units (wie in Migration 0007 gebackfillt).
@@ -196,5 +196,52 @@ describe('planInventoryAdjustment', () => {
     const plan = planInventoryAdjustment(countItems, 1, { dimension: 'count', symbol: 'Packung' }, meta)
     // nur Packung betroffen: 3 -> 1
     expect(plan.updates).toEqual([{ id: 'p1', newQuantity: 1 }])
+  })
+})
+
+// ── Einheiten v2: PackSize / resolveUnitMeta / buildPackSize ────────────────
+
+describe('buildPackSize', () => {
+  it('Volumen-Gebinde: Flasche mit defaultVolumeMl', () => {
+    const ps = buildPackSize({ defaultUnit: 'Flasche', defaultVolumeMl: '1500', defaultWeightG: null })
+    expect(ps).toEqual({ unitSymbol: 'Flasche', baseFactor: 1500, dimension: 'volume' })
+  })
+  it('Masse-Gebinde: Packung mit defaultWeightG', () => {
+    const ps = buildPackSize({ defaultUnit: 'Packung', defaultVolumeMl: null, defaultWeightG: '500' })
+    expect(ps).toEqual({ unitSymbol: 'Packung', baseFactor: 500, dimension: 'mass' })
+  })
+  it('kein Gebinde ohne Maß → undefined', () => {
+    expect(buildPackSize({ defaultUnit: 'Flasche', defaultVolumeMl: null, defaultWeightG: null })).toBeUndefined()
+    expect(buildPackSize({ defaultUnit: 'Flasche', defaultVolumeMl: '0', defaultWeightG: '0' })).toBeUndefined()
+  })
+  it('Volumen gewinnt, wenn beide gesetzt', () => {
+    const ps = buildPackSize({ defaultUnit: 'x', defaultVolumeMl: '250', defaultWeightG: '300' })
+    expect(ps?.dimension).toBe('volume')
+    expect(ps?.baseFactor).toBe(250)
+  })
+  it('ohne defaultUnit → undefined', () => {
+    expect(buildPackSize({ defaultVolumeMl: '1000' })).toBeUndefined()
+  })
+})
+
+describe('resolveUnitMeta', () => {
+  it('ohne packSize: normale metaMap-Auflösung', () => {
+    const m = resolveUnitMeta('kg', meta)
+    expect(m.dimension).toBe('mass')
+    expect(m.toBaseFactor).toBe(1000)
+  })
+  it('unbekannte Einheit ohne packSize → count/1-Fallback', () => {
+    const m = resolveUnitMeta('Zomps', meta)
+    expect(m).toEqual({ symbol: 'Zomps', name: 'Zomps', dimension: 'count', toBaseFactor: 1 })
+  })
+  it('packSize greift NUR für das passende Symbol', () => {
+    const ps = { unitSymbol: 'Flasche', baseFactor: 1500, dimension: 'volume' as const }
+    const flasche = resolveUnitMeta('Flasche', meta, ps)
+    expect(flasche.dimension).toBe('volume')
+    expect(flasche.toBaseFactor).toBe(1500)
+    // anderes Symbol bleibt unberührt
+    const kg = resolveUnitMeta('kg', meta, ps)
+    expect(kg.dimension).toBe('mass')
+    expect(kg.toBaseFactor).toBe(1000)
   })
 })
