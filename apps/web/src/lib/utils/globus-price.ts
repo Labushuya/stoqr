@@ -12,25 +12,25 @@ import { parse } from 'node-html-parser'
 // Zentrale Selektor-Konstante: bei HTML-Aenderungen auf Globus nur hier anpassen.
 export const GLOBUS_PRICE_SELECTOR = 'div.unit-price .discount-price'
 
-// Basis-Host der Globus-Produktsuche (Filiale wird als erstes Pfadsegment eingesetzt).
-const GLOBUS_SEARCH_BASE = 'https://produkte.globus.de'
+// Platzhalter in der Markt-Abruf-URL, der beim Abruf durch die Artikel-GTIN ersetzt wird.
+export const EAN_PLACEHOLDER = '{EAN}'
 
 /**
- * Baut die Barcode-Search-URL fuer eine Globus-Filiale (G2).
- *   https://produkte.globus.de/<region>/search?query=<gtin>
- * Nur ein Barcode als query leitet direkt auf die Artikel-Detailseite weiter.
- * Defensiv: leere/ungueltige Region oder GTIN → null (kein Abruf).
+ * Setzt die GTIN in eine Markt-Abruf-URL ein (G4). Enthaelt die Vorlage den
+ * {EAN}-Platzhalter, muss eine GTIN vorhanden sein (sonst null). Ohne Platzhalter
+ * wird die URL unveraendert zurueckgegeben (statische Produkt-URL bleibt erlaubt).
+ * Defensiv: leere Vorlage → null.
  */
-export function buildGlobusSearchUrl(
-  region: string | null | undefined,
+export function applyEanToUrl(
+  template: string | null | undefined,
   gtin: string | null | undefined,
 ): string | null {
-  const r = typeof region === 'string' ? region.trim() : ''
+  const tpl = typeof template === 'string' ? template.trim() : ''
+  if (tpl === '') return null
+  if (!tpl.includes(EAN_PLACEHOLDER)) return tpl
   const g = typeof gtin === 'string' ? gtin.trim() : ''
-  if (r === '' || g === '') return null
-  // Region ist ein Pfadsegment (keine Slashes/Sonderzeichen zulassen).
-  const safeRegion = encodeURIComponent(r).replace(/%2F/gi, '')
-  return `${GLOBUS_SEARCH_BASE}/${safeRegion}/search?query=${encodeURIComponent(g)}`
+  if (g === '') return null
+  return tpl.split(EAN_PLACEHOLDER).join(encodeURIComponent(g))
 }
 
 export type ParsedPrice = {

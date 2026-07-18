@@ -14,18 +14,12 @@ function parseCoord(raw: string): string | null {
   return Number.isFinite(n) ? String(n) : null
 }
 
-// Pflichtfelder (G2): Name + Adresse + Stadt + Filiale/Region. Kette optional.
+// Pflichtfelder (G4): Name + Adresse + Stadt. Kette optional; Abruf-URL optional.
 // Gibt eine Fehlermeldung zurueck oder null, wenn alles vorhanden ist.
-function validateRequired(
-  name: string,
-  address: string | null,
-  city: string | null,
-  scrapeRegion: string | null,
-): string | null {
+function validateRequired(name: string, address: string | null, city: string | null): string | null {
   if (!name) return 'Name ist erforderlich.'
   if (!address) return 'Adresse ist erforderlich.'
   if (!city) return 'Stadt ist erforderlich.'
-  if (!scrapeRegion) return 'Filiale/Region ist erforderlich (z.B. „hockenheim").'
   return null
 }
 
@@ -33,6 +27,7 @@ export const load: PageServerLoad = async ({ locals }) => {
   if (!locals.user) redirect(302, '/login')
 
   const householdId = await requireHouseholdId(locals.user.id)
+  const priceScrapeEnabled = await isPriceScrapeEnabled(householdId)
 
   try {
     const storeRows = await db.query.stores.findMany({
@@ -47,17 +42,16 @@ export const load: PageServerLoad = async ({ locals }) => {
         latitude: true,
         longitude: true,
         scrapeUrl: true,
-        scrapeRegion: true,
       },
     })
 
-    return { stores: storeRows, priceScrapeEnabled: isPriceScrapeEnabled(), loadError: null }
+    return { stores: storeRows, priceScrapeEnabled, loadError: null }
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err)
     console.error('[maerkte] load error:', msg)
     return {
       stores: [],
-      priceScrapeEnabled: isPriceScrapeEnabled(),
+      priceScrapeEnabled,
       loadError: 'Märkte konnten nicht geladen werden. Bitte Seite neu laden.',
     }
   }
@@ -74,12 +68,11 @@ export const actions: Actions = {
     const chain = String(data.get('chain') ?? '').trim() || null
     const address = String(data.get('address') ?? '').trim() || null
     const city = String(data.get('city') ?? '').trim() || null
-    const scrapeRegion = String(data.get('scrapeRegion') ?? '').trim() || null
     const latitude = parseCoord(String(data.get('latitude') ?? ''))
     const longitude = parseCoord(String(data.get('longitude') ?? ''))
     const scrapeUrl = normalizeScrapeUrl(String(data.get('scrapeUrl') ?? ''))
 
-    const reqErr = validateRequired(name, address, city, scrapeRegion)
+    const reqErr = validateRequired(name, address, city)
     if (reqErr) {
       return fail(400, { action: 'addStore', error: reqErr })
     }
@@ -89,7 +82,7 @@ export const actions: Actions = {
 
     const [created] = await db
       .insert(stores)
-      .values({ householdId, name, chain, address, city, latitude, longitude, scrapeUrl, scrapeRegion })
+      .values({ householdId, name, chain, address, city, latitude, longitude, scrapeUrl })
       .returning()
 
     return { action: 'addStore', success: true, store: created }
@@ -106,7 +99,6 @@ export const actions: Actions = {
     const chain = String(data.get('chain') ?? '').trim() || null
     const address = String(data.get('address') ?? '').trim() || null
     const city = String(data.get('city') ?? '').trim() || null
-    const scrapeRegion = String(data.get('scrapeRegion') ?? '').trim() || null
     const latitude = parseCoord(String(data.get('latitude') ?? ''))
     const longitude = parseCoord(String(data.get('longitude') ?? ''))
     const scrapeUrl = normalizeScrapeUrl(String(data.get('scrapeUrl') ?? ''))
@@ -114,7 +106,7 @@ export const actions: Actions = {
     if (!id) {
       return fail(400, { action: 'editStore', error: 'ID ist erforderlich.' })
     }
-    const reqErr = validateRequired(name, address, city, scrapeRegion)
+    const reqErr = validateRequired(name, address, city)
     if (reqErr) {
       return fail(400, { action: 'editStore', error: reqErr })
     }
@@ -124,7 +116,7 @@ export const actions: Actions = {
 
     const [updated] = await db
       .update(stores)
-      .set({ name, chain, address, city, latitude, longitude, scrapeUrl, scrapeRegion })
+      .set({ name, chain, address, city, latitude, longitude, scrapeUrl })
       .where(eq(stores.id, id))
       .returning()
 

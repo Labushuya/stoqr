@@ -19,7 +19,6 @@
     latitude: string | null
     longitude: string | null
     scrapeUrl: string | null
-    scrapeRegion: string | null
   }
 
   // svelte-ignore state_referenced_locally
@@ -35,7 +34,6 @@
   let newChain = $state('')
   let newAddress = $state('')
   let newCity = $state('')
-  let newRegion = $state('')
   let newLat = $state<string | null>(null)
   let newLon = $state<string | null>(null)
   let newScrapeUrl = $state('')
@@ -49,7 +47,6 @@
   let editingChain = $state('')
   let editingAddress = $state('')
   let editingCity = $state('')
-  let editingRegion = $state('')
   let editingLat = $state<string | null>(null)
   let editingLon = $state<string | null>(null)
   let editingScrapeUrl = $state('')
@@ -65,6 +62,17 @@
   let fetchingAll = $state<string | null>(null)
 
   // ── Helpers ────────────────────────────────────────────────────────────────
+
+  // Client-Spiegel der Server-Validierung (normalizeScrapeUrl): nur http/https.
+  // Verhindert, dass ein abgelehnter Wert lokal „gültig" erscheint (Bug-Fix G4).
+  function isValidHttpUrl(value: string): boolean {
+    try {
+      const u = new URL(value)
+      return u.protocol === 'http:' || u.protocol === 'https:'
+    } catch {
+      return false
+    }
+  }
 
   // Adress-Vorschlag (OSM) übernehmen: Stadt + Koordinaten mitfüllen (Add-Form).
   function applyNewSuggestion(s: GeoSuggestion) {
@@ -84,7 +92,6 @@
     editingChain = store.chain ?? ''
     editingAddress = store.address ?? ''
     editingCity = store.city ?? ''
-    editingRegion = store.scrapeRegion ?? ''
     editingLat = store.latitude
     editingLon = store.longitude
     editingScrapeUrl = store.scrapeUrl ?? ''
@@ -101,12 +108,12 @@
     const chain = editingChain.trim() || null
     const address = editingAddress.trim()
     const city = editingCity.trim()
-    const region = editingRegion.trim()
+    const scrapeUrl = editingScrapeUrl.trim()
 
     if (!name) { editError = 'Name ist erforderlich.'; return }
     if (!address) { editError = 'Adresse ist erforderlich.'; return }
     if (!city) { editError = 'Stadt ist erforderlich.'; return }
-    if (!region) { editError = 'Filiale/Region ist erforderlich (z.B. „hockenheim").'; return }
+    if (scrapeUrl && !isValidHttpUrl(scrapeUrl)) { editError = 'Ungültige Abruf-URL (nur http/https).'; return }
 
     editSaving = true
     editError = null
@@ -117,10 +124,9 @@
     if (chain) formData.set('chain', chain)
     formData.set('address', address)
     formData.set('city', city)
-    formData.set('scrapeRegion', region)
     if (editingLat) formData.set('latitude', editingLat)
     if (editingLon) formData.set('longitude', editingLon)
-    formData.set('scrapeUrl', editingScrapeUrl.trim())
+    formData.set('scrapeUrl', scrapeUrl)
 
     try {
       const res = await fetch('?/editStore', {
@@ -141,11 +147,12 @@
 
       const updated: Store | undefined = body?.data?.store
       if (updated) {
+        // Server ist die Wahrheit (normalisierte/abgelehnte Werte) — lokal übernehmen.
         storeRows = storeRows.map((s) => (s.id === id ? updated : s))
       } else {
         storeRows = storeRows.map((s) =>
           s.id === id
-            ? { ...s, name, chain, address: address || null, city: city || null, scrapeRegion: region || null, latitude: editingLat, longitude: editingLon, scrapeUrl: editingScrapeUrl.trim() || null }
+            ? { ...s, name, chain, address: address || null, city: city || null, latitude: editingLat, longitude: editingLon, scrapeUrl: scrapeUrl || null }
             : s
         )
       }
@@ -199,13 +206,12 @@
     const chain = newChain.trim() || null
     const address = newAddress.trim()
     const city = newCity.trim()
-    const region = newRegion.trim()
     const scrapeUrl = newScrapeUrl.trim() || null
 
     if (!name) { addError = 'Name ist erforderlich.'; return }
     if (!address) { addError = 'Adresse ist erforderlich.'; return }
     if (!city) { addError = 'Stadt ist erforderlich.'; return }
-    if (!region) { addError = 'Filiale/Region ist erforderlich (z.B. „hockenheim").'; return }
+    if (scrapeUrl && !isValidHttpUrl(scrapeUrl)) { addError = 'Ungültige Abruf-URL (nur http/https).'; return }
 
     adding = true
     addError = null
@@ -214,7 +220,7 @@
       const res = await fetch('/api/stores', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, chain, address, city, scrapeRegion: region, latitude: newLat, longitude: newLon, scrapeUrl }),
+        body: JSON.stringify({ name, chain, address, city, latitude: newLat, longitude: newLon, scrapeUrl }),
       })
       const created: Store | { error?: string } = await res.json().catch(() => ({}))
 
@@ -229,7 +235,6 @@
       newChain = ''
       newAddress = ''
       newCity = ''
-      newRegion = ''
       newLat = null
       newLon = null
       newScrapeUrl = ''
@@ -371,27 +376,13 @@
                     }}
                   />
                 </div>
-                <div class="edit-fields">
-                  <input
-                    class="input"
-                    type="text"
-                    bind:value={editingRegion}
-                    placeholder="Filiale/Region (Pflicht) — z.B. hockenheim"
-                    maxlength="64"
-                    aria-label="Filiale/Region"
-                    onkeydown={(e) => {
-                      if (e.key === 'Enter') saveEdit(store.id)
-                      if (e.key === 'Escape') cancelEdit()
-                    }}
-                  />
-                </div>
-                <div class="edit-fields">
+                <div class="edit-fields edit-fields--url">
                   <input
                     class="input input--url"
-                    type="url"
+                    type="text"
                     inputmode="url"
                     bind:value={editingScrapeUrl}
-                    placeholder="Abruf-URL Override (optional)"
+                    placeholder="Abruf-URL für Online-Preise (optional)"
                     maxlength="1024"
                     aria-label="Abruf-URL"
                     onkeydown={(e) => {
@@ -399,6 +390,7 @@
                       if (e.key === 'Escape') cancelEdit()
                     }}
                   />
+                  <p class="field-hint">Suchseite des Markts mit <code>{'{EAN}'}</code> als Platzhalter für die Artikel-EAN. Beispiel: <code>https://produkte.globus.de/hockenheim/search?query={'{EAN}'}</code></p>
                 </div>
                 {#if editError}
                   <p class="field-error">{editError}</p>
@@ -444,17 +436,17 @@
                     {[store.address, store.city].filter(Boolean).join(', ')}
                   </span>
                 {/if}
-                {#if store.scrapeUrl || store.scrapeRegion}
-                  <span class="scrape-badge" title={store.scrapeUrl ?? `Filiale: ${store.scrapeRegion}`}>
+                {#if store.scrapeUrl}
+                  <span class="scrape-badge" title={store.scrapeUrl}>
                     <svg width="11" height="11" viewBox="0 0 12 12" fill="none" aria-hidden="true">
                       <path d="M4.5 7.5l3-3M5 3.5l.7-.7a2 2 0 012.8 2.8l-.7.7M7 8.5l-.7.7a2 2 0 01-2.8-2.8l.7-.7" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
                     </svg>
-                    Online-Abruf aktiv{store.scrapeRegion ? ` (${store.scrapeRegion})` : ''}
+                    Online-Abruf aktiv
                   </span>
                 {/if}
               </div>
               <div class="store-actions">
-                {#if priceScrapeEnabled && (store.scrapeUrl || store.scrapeRegion)}
+                {#if priceScrapeEnabled && store.scrapeUrl}
                   <button
                     class="btn-edit-inline"
                     type="button"
@@ -566,28 +558,18 @@
           onkeydown={(e) => { if (e.key === 'Enter') addStore() }}
         />
       </div>
-      <div class="add-fields">
-        <input
-          class="input"
-          type="text"
-          bind:value={newRegion}
-          placeholder="Filiale/Region (Pflicht) — z.B. hockenheim"
-          maxlength="64"
-          aria-label="Filiale/Region des neuen Markts"
-          onkeydown={(e) => { if (e.key === 'Enter') addStore() }}
-        />
-      </div>
-      <div class="add-fields">
+      <div class="add-fields add-fields--url">
         <input
           class="input input--url"
-          type="url"
+          type="text"
           inputmode="url"
           bind:value={newScrapeUrl}
-          placeholder="Abruf-URL Override (optional)"
+          placeholder="Abruf-URL für Online-Preise (optional)"
           maxlength="1024"
           aria-label="Abruf-URL des neuen Markts"
           onkeydown={(e) => { if (e.key === 'Enter') addStore() }}
         />
+        <p class="field-hint">Suchseite des Markts mit <code>{'{EAN}'}</code> als Platzhalter für die Artikel-EAN. Beispiel: <code>https://produkte.globus.de/hockenheim/search?query={'{EAN}'}</code></p>
       </div>
       <div class="add-footer">
         <button
@@ -829,6 +811,27 @@
     font-size: var(--text-xs);
     color: var(--color-danger, #dc2626);
     margin: 0;
+  }
+
+  .field-hint {
+    font-size: var(--text-xs);
+    color: var(--color-text-muted);
+    margin: var(--space-1) 0 0;
+    line-height: 1.5;
+    width: 100%;
+  }
+  .field-hint code {
+    font-size: 0.9em;
+    background: var(--color-surface-sunken);
+    padding: 0 4px;
+    border-radius: var(--radius-sm);
+    word-break: break-all;
+  }
+  .edit-fields--url,
+  .add-fields--url {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
   }
 
   /* ── Add form ─────────────────────────────────────────────────────────── */

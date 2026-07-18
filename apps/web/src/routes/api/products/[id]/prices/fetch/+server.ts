@@ -11,25 +11,26 @@ import { scrapeGlobusPrice, isPriceScrapeEnabled, resolveScrapeUrl } from '$lib/
 // ---------------------------------------------------------------------------
 // POST /api/products/[id]/prices/fetch  { storeId }  — Online-Preis-Abruf (F2/G2)
 //
-// Failsafe: Env-Guard (403 wenn aus). Abruf-URL = scrapeUrl-Override ODER
-// scrapeRegion + products.gtin (Barcode-Search). Keine Quelle → 200
-// { proposed: null }. Scrape-Miss = 200 { proposed: null }. Treffer → Vorschlag
-// (status='proposed', isCurrent=false) + Audit. Kein Auto-Confirm, kein 5xx bei Miss.
+// Failsafe: Env-Guard (403 wenn aus). Abruf-URL = store.scrapeUrl-Vorlage mit
+// {EAN} → products.gtin ersetzt. Keine Quelle → 200 { proposed: null }.
+// Scrape-Miss = 200 { proposed: null }. Treffer → Vorschlag (status='proposed',
+// isCurrent=false) + Audit. Kein Auto-Confirm, kein 5xx bei Miss.
 // ---------------------------------------------------------------------------
 
 export const POST: RequestHandler = async ({ locals, params, request }) => {
   try {
     if (!locals.user) return json({ error: 'Unauthorized' }, { status: 401 })
-    if (!isPriceScrapeEnabled()) {
+
+    const householdId = await requireHouseholdId(locals.user.id)
+    if (!(await isPriceScrapeEnabled(householdId))) {
       return json({ error: 'Online-Preis-Abruf ist deaktiviert' }, { status: 403 })
     }
 
-    const householdId = await requireHouseholdId(locals.user.id)
     const body = (await request.json().catch(() => ({}))) as { storeId?: string }
     if (!body.storeId) return json({ error: 'storeId fehlt' }, { status: 400 })
 
     const [store] = await db
-      .select({ id: stores.id, name: stores.name, scrapeUrl: stores.scrapeUrl, scrapeRegion: stores.scrapeRegion })
+      .select({ id: stores.id, name: stores.name, scrapeUrl: stores.scrapeUrl })
       .from(stores)
       .where(and(eq(stores.id, body.storeId), eq(stores.householdId, householdId)))
     if (!store) return json({ error: 'Markt nicht gefunden' }, { status: 404 })
@@ -42,7 +43,7 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
 
     const url = resolveScrapeUrl(store, product.gtin)
     if (!url) {
-      // Weder Override-URL noch (Region + EAN) → nichts abrufbar (kein Fehler).
+      // Keine Abruf-URL am Markt (oder {EAN} ohne EAN am Artikel) → nichts abrufbar.
       return json({ proposed: null, reason: 'no-source' })
     }
 

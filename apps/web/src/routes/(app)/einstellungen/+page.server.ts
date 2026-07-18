@@ -35,6 +35,7 @@ export const load: PageServerLoad = async ({ locals }) => {
     yellowDaysBefore: 7,
     redDaysBefore: 2,
     graceDaysAfter: 0,
+    priceScrapeEnabled: false,
   }
 
   return {
@@ -43,6 +44,7 @@ export const load: PageServerLoad = async ({ locals }) => {
       redDaysBefore: config.redDaysBefore,
       graceDaysAfter: config.graceDaysAfter,
     },
+    priceScrapeEnabled: config.priceScrapeEnabled ?? false,
     categories: categoryRows,
     units: unitRows,
   }
@@ -87,6 +89,25 @@ export const actions: Actions = {
       })
 
     return { action: 'updateGlobalTolerance', success: true }
+  },
+
+  // Household-weiter In-App-Schalter fuer den Online-Preis-Abruf (G4).
+  updatePriceScrape: async ({ locals, request }) => {
+    if (!locals.user) redirect(302, '/login')
+
+    const householdId = await requireHouseholdId(locals.user.id)
+    const data = await request.formData()
+    const enabled = data.get('enabled') === 'true'
+
+    await db
+      .insert(expiryConfig)
+      .values({ householdId, priceScrapeEnabled: enabled })
+      .onConflictDoUpdate({
+        target: expiryConfig.householdId,
+        set: { priceScrapeEnabled: enabled },
+      })
+
+    return { action: 'updatePriceScrape', success: true, enabled }
   },
 
   updateCategoryTolerance: async ({ locals, request }) => {

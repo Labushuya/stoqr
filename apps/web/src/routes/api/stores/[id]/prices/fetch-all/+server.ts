@@ -14,8 +14,8 @@ import { listProductIdsForStore } from '$lib/server/queries/product-stores'
 //
 // Failsafe: sequenziell + Rate-Limit (Sleep), jeder Artikel isoliert
 // (try/catch → failed++, nie Abbruch), immer 200 (ausser Auth/Guard).
-// Abruf-URL je Artikel = scrapeUrl-Override ODER scrapeRegion + products.gtin
-// (Barcode-Search). Artikel ohne aufloesbare URL (z.B. ohne EAN) → skipped.
+// Abruf-URL je Artikel = store.scrapeUrl-Vorlage mit {EAN} → products.gtin.
+// Artikel ohne aufloesbare URL (z.B. ohne EAN bei {EAN}-Vorlage) → skipped.
 // ---------------------------------------------------------------------------
 
 const RATE_LIMIT_MS = 800
@@ -26,19 +26,19 @@ function sleep(ms: number): Promise<void> {
 
 export const POST: RequestHandler = async ({ locals, params }) => {
   if (!locals.user) return json({ error: 'Unauthorized' }, { status: 401 })
-  if (!isPriceScrapeEnabled()) {
+
+  const householdId = await requireHouseholdId(locals.user.id)
+  if (!(await isPriceScrapeEnabled(householdId))) {
     return json({ error: 'Online-Preis-Abruf ist deaktiviert' }, { status: 403 })
   }
 
-  const householdId = await requireHouseholdId(locals.user.id)
-
   const [store] = await db
-    .select({ id: stores.id, scrapeUrl: stores.scrapeUrl, scrapeRegion: stores.scrapeRegion })
+    .select({ id: stores.id, scrapeUrl: stores.scrapeUrl })
     .from(stores)
     .where(and(eq(stores.id, params.id), eq(stores.householdId, householdId)))
   if (!store) return json({ error: 'Markt nicht gefunden' }, { status: 404 })
-  if (!store.scrapeUrl && !store.scrapeRegion) {
-    return json({ error: 'Für diesen Markt ist keine Abruf-Quelle (URL oder Filiale) hinterlegt' }, { status: 400 })
+  if (!store.scrapeUrl) {
+    return json({ error: 'Für diesen Markt ist keine Abruf-URL hinterlegt' }, { status: 400 })
   }
 
   const productIds = await listProductIdsForStore(store.id, householdId)

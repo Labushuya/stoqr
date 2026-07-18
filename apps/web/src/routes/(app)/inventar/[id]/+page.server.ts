@@ -149,6 +149,8 @@ export const load: PageServerLoad = async ({ params, locals }) => {
   // Offene Online-Preis-Vorschläge je Markt (Block F2, Staging).
   const proposedPrices = await listProposedForProduct(item.productId, householdId);
 
+  const priceScrapeEnabled = await isPriceScrapeEnabled(householdId);
+
   return {
     item,
     product: item.product,
@@ -159,7 +161,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
     productStoreIds,
     currentPrices,
     proposedPrices,
-    priceScrapeEnabled: isPriceScrapeEnabled(),
+    priceScrapeEnabled,
     allLocations,
     expirySettings,
     stockTotals,

@@ -305,15 +305,15 @@ const BLOCKS = [
     ]
   },
   {
-    tag: "F2", name: "Online-Preis-Abruf & Staging", desc: "Opt-in Globus-Scraping; abgerufene Preise landen als Vorschlag (proposed) und werden erst nach Freigabe maßgeblich. Failsafe & Env-Toggle.",
+    tag: "F2", name: "Online-Preis-Abruf & Staging", desc: "Globus-Scraping (In-App aktivierbar); abgerufene Preise landen als Vorschlag (proposed) und werden erst nach Freigabe maßgeblich. Failsafe.",
     items: [
-      { id: "F2-0", title: "Voraussetzung: PRICE_SCRAPE_ENABLED", steps: ["Für die AN-Tests im Deployment `PRICE_SCRAPE_ENABLED=true` setzen und neu starten.", "Für den AUS-Test die Variable ungesetzt/`false` lassen."],
-        expect: "Ist ein Deployment-Schritt, kein Klick in der App. Ohne die Variable ist das Feature komplett inaktiv (siehe F2-1)." },
-      { id: "F2-1", title: "Feature AUS: keine Abruf-UI", steps: ["Mit ungesetztem `PRICE_SCRAPE_ENABLED` die Artikel-Detailseite + Einstellungen→Märkte öffnen."],
-        expect: "Kein „Online abrufen“-Button (Detailseite) und kein „Preise abrufen“-Button (Märkte). Preise/Vorschläge funktionieren unverändert." },
-      { id: "F2-2", title: "Abruf-URL am Markt hinterlegen", steps: ["Einstellungen → Märkte → Markt „Globus“ bearbeiten.", "Im Feld „Abruf-URL für Online-Preise“ eine gültige Globus-Produkt-URL eintragen, „Speichern“.", "Auch: eine ungültige URL (z.B. „abc“) testen."],
-        expect: "Gültige http/https-URL wird gespeichert; „Online-Abruf aktiv“-Badge erscheint. Ungültige URL → Fehlermeldung „Ungültige Abruf-URL“." },
-      { id: "F2-3", title: "Online-Preis abrufen → Vorschlag", steps: ["Feature AN. Artikel-Detailseite → „Preise“-Card → beim Markt mit Abruf-URL „Online abrufen“."],
+      { id: "F2-0", title: "Online-Preis-Abruf aktivieren (In-App-Schalter)", steps: ["Einstellungen → Abschnitt „Online-Preis-Abruf“.", "Schalter „Online-Preis-Abruf aktivieren“ einschalten."],
+        expect: "Schalter merkt sich den Zustand (bleibt nach Reload an). Kein Env-Setzen / kein Deploy-Eingriff nötig. Bestätigungs-Hinweis erscheint." },
+      { id: "F2-1", title: "Schalter AUS: keine Abruf-UI", steps: ["Schalter wieder ausschalten.", "Artikel-Detailseite + Einstellungen→Märkte öffnen."],
+        expect: "Kein „Online abrufen“-Button (Detailseite) und kein „Preise abrufen“-Button (Märkte). Preise/Vorschläge funktionieren unverändert. Danach für die weiteren Tests wieder einschalten." },
+      { id: "F2-2", title: "Abruf-URL am Markt hinterlegen (mit {EAN})", steps: ["Einstellungen → Märkte → Markt „Globus“ bearbeiten.", "Abruf-URL mit {EAN}-Platzhalter eintragen: https://produkte.globus.de/hockenheim/search?query={EAN} (Anleitung unter dem Feld beachten).", "Speichern. Auch eine ungültige URL (z.B. „abc“) testen — auch nach vorherigem gültigen Wert."],
+        expect: "Gültige http/https-URL wird gespeichert; „Online-Abruf aktiv“-Badge erscheint. Ungültige URL → Fehlermeldung „Ungültige Abruf-URL“ und wird NICHT übernommen (auch nicht nach Wechsel von gültig→ungültig)." },
+      { id: "F2-3", title: "Online-Preis abrufen → Vorschlag", steps: ["Schalter AN + Markt hat {EAN}-URL. Artikel MIT EAN öffnen (Detailseite), Markt zugeordnet.", "„Preise“-Card → beim Markt „Online abrufen“."],
         expect: "Bei Treffer: Toast + neuer Block „Vorschlag: Online-Preis X € / Einheit“ mit Buttons Übernehmen/Korrigieren/Verwerfen. Der Vorschlag zählt NICHT zum aktuellen Preis / Estimate." },
       { id: "F2-4", title: "Übernehmen macht maßgeblich", steps: ["Beim Vorschlag „Übernehmen“ klicken."],
         expect: "Der Preis wird aktueller Preis (fließt ins Estimate), der Vorschlag-Block verschwindet." },

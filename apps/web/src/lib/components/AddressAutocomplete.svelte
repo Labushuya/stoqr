@@ -56,8 +56,14 @@
 </script>
 
 <div class="addr-autocomplete">
+  <span class="addr-icon" aria-hidden="true">
+    <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
+      <path d="M8 1.5c-2.5 0-4.5 2-4.5 4.5 0 3.2 4.5 8 4.5 8s4.5-4.8 4.5-8c0-2.5-2-4.5-4.5-4.5Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/>
+      <circle cx="8" cy="6" r="1.6" stroke="currentColor" stroke-width="1.3"/>
+    </svg>
+  </span>
   <input
-    class="input"
+    class="input addr-input"
     type="text"
     bind:value
     {placeholder}
@@ -72,7 +78,12 @@
     <ul class="addr-list" role="listbox">
       {#each suggestions as s (s.displayName)}
         <li>
-          <button type="button" class="addr-item" onclick={() => pick(s)}>
+          <!-- onpointerdown feuert vor blur → verhindert, dass die Auswahl verpufft -->
+          <button
+            type="button"
+            class="addr-item"
+            onpointerdown={(e) => { e.preventDefault(); pick(s) }}
+          >
             {s.displayName}
           </button>
         </li>
@@ -83,7 +94,32 @@
 
 <style>
   .addr-autocomplete { position: relative; flex: 1 1 100%; }
-  .addr-autocomplete .input { width: 100%; box-sizing: border-box; }
+  /* Feld-Styling identisch zu den .input-Feldern der Seiten (scoped styles greifen
+     hier nicht), plus Platz links fuer das Adress-Icon. */
+  .addr-autocomplete .addr-input {
+    width: 100%;
+    box-sizing: border-box;
+    height: 40px;
+    padding: 0 var(--space-3) 0 32px;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--color-border);
+    background-color: var(--color-surface);
+    color: var(--color-text-primary);
+    font-family: var(--font-body);
+    font-size: var(--text-base);
+    outline: none;
+    appearance: none;
+    transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+  }
+  .addr-autocomplete .addr-input::placeholder { color: var(--color-text-muted); }
+  .addr-autocomplete .addr-input:focus {
+    border-color: var(--color-border-focus);
+    box-shadow: 0 0 0 3px rgba(196, 103, 58, 0.15);
+  }
+  .addr-icon {
+    position: absolute; left: 10px; top: 50%; transform: translateY(-50%);
+    color: var(--color-text-muted); pointer-events: none; display: inline-flex;
+  }
   .addr-hint { position: absolute; right: var(--space-2); top: 50%; transform: translateY(-50%); font-size: 11px; color: var(--color-text-muted); }
   .addr-list {
     position: absolute; z-index: 40; top: calc(100% + 2px); left: 0; right: 0;

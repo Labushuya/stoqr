@@ -16,6 +16,11 @@
   let graceDays = $state(data.expiryConfig.graceDaysAfter)
   let globalSaving = $state(false)
 
+  // ── Online-Preis-Abruf-Schalter (G4) ────────────────────────────────────────
+  // svelte-ignore state_referenced_locally
+  let priceScrapeEnabled = $state(data.priceScrapeEnabled ?? false)
+  let priceScrapeSaving = $state(false)
+
   // ── Category tolerance state ───────────────────────────────────────────────
 
   type Category = {
@@ -56,6 +61,9 @@
   )
   const categoryError = $derived(
     form && (form as any).action === 'updateCategoryTolerance' ? (form as any).error : null
+  )
+  const priceScrapeSuccess = $derived(
+    !!form && form.action === 'updatePriceScrape' && form.success === true
   )
 
 </script>
@@ -245,6 +253,59 @@
           {/if}
         </button>
       </div>
+    </form>
+  </section>
+
+  <!-- ── Section: Online-Preis-Abruf (G4) ───────────────────────────────── -->
+
+  <section class="settings-section">
+    <div class="section-header">
+      <h2 class="section-title">
+        <span class="section-icon" aria-hidden="true">
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+            <path d="M6.5 11.5l5-5M7 5.5l1-1a2.5 2.5 0 013.5 3.5l-1 1M11 12.5l-1 1a2.5 2.5 0 01-3.5-3.5l1-1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+          </svg>
+        </span>
+        Online-Preis-Abruf
+      </h2>
+      <p class="section-desc">
+        Erlaubt das automatische Abrufen von Preisen aus der Online-Suchseite eines Markts
+        (DOM-Scraping, Best-Effort). Abgerufene Preise landen als Vorschlag und werden erst nach
+        deiner Bestätigung maßgeblich. Standardmäßig deaktiviert.
+      </p>
+    </div>
+
+    <form
+      method="POST"
+      action="?/updatePriceScrape"
+      use:enhance={() => {
+        priceScrapeSaving = true
+        return async ({ update }) => {
+          await update({ reset: false })
+          priceScrapeSaving = false
+        }
+      }}
+    >
+      <input type="hidden" name="enabled" value={priceScrapeEnabled ? 'true' : 'false'} />
+      <label class="toggle-row">
+        <input
+          type="checkbox"
+          bind:checked={priceScrapeEnabled}
+          disabled={priceScrapeSaving}
+          onchange={(e) => (e.currentTarget.closest('form') as HTMLFormElement)?.requestSubmit()}
+        />
+        <span>Online-Preis-Abruf aktivieren</span>
+      </label>
+
+      {#if priceScrapeSuccess}
+        <div class="alert alert--success" role="status">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.5"/>
+            <path d="M5 8l2 2 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          {priceScrapeEnabled ? 'Online-Preis-Abruf aktiviert.' : 'Online-Preis-Abruf deaktiviert.'}
+        </div>
+      {/if}
     </form>
   </section>
 
@@ -558,6 +619,21 @@
     line-height: 1.6;
   }
 
+  .toggle-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    font-size: var(--text-sm);
+    font-weight: 500;
+    color: var(--color-text-primary);
+    cursor: pointer;
+  }
+  .toggle-row input[type='checkbox'] {
+    width: 18px;
+    height: 18px;
+    accent-color: var(--color-primary);
+    cursor: pointer;
+  }
   /* ── Coming-soon badge ────────────────────────────────────────────────── */
 
   .coming-soon-badge {

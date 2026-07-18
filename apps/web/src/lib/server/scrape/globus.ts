@@ -1,34 +1,44 @@
 // ---------------------------------------------------------------------------
-// Online-Preis-Abruf (server-only, I/O) — Block F2.
+// Online-Preis-Abruf (server-only, I/O) — Block F2/G4.
 //
 // Failsafe „in jeder Hinsicht": scrapeGlobusPrice wirft NIE. Timeout (8s),
 // Netz-, DNS-, HTTP-, Parse- und Selektor-Fehler enden alle in `null`. Der
 // reine HTML-Parser liegt testbar in lib/utils/globus-price.ts.
-// Opt-in ueber PRICE_SCRAPE_ENABLED (default AUS).
+// Opt-in ueber den In-App-Schalter expiry_config.price_scrape_enabled (default AUS).
 // ---------------------------------------------------------------------------
 
 import { env } from '$env/dynamic/private'
-import { parseGlobusPriceHtml, buildGlobusSearchUrl, type ParsedPrice } from '$lib/utils/globus-price'
+import { eq } from 'drizzle-orm'
+import { db } from '$lib/server/db'
+import { expiryConfig } from '@stoqr/db'
+import { parseGlobusPriceHtml, applyEanToUrl, type ParsedPrice } from '$lib/utils/globus-price'
 
 const TIMEOUT_MS = 8000
 const DEFAULT_USER_AGENT = 'stoqr-price/0.1'
 
-/** Feature-Flag: Online-Preis-Abruf nur aktiv, wenn ausdruecklich eingeschaltet. */
-export function isPriceScrapeEnabled(): boolean {
-  return env.PRICE_SCRAPE_ENABLED === 'true'
+/**
+ * In-App-Schalter (household-weit): Online-Preis-Abruf nur aktiv, wenn in den
+ * Einstellungen eingeschaltet. Default AUS (keine Zeile / false).
+ */
+export async function isPriceScrapeEnabled(householdId: string): Promise<boolean> {
+  const [row] = await db
+    .select({ v: expiryConfig.priceScrapeEnabled })
+    .from(expiryConfig)
+    .where(eq(expiryConfig.householdId, householdId))
+    .limit(1)
+  return row?.v ?? false
 }
 
 /**
- * Ermittelt die Abruf-URL fuer (Markt, Artikel) (G2): scrapeUrl gewinnt als
- * manueller Override, sonst scrapeRegion + gtin → Barcode-Search-URL. Keine
- * Quelle → null (Aufrufer ueberspringt/meldet „keine Quelle").
+ * Ermittelt die Abruf-URL fuer (Markt, Artikel) (G4): die Markt-Vorlage
+ * store.scrapeUrl mit {EAN}-Platzhalter, ersetzt durch die Artikel-GTIN.
+ * Keine Vorlage oder {EAN} ohne GTIN → null (Aufrufer ueberspringt).
  */
 export function resolveScrapeUrl(
-  store: { scrapeUrl?: string | null; scrapeRegion?: string | null },
+  store: { scrapeUrl?: string | null },
   gtin: string | null | undefined,
 ): string | null {
-  if (store.scrapeUrl && store.scrapeUrl.trim() !== '') return store.scrapeUrl
-  return buildGlobusSearchUrl(store.scrapeRegion, gtin)
+  return applyEanToUrl(store.scrapeUrl, gtin)
 }
 
 /** Sentinel: Eingabe war eine nicht-leere, aber ungueltige URL. */

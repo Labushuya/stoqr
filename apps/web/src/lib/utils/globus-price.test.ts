@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { parseEuroToCents, parseGlobusPriceHtml, buildGlobusSearchUrl, GLOBUS_PRICE_SELECTOR } from './globus-price'
+import { parseEuroToCents, parseGlobusPriceHtml, applyEanToUrl, GLOBUS_PRICE_SELECTOR } from './globus-price'
 
 describe('parseEuroToCents', () => {
   it('parst „Ab 1,19 €" → 119', () => {
@@ -71,30 +71,38 @@ describe('parseGlobusPriceHtml', () => {
   })
 })
 
-describe('buildGlobusSearchUrl', () => {
-  it('baut die Search-URL aus Region + GTIN', () => {
-    expect(buildGlobusSearchUrl('hockenheim', '4001234567890')).toBe(
+describe('applyEanToUrl', () => {
+  it('ersetzt {EAN} durch die GTIN', () => {
+    expect(applyEanToUrl('https://produkte.globus.de/hockenheim/search?query={EAN}', '4001234567890')).toBe(
       'https://produkte.globus.de/hockenheim/search?query=4001234567890',
     )
   })
 
-  it('trimmt Region und GTIN', () => {
-    expect(buildGlobusSearchUrl('  hockenheim  ', '  123  ')).toBe(
-      'https://produkte.globus.de/hockenheim/search?query=123',
-    )
+  it('ersetzt mehrere {EAN}-Vorkommen', () => {
+    expect(applyEanToUrl('https://x.de/{EAN}/p/{EAN}', '123')).toBe('https://x.de/123/p/123')
   })
 
-  it('liefert null bei leerer Region oder GTIN', () => {
-    expect(buildGlobusSearchUrl('', '123')).toBeNull()
-    expect(buildGlobusSearchUrl('hockenheim', '')).toBeNull()
-    expect(buildGlobusSearchUrl(null, '123')).toBeNull()
-    expect(buildGlobusSearchUrl('hockenheim', null)).toBeNull()
-    expect(buildGlobusSearchUrl(undefined, undefined)).toBeNull()
+  it('trimmt Vorlage und GTIN', () => {
+    expect(applyEanToUrl('  https://x.de/{EAN}  ', '  123  ')).toBe('https://x.de/123')
+  })
+
+  it('gibt statische URL ohne Platzhalter unveraendert zurueck', () => {
+    expect(applyEanToUrl('https://x.de/produkt/abc', '123')).toBe('https://x.de/produkt/abc')
+  })
+
+  it('liefert null bei {EAN} ohne GTIN', () => {
+    expect(applyEanToUrl('https://x.de/{EAN}', '')).toBeNull()
+    expect(applyEanToUrl('https://x.de/{EAN}', null)).toBeNull()
+    expect(applyEanToUrl('https://x.de/{EAN}', undefined)).toBeNull()
+  })
+
+  it('liefert null bei leerer Vorlage', () => {
+    expect(applyEanToUrl('', '123')).toBeNull()
+    expect(applyEanToUrl(null, '123')).toBeNull()
+    expect(applyEanToUrl('   ', '123')).toBeNull()
   })
 
   it('encoded Sonderzeichen in der GTIN', () => {
-    expect(buildGlobusSearchUrl('hockenheim', 'a b&c')).toBe(
-      'https://produkte.globus.de/hockenheim/search?query=a%20b%26c',
-    )
+    expect(applyEanToUrl('https://x.de/search?q={EAN}', 'a b&c')).toBe('https://x.de/search?q=a%20b%26c')
   })
 })

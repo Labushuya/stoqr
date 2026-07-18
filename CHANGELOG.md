@@ -5,6 +5,30 @@ Neueste Einträge oben. Jeder Eintrag nennt den Commit-Kontext, damit andere LLM
 
 ---
 
+## [Unreleased] — G4: In-App-Schalter + {EAN}-URL + Bugfixes + Dark-Mode-Icons (implementiert, Test auf Pi ausstehend)
+
+Korrektur der G2-Fehlinterpretation (Filiale/Region war falsch) + Testfeedback-Fixes.
+
+- **In-App-Schalter statt Env-Variable:** `expiry_config.price_scrape_enabled` (Migration 0014); Toggle in
+  Einstellungen → „Online-Preis-Abruf". `isPriceScrapeEnabled()` ist jetzt `async(householdId)` und liest die DB.
+  `PRICE_SCRAPE_ENABLED` (Env) + docker-compose-Eintrag entfernt. Kein Server-/Deploy-Eingriff mehr nötig.
+- **Filiale/Region rückgebaut:** `stores.scrape_region` (0013) wieder entfernt (0014 DROP COLUMN). Kein Region-Feld/
+  Pflicht mehr. Markt-Pflicht bleibt Name + Adresse + Stadt (Kette optional).
+- **Abruf-URL mit `{EAN}`-Platzhalter:** die Markt-URL trägt `{EAN}` (z.B.
+  `https://produkte.globus.de/hockenheim/search?query={EAN}`), stoqr ersetzt es durch `products.gtin`
+  (`applyEanToUrl`, +7 Vitest; `buildGlobusSearchUrl` entfernt). URL-Feld hat jetzt eine **Anleitung mit Muster**.
+- **URL-Validierungs-Bug gefixt:** „abc" wurde nach Wechsel gültig→ungültig fälschlich akzeptiert (Client-State ließ
+  den abgelehnten Wert stehen). Client-seitige URL-Prüfung (`isValidHttpUrl`) + Server-Store als Wahrheit übernommen.
+- **Adress-Autocomplete angeglichen:** volle `.input`-Optik in der Komponente (scoped-styles-Problem), Adress-Icon,
+  `onpointerdown` gegen Blur-Race (Auswahl ging verloren).
+- **Dark-Mode-Icons sichtbar:** globales `color-scheme: dark` + invert für `::-webkit-calendar-picker-indicator`
+  (MHD-Kalender, number/time/select) in `app.css`.
+
+### Commits
+(folgt beim Commit)
+
+---
+
 ## [Unreleased] — G1/G2: Reaktivität + Bestand-Kaufpreis + Markt-Pflichtfelder/OSM + Globus-Barcode-Search (implementiert, Test auf Pi ausstehend)
 
 Folge-Themen nach F2-Test. **G1** (Fixes, eigener Commit 8348d0b): siehe unten. **G2** (dieser Block): Markt-Daten werden

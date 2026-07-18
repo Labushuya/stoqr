@@ -41,7 +41,7 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 
   const householdId = await requireHouseholdId(locals.user.id)
   const body = await request.json()
-  const { name, chain, address, city, latitude, longitude, scrapeUrl, scrapeRegion } = body as {
+  const { name, chain, address, city, latitude, longitude, scrapeUrl } = body as {
     name?: string
     chain?: string
     address?: string
@@ -49,7 +49,6 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
     latitude?: string | number | null
     longitude?: string | number | null
     scrapeUrl?: string | null
-    scrapeRegion?: string | null
   }
 
   const coordToDb = (v: string | number | null | undefined): string | null => {
@@ -65,7 +64,6 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
   if (city !== undefined) patch.city = city ?? null
   if (latitude !== undefined) patch.latitude = coordToDb(latitude)
   if (longitude !== undefined) patch.longitude = coordToDb(longitude)
-  if (scrapeRegion !== undefined) patch.scrapeRegion = (scrapeRegion ?? '').trim() || null
   if (scrapeUrl !== undefined) {
     const normalized = normalizeScrapeUrl(scrapeUrl)
     if (normalized === INVALID_URL) {

@@ -303,3 +303,24 @@ body {
   background-color: var(--color-mhd-expired);
   color: var(--color-text-inverse);
 }
+
+/* ── Dark-Mode: native Form-Controls sichtbar machen ──────────────────────── */
+/* Im Dark Mode faerbt der Browser den nativen Kalender-Picker (type="date")
+   und andere Indikatoren dunkel → auf dunklem Grund unsichtbar. color-scheme
+   weist den Browser an, die Controls dunkel zu rendern (helles Icon); der
+   invert-Fallback deckt Engines ab, die color-scheme nicht anwenden. */
+[data-theme='dark'] input[type='date'],
+[data-theme='dark'] input[type='time'],
+[data-theme='dark'] input[type='datetime-local'],
+[data-theme='dark'] input[type='number'],
+[data-theme='dark'] select {
+  color-scheme: dark;
+}
+[data-theme='dark'] input[type='date']::-webkit-calendar-picker-indicator,
+[data-theme='dark'] input[type='time']::-webkit-calendar-picker-indicator,
+[data-theme='dark'] input[type='datetime-local']::-webkit-calendar-picker-indicator {
+  filter: invert(1) brightness(1.8);
+  opacity: 0.85;
+  cursor: pointer;
+}
+

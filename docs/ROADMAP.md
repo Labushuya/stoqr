@@ -3,7 +3,7 @@
 > Kanonisches Datenmodell und Entwicklungsplan. Diese Datei ist führend für Absicht,
 > Logik und Ziel von stoqr. Bei Widersprüchen zwischen Code und dieser Datei gilt diese Datei.
 
-Letzte Aktualisierung: 2026-07-19 (G1 Fixes + G2 Markt-Pflichtfelder/OSM/Globus-Barcode-Search implementiert, Test auf Pi ausstehend)
+Letzte Aktualisierung: 2026-07-19 (G4: In-App-Schalter + {EAN}-URL + Bugfixes/Dark-Mode implementiert, Test auf Pi ausstehend)
 
 ---
 
@@ -222,6 +222,14 @@ Inventur (Ist erfassen) → Soll-Ist-Bedarf → Einkaufsliste (virtuelle Bestän
 ---
 
 ## Offene Punkte / noch zu testen (nicht bestätigt)
+
+**G4 (Migration 0014) — Test auf Pi ausstehend (behebt F2-Testblocker + G2-Fehlinterpretation):**
+- **In-App-Schalter:** Einstellungen → „Online-Preis-Abruf" → Schalter AN → Abruf-UI erscheint (kein Env-Setzen mehr). AUS → Buttons weg, API 403.
+- **Markt-URL mit `{EAN}`:** Markt bearbeiten → Abruf-URL `https://produkte.globus.de/hockenheim/search?query={EAN}` (Anleitung/Muster sichtbar). Keine „Filiale/Region" mehr. Pflicht: Name + Adresse + Stadt (Kette optional).
+- **Abruf:** Artikel mit EAN → „Online abrufen" → {EAN} wird durch die EAN ersetzt, Vorschlag erscheint (dann F2-3..10 wie im Test-Manifest durchspielbar).
+- **URL-Bug:** gültige URL → auf „abc" ändern → wird abgelehnt und bleibt abgelehnt (nicht mehr fälschlich „gültig").
+- **Adressfeld:** sieht aus wie die anderen Felder (Icon links), OSM-Vorschläge auswählbar (auch per Klick/Touch).
+- **Dark Mode:** Kalender-Symbol in MHD-Feldern sichtbar.
 
 **G1/G2 (Migration 0013) — Test auf Pi ausstehend:**
 - **G1-1:** Bestand auf der Detailseite per „Bearbeiten" verringern → Gesamtbestand oben SOFORT aktuell (ohne Refresh); ebenso nach Verbraucht/Gespendet/Entsorgt/Entfernt.

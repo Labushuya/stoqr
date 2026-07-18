@@ -45,7 +45,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 
   const householdId = await requireHouseholdId(locals.user.id)
   const body = await request.json()
-  const { name, chain, address, city, latitude, longitude, scrapeUrl, scrapeRegion } = body as {
+  const { name, chain, address, city, latitude, longitude, scrapeUrl } = body as {
     name?: string
     chain?: string
     address?: string
@@ -53,18 +53,15 @@ export const POST: RequestHandler = async ({ locals, request }) => {
     latitude?: string | number | null
     longitude?: string | number | null
     scrapeUrl?: string | null
-    scrapeRegion?: string | null
   }
 
-  // Pflichtfelder (G2): Name + Adresse + Stadt + Filiale/Region. Kette optional.
+  // Pflichtfelder (G4): Name + Adresse + Stadt. Kette optional.
   const nameT = (name ?? '').trim()
   const addressT = (address ?? '').trim()
   const cityT = (city ?? '').trim()
-  const regionT = (scrapeRegion ?? '').trim()
   if (!nameT) return json({ error: 'Name ist erforderlich' }, { status: 400 })
   if (!addressT) return json({ error: 'Adresse ist erforderlich' }, { status: 400 })
   if (!cityT) return json({ error: 'Stadt ist erforderlich' }, { status: 400 })
-  if (!regionT) return json({ error: 'Filiale/Region ist erforderlich' }, { status: 400 })
 
   const normalizedUrl = normalizeScrapeUrl(scrapeUrl)
   if (normalizedUrl === INVALID_URL) {
@@ -82,7 +79,6 @@ export const POST: RequestHandler = async ({ locals, request }) => {
       latitude: coordToDb(latitude),
       longitude: coordToDb(longitude),
       scrapeUrl: normalizedUrl,
-      scrapeRegion: regionT,
     })
     .returning()
 

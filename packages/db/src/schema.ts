@@ -384,11 +384,10 @@ export const stores = pgTable('stores', {
   latitude: numeric('latitude', { precision: 9, scale: 6 }),
   longitude: numeric('longitude', { precision: 9, scale: 6 }),
   bringListUuid: varchar('bring_list_uuid', { length: 128 }),
-  // Optionale Produkt-/Regions-URL fuer den Online-Preis-Abruf (F2). NULL = kein Abruf moeglich.
+  // Abruf-URL-Vorlage fuer den Online-Preis-Abruf. Enthaelt optional {EAN},
+  // das beim Abruf durch die Artikel-GTIN ersetzt wird (z.B.
+  // https://produkte.globus.de/hockenheim/search?query={EAN}). Leer = kein Abruf.
   scrapeUrl: text('scrape_url'),
-  // Globus-Filiale/Region fuer die Barcode-Search-URL (G2), z.B. "hockenheim".
-  // Standard-Quelle: scrapeRegion + products.gtin -> Search-URL; scrapeUrl bleibt manueller Override.
-  scrapeRegion: varchar('scrape_region', { length: 64 }),
   isFavorite: boolean('is_favorite').notNull().default(false),
   notes: text('notes'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
@@ -474,6 +473,8 @@ export const expiryConfig = pgTable('expiry_config', {
   yellowDaysBefore: integer('yellow_days_before').notNull().default(7),
   redDaysBefore: integer('red_days_before').notNull().default(2),
   graceDaysAfter: integer('grace_days_after').notNull().default(0),
+  // Household-weiter In-App-Schalter fuer den Online-Preis-Abruf (G4). Default AUS.
+  priceScrapeEnabled: boolean('price_scrape_enabled').notNull().default(false),
 });
 
 export const expiryConfigRelations = relations(expiryConfig, ({ one }) => ({
