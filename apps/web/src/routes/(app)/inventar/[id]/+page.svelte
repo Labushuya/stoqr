@@ -24,6 +24,7 @@
     notes: string | null
     placeId: string | null
     storeId: string | null
+    purchasePriceCt: number | null
     store: { id: string; name: string; chain: string | null } | null
     locationPath: LocSegment[]
   }
@@ -594,6 +595,7 @@
   let draftUnit = $state('')
   let draftMhd = $state('')
   let draftStoreId = $state('')
+  let draftPurchasePrice = $state('')
 
   function startRowEdit(row: Sibling) {
     editingRowId = row.id
@@ -601,15 +603,27 @@
     draftUnit = row.unit
     draftMhd = row.bestBeforeDate ?? ''
     draftStoreId = row.storeId ?? ''
+    draftPurchasePrice = row.purchasePriceCt != null ? String(row.purchasePriceCt / 100).replace('.', ',') : ''
   }
   function cancelRowEdit() { editingRowId = null }
 
   async function saveRow(row: Sibling) {
+    // Kaufpreis dieses Bestands: leer -> null, sonst Euro -> Cent (wie savePrice).
+    let purchasePriceCt: number | null | undefined = undefined
+    const rawPrice = draftPurchasePrice.trim()
+    if (rawPrice === '') {
+      purchasePriceCt = null
+    } else {
+      const euro = parseFloat(rawPrice.replace(',', '.'))
+      if (isNaN(euro) || euro < 0) { showToast('Kaufpreis muss eine Zahl >= 0 sein.', 'error'); return }
+      purchasePriceCt = Math.round(euro * 100)
+    }
     const patch = {
       quantity: draftQuantity,
       unit: draftUnit,
       bestBeforeDate: draftMhd || null,
       storeId: draftStoreId || null,
+      purchasePriceCt,
     }
     const res = await fetch(`/api/inventory/${row.id}`, {
       method: 'PATCH',
@@ -620,11 +634,13 @@
     const store = availableStores.find((s) => s.id === draftStoreId) ?? null
     siblings = siblings.map((s) =>
       s.id === row.id
-        ? { ...s, quantity: draftQuantity, unit: draftUnit, bestBeforeDate: draftMhd || null, storeId: draftStoreId || null, store }
+        ? { ...s, quantity: draftQuantity, unit: draftUnit, bestBeforeDate: draftMhd || null, storeId: draftStoreId || null, purchasePriceCt: purchasePriceCt ?? null, store }
         : s
     )
     editingRowId = null
     showToast('Bestand gespeichert')
+    // Gesamtbestand oben kommt aus data.stockTotals (Server-Load) — neu laden.
+    await invalidateAll()
   }
 
   async function consumeRow(row: Sibling) {
@@ -636,6 +652,7 @@
     if (!res.ok) { showToast('Fehler', 'error'); return }
     siblings = siblings.map((s) => (s.id === row.id ? { ...s, status: 'consumed' } : s))
     showToast('Als verbraucht markiert')
+    await invalidateAll()
   }
 
   // Spenden / Entsorgen — analog consumeRow, anderer Zielstatus.
@@ -648,6 +665,7 @@
     if (!res.ok) { showToast('Fehler', 'error'); return }
     siblings = siblings.map((s) => (s.id === row.id ? { ...s, status } : s))
     showToast(label)
+    await invalidateAll()
   }
 
   async function deleteRow(row: Sibling) {
@@ -655,7 +673,9 @@
     if (!res.ok && res.status !== 204) { showToast('Fehler beim Entfernen', 'error'); return }
     siblings = siblings.filter((s) => s.id !== row.id)
     showToast('Bestand entfernt')
-    if (siblings.length === 0) goto('/inventar')
+    if (siblings.length === 0) { goto('/inventar'); return }
+    // invalidateAll VOR einem etwaigen goto (hier kein goto mehr) — Gesamtbestand neu laden.
+    await invalidateAll()
   }
 
   // ── Location picker (per sibling) ───────────────────────────────────────────
@@ -995,6 +1015,10 @@
                       {#each availableStores as s (s.id)}<option value={s.id}>{s.name}{s.chain ? ` (${s.chain})` : ''}</option>{/each}
                     </select>
                   </label>
+                  <label class="mini-field">
+                    <span class="mini-label">Kaufpreis (€)</span>
+                    <input class="input" type="text" inputmode="decimal" placeholder="z.B. 1,19" bind:value={draftPurchasePrice} />
+                  </label>
                 </div>
                 <button class="btn-link" type="button" onclick={() => openLocationPicker(row.id)}>
                   Lagerort: {row.locationPath.length ? row.locationPath.map((p) => p.name).join(' › ') : 'wählen…'}
@@ -1016,6 +1040,7 @@
               <div class="stock-meta">
                 {#if row.bestBeforeDate}<span>MHD: {formatDate(row.bestBeforeDate)}</span>{/if}
                 {#if row.store}<span>· {row.store.name}</span>{/if}
+                {#if row.purchasePriceCt != null}<span>· Kaufpreis {fmtPrice(row.purchasePriceCt)}</span>{/if}
                 {#if row.locationPath.length}<span>· {row.locationPath.map((p) => p.name).join(' › ')}</span>{/if}
               </div>
               <div class="stock-actions">

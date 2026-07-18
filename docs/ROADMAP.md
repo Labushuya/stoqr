@@ -76,6 +76,29 @@ Raum (location) > Lagerort (storage) > Fach (place)
 
 ---
 
+---
+
+## Artikel- vs. Bestands-Ebene — Priorisierung/Vererbung (verbindlich, dokumentiert 2026-07-19)
+
+Grundprinzip: **Stammdaten (Artikel) ≠ Transaktionsdaten (Bestand).** Es gibt fast **keine** Laufzeit-Priorisierung —
+die Ebenen bedeuten meist Verschiedenes. Nur GTIN hat eine Primär/Sekundär-Konvention, und nur das Gebinde ist echte
+Laufzeit-Vererbung. Übersicht:
+
+| Feld | Artikel (Stammdaten) | Bestand (Transaktion) | Regel |
+|---|---|---|---|
+| **EAN/GTIN** | `products.gtin` — primär, global unique, UI-pflegbar, Identität für Lookup | `inventory_items.gtin` — sekundär, nullable, für Ausreißer/Chargen | **Lookup-Konvention** (kein Anzeige-Fallback): alle Queries lesen nur `products.gtin`; Bestand-GTIN wird beim Anlegen kopiert, aber nirgends gelesen |
+| **Einheit** | `products.defaultUnit` — Vorbelegung | `inventory_items.unit` — tatsächlich; einzige Rechen-Einheit der Aggregation | **Vorbelegung** des neuen Bestand-Formulars. Bestandswert ist danach autonom maßgeblich |
+| **Markt** | `product_stores` (M:N) — Planung „wo einkaufbar" | `inventory_items.storeId` — Ist-Herkunft der Charge | **Keine Priorisierung** — bewusst getrennt (UND). Vorbelegung neuer Bestände kommt aus häufigstem storeId **früherer Bestände** (inventory-hints), nicht aus `product_stores` |
+| **Gebinde** | `products.defaultVolumeMl`/`defaultWeightG` → `buildPackSize`, gilt für `defaultUnit` | `weightG`/`volumeMl` vorhanden, von Aggregation ignoriert | **Echte Laufzeit-Vererbung/Overlay** — Artikel-packSize wirkt auf alle Bestände (Aggregation, Estimate, Soll-Ist, Dual-Anzeige). Fallback ohne Gebinde: count je Symbol |
+| **Preis** | `product_prices` (Artikel+Markt), `isCurrent` = maßgeblich fürs Estimate | `inventory_items.purchasePriceCt` — Ist-Beleg der Charge | **Keine Priorisierung** — verschiedene Zwecke. Estimate liest nur `product_prices`; Einbuchen schreibt beide (Bestand immer, `product_prices` nur bei `recordPrice=true`, source `booked`) |
+| **Nährwerte** | `product_nutrients` (pro 100 g/ml) | — (kein Feld) | **Nur Artikel** — Bestand referenziert per Relation |
+
+Kernaussagen: (1) GTIN-Primär/Sekundär ist eine Lookup-/Identitäts-Konvention, kein implementierter Anzeige-Fallback.
+(2) Gebinde ist der einzige Fall echter Laufzeit-Vererbung. (3) Einheit ist reine Formular-Vorbelegung. (4) Markt und Preis
+sind bewusst getrennte Ebenen. (5) Nährwerte existieren nur am Artikel.
+
+---
+
 ## Ablauf (User-Flow)
 
 1. Räume, Lagerorte, Fächer anlegen (Orte)
