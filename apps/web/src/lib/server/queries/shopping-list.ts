@@ -4,7 +4,7 @@ import { and, eq, asc, desc } from 'drizzle-orm'
 import { getStockTargets } from './stock-targets'
 import { getProductStockTotals } from './products'
 import { getUnits } from './households'
-import { buildUnitMetaMap, compareToTarget } from '$lib/utils/stock'
+import { buildUnitMetaMap, compareToTarget, buildPackSize, resolveUnitMeta } from '$lib/utils/stock'
 
 // ---------------------------------------------------------------------------
 // Einkaufsliste (shopping_list_items). auto-Einträge = „virtuelle Bestände"
@@ -162,17 +162,20 @@ export async function generateAutoNeeds(householdId: string): Promise<{ created:
 
   for (const t of targets) {
     const totals = await getProductStockTotals(t.productId, householdId)
+    // Gebinde-Größe des Artikels (Einheiten v2) → konsistente Umrechnung wie in getProductStockTotals.
+    const packSize = t.product ? buildPackSize(t.product) : undefined
     const cmp = compareToTarget(
       totals,
       { targetQuantity: t.targetQuantity, unit: t.unit, minQuantity: t.minQuantity },
-      metaMap
+      metaMap,
+      packSize
     )
 
     // Kein sinnvoller Bedarf → offener auto-Eintrag dieses Artikels läuft aus.
     if (cmp.status === 'not_comparable' || cmp.status === 'ok') continue
 
-    const meta = metaMap.get(t.unit)
-    const factor = meta ? meta.toBaseFactor : 1
+    // Fehlmenge zurück in die Soll-Einheit — mit demselben (ggf. Gebinde-)Faktor.
+    const factor = resolveUnitMeta(t.unit, metaMap, packSize).toBaseFactor
     const shortfallInBase = cmp.targetInBase - cmp.currentInBase
     const qty = shortfallInBase / (factor || 1)
     if (qty <= 0) continue

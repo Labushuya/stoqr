@@ -4,7 +4,10 @@ import { requireHouseholdId, getUnits } from '$lib/server/queries/households'
 import { listInventoryForProduct, updateInventoryItem } from '$lib/server/queries/products'
 import { generateAutoNeeds } from '$lib/server/queries/shopping-list'
 import { writeAudit } from '$lib/server/queries/audit'
-import { buildUnitMetaMap, planInventoryAdjustment, type Dimension } from '$lib/utils/stock'
+import { buildUnitMetaMap, planInventoryAdjustment, resolveUnitMeta, buildPackSize } from '$lib/utils/stock'
+import { db } from '$lib/server/db'
+import { products } from '@stoqr/db'
+import { eq } from 'drizzle-orm'
 
 // ---------------------------------------------------------------------------
 // POST /api/products/:id/inventory-adjust  { newQuantity, unit }
@@ -28,13 +31,17 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
       return json({ error: 'newQuantity muss eine Zahl >= 0 sein' }, { status: 400 })
     }
 
-    const [items, units] = await Promise.all([
+    const [items, units, product] = await Promise.all([
       listInventoryForProduct(params.id, householdId),
       getUnits(householdId),
+      db.query.products.findFirst({
+        where: eq(products.id, params.id),
+        columns: { defaultUnit: true, defaultVolumeMl: true, defaultWeightG: true },
+      }),
     ])
     const metaMap = buildUnitMetaMap(units)
-    const meta =
-      metaMap.get(unit) ?? { symbol: unit, name: unit, dimension: 'count' as Dimension, toBaseFactor: 1 }
+    const packSize = product ? buildPackSize(product) : undefined
+    const meta = resolveUnitMeta(unit, metaMap, packSize)
     const newTotalInBase = newQuantity * meta.toBaseFactor
 
     const plan = planInventoryAdjustment(
@@ -47,7 +54,8 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
       })),
       newTotalInBase,
       { dimension: meta.dimension, symbol: meta.symbol },
-      metaMap
+      metaMap,
+      packSize
     )
 
     // Reduktions-Updates anwenden.

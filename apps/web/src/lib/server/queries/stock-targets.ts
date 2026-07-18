@@ -18,7 +18,17 @@ export async function getStockTargetForProduct(productId: string, householdId: s
 export async function getStockTargets(householdId: string) {
   return db.query.stockTargets.findMany({
     where: (t, { and, eq }) => and(eq(t.householdId, householdId), eq(t.isActive, true)),
-    with: { product: { columns: { id: true, name: true } } },
+    with: {
+      product: {
+        columns: {
+          id: true,
+          name: true,
+          defaultUnit: true,
+          defaultVolumeMl: true,
+          defaultWeightG: true,
+        },
+      },
+    },
   })
 }
 

@@ -18,7 +18,7 @@ import { getNutrientTypes } from '$lib/server/queries/nutrients'
 import { getStockTargetForProduct } from '$lib/server/queries/stock-targets'
 import { listStoresForProduct } from '$lib/server/queries/product-stores'
 import { getCurrentPricesForProductAllStores } from '$lib/server/queries/prices'
-import { buildUnitMetaMap, aggregateStock, compareToTarget } from '$lib/utils/stock'
+import { buildUnitMetaMap, aggregateStock, compareToTarget, buildPackSize } from '$lib/utils/stock'
 
 // ---------------------------------------------------------------------------
 // Location-Breadcrumb aus einem (geladenen) place-Objekt bauen
@@ -119,7 +119,9 @@ export const load: PageServerLoad = async ({ params, locals }) => {
   // Gesamtbestand über alle Bestände dieses Artikels (Umrechnungsschicht).
   // In-Memory aus bereits geladenen siblings + units — kein Extra-DB-Roundtrip.
   const unitMetaMap = buildUnitMetaMap(units);
-  const stockTotals = aggregateStock(siblings, unitMetaMap);
+  // Gebinde-Größe des Artikels (Einheiten v2) → Flasche etc. auf Volumen/Masse umrechnen.
+  const packSize = buildPackSize(item.product);
+  const stockTotals = aggregateStock(siblings, unitMetaMap, packSize);
 
   // Soll-/Mindestbestand + Soll-Ist-Vergleich (Inkrement 2b).
   const stockTarget = await getStockTargetForProduct(item.productId, householdId);
@@ -131,7 +133,8 @@ export const load: PageServerLoad = async ({ params, locals }) => {
           unit: stockTarget.unit,
           minQuantity: stockTarget.minQuantity,
         },
-        unitMetaMap
+        unitMetaMap,
+        packSize
       )
     : null;
 
