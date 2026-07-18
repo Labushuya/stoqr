@@ -25,7 +25,7 @@ Korrektur der G2-Fehlinterpretation (Filiale/Region war falsch) + Testfeedback-F
   (MHD-Kalender, number/time/select) in `app.css`.
 
 ### Commits
-(folgt beim Commit)
+714b4cd (G4 — Datenmodell, In-App-Schalter, {EAN}-URL, Bugfixes, Dark-Mode als ein Block)
 
 ---
 
