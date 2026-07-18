@@ -3,7 +3,7 @@
 > Kanonisches Datenmodell und Entwicklungsplan. Diese Datei ist führend für Absicht,
 > Logik und Ziel von stoqr. Bei Widersprüchen zwischen Code und dieser Datei gilt diese Datei.
 
-Letzte Aktualisierung: 2026-07-18 (Block F getestet ✓; neue Feature-Blöcke aufgenommen — F2 als nächstes)
+Letzte Aktualisierung: 2026-07-18 (Block F getestet ✓; Einheiten-System v2 als nächster Block, dann F2)
 
 ---
 
@@ -149,7 +149,17 @@ Kein Text-/Pipe-Export (existiert so in Bring! nicht).
   massgeblicher Preis; isReduced = Angebot, nur als Dauerpreis massgeblich); Preis pro Einheit mit toBaseFactor-Umrechnung;
   Kaufpreis beim Einbuchen (booked) + separate Pflege je Markt (manual, Detailseite); Estimate „ca. ~X €" + Summe +
   Warnung in Einkaufsliste (client-reaktiv) und Einkauf-Run (server). Migration 0011.
-- **F2 — Online-Preis-Abruf + Staging (NÄCHSTES)** (geplant, eigene Feinplanung vor Bau): opt-in Preis-Abruf von Globus
+- **Einheiten-System v2 (NÄCHSTES)** (geplant, eigene Feinplanung vor Bau) — betrifft das Fundament (`units` + `lib/utils/stock.ts`),
+  daher VOR F2, weil Estimates/Soll-Ist davon profitieren. Zwei zusammengehörige Aspekte:
+  - **(a) Base-Unit-of-Measure-Mapping:** In Einstellungen→Einheiten soll man Einheiten untereinander umrechenbar machen —
+    per **Faktor auf eine frei wählbare Basiseinheit** (statt der starren mass/volume/count-Silos). Bsp.: „Becher" → Faktor 200
+    auf „ml" macht Becher automatisch mit allen ml/l-Einheiten kompatibel. Erweitert das bestehende `toBaseFactor`-Modell um
+    eine wählbare Basis-Referenz; behebt den Fall „Umrechnung nicht möglich", wenn eine Einheit anders gepflegt wurde als der Rest.
+  - **(b) Gebinde-Größen (pro Artikel):** dieselbe count-Einheit „Flasche" kann verschiedene Größen haben (0,33/0,5/1/1,5/2 l).
+    Die Größe wird PRO ARTIKEL hinterlegt (nutzt `products.defaultVolumeMl`/`defaultWeightG`) → Bestand in „Flasche" wird fürs
+    Soll-Ist/Estimate/Preisvergleich auf Volumen/Masse umgerechnet. Voll in Aggregation/Vergleich (stock.ts) eingebettet, nicht nur
+    ein loses Feld. Zwei Artikel dürfen dieselbe Einheit „Flasche" mit unterschiedlicher Größe haben.
+- **F2 — Online-Preis-Abruf + Staging** (geplant, eigene Feinplanung vor Bau; nach Einheiten v2): opt-in Preis-Abruf von Globus
   (DOM-Scraping, Best-Effort; Penny ohne offene Quelle). **Staging-Phase:** abgerufene Preise landen NICHT direkt als
   isCurrent, sondern in einem „vorgeschlagen"-Zustand → User segnet ab oder korrigiert, erst dann massgeblich. Erfordert
   Erweiterung des Preis-Modells (bisher nur binäres isCurrent) um einen Vorschlags-/Review-Zustand. Bestehendes
@@ -171,11 +181,9 @@ Kein Text-/Pipe-Export (existiert so in Bring! nicht).
   Bestände sichtbar bleiben (Zeitfenster?) + „Wiederherstellen" (status zurück auf available, consumedAt nullen).
 - **Günstigster-Preis-Hinweis (Einkaufsliste)** (geplant): mit product_prices je Markt (Block F) datenseitig möglich —
   UI-Hinweis, welcher Markt für einen Artikel den günstigsten Preis hat (Bsp. Mineralwasser Penny 0,69 € vs. Globus 0,29 €).
-  Preisvergleich pro Basiseinheit (via toBaseFactor), damit z.B. 1,5-l-Vergleiche fair sind.
-- **Einheiten-Umrechnung „Flasche 1,5 l" (Gebinde-Größe je Artikel)** (geplant): pro Artikel eine Gebinde-Größe hinterlegen
-  (nutzt vorhandenes `products.defaultVolumeMl`/`defaultWeightG`) → Bestand in count-Einheit „Flasche" wird fürs
-  Soll-Ist/Estimate auf Volumen/Masse umgerechnet. Erweitert die Aggregations-/Vergleichslogik (stock.ts) um den
-  produktspezifischen Gebinde-Faktor.
+  Preisvergleich pro Basiseinheit (via toBaseFactor + Einheiten v2), damit z.B. 1,5-l-Vergleiche fair sind.
+- **EAN auf der Artikel-Übersichtsseite anzeigen** (klein, Konsistenz): EAN/Barcode ist in Einstellungen→Artikel sichtbar,
+  aber nicht auf `/inventar`. Dort ebenfalls anzeigen (analog Einstellungen-Artikel-Zeile).
 
 ### Kreislauf (Zielbild)
 Inventur (Ist erfassen) → Soll-Ist-Bedarf → Einkaufsliste (virtuelle Bestände) → Einkauf → Einbuchen
