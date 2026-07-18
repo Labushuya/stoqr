@@ -22,13 +22,16 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
     const householdId = await requireHouseholdId(locals.user.id)
 
     const body = await request.json()
-    const { name, description, notes, categoryId, defaultUnit, gtin } = body as {
+    const { name, description, notes, categoryId, defaultUnit, gtin, packDimension, packSize } = body as {
       name?: string
       description?: string | null
       notes?: string | null
       categoryId?: string | null
       defaultUnit?: string
       gtin?: string | null
+      // Gebinde-Größe (Einheiten v2): packDimension 'volume'|'mass'|'none', packSize = Wert (ml bzw. g).
+      packDimension?: 'volume' | 'mass' | 'none'
+      packSize?: number | string | null
     }
 
     const patch: Parameters<typeof updateProduct>[1] = {}
@@ -39,6 +42,23 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
     if (defaultUnit !== undefined) patch.defaultUnit = defaultUnit
     // EAN/GTIN: leerer String → null (Feld leeren)
     if (gtin !== undefined) patch.gtin = gtin ? String(gtin).trim() : null
+
+    // Gebinde-Größe: genau EINE Dimension. 'none' oder ungültig → beide null (kein Gebinde).
+    if (packDimension !== undefined) {
+      const val = packSize != null && packSize !== '' ? Number(packSize) : NaN
+      const valid = Number.isFinite(val) && val > 0
+      if (packDimension === 'volume' && valid) {
+        patch.defaultVolumeMl = val
+        patch.defaultWeightG = null
+      } else if (packDimension === 'mass' && valid) {
+        patch.defaultWeightG = val
+        patch.defaultVolumeMl = null
+      } else {
+        // 'none' oder kein gültiger Wert → Gebinde entfernen.
+        patch.defaultVolumeMl = null
+        patch.defaultWeightG = null
+      }
+    }
 
     if (Object.keys(patch).length === 0) {
       return json({ error: 'Keine Felder zum Aktualisieren' }, { status: 400 })

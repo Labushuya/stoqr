@@ -425,6 +425,9 @@ export async function updateProduct(
 		categoryId: string | null;
 		defaultUnit: string;
 		gtin: string | null;
+		defaultVolumeMl: number | string | null;
+		defaultWeightG: number | string | null;
+		defaultQuantity: number | string;
 	}>
 ) {
 	const patch: Record<string, unknown> = { updatedAt: new Date() };
@@ -434,6 +437,12 @@ export async function updateProduct(
 	if (data.categoryId !== undefined) patch.categoryId = data.categoryId;
 	if (data.defaultUnit !== undefined) patch.defaultUnit = data.defaultUnit;
 	if (data.gtin !== undefined) patch.gtin = data.gtin;
+	// Gebinde-Größe (Einheiten v2): numeric-Felder als String; null = kein Gebinde.
+	if (data.defaultVolumeMl !== undefined)
+		patch.defaultVolumeMl = data.defaultVolumeMl == null ? null : String(data.defaultVolumeMl);
+	if (data.defaultWeightG !== undefined)
+		patch.defaultWeightG = data.defaultWeightG == null ? null : String(data.defaultWeightG);
+	if (data.defaultQuantity !== undefined) patch.defaultQuantity = String(data.defaultQuantity);
 
 	const [record] = await db
 		.update(products)
@@ -472,6 +481,9 @@ export async function getProductById(id: string) {
 			imageUrl: true,
 			categoryId: true,
 			defaultUnit: true,
+			defaultQuantity: true,
+			defaultVolumeMl: true,
+			defaultWeightG: true,
 		},
 	});
 	return product ?? null;
