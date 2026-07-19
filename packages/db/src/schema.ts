@@ -385,8 +385,8 @@ export const stores = pgTable('stores', {
   longitude: numeric('longitude', { precision: 9, scale: 6 }),
   bringListUuid: varchar('bring_list_uuid', { length: 128 }),
   // Abruf-URL-Vorlage fuer den Online-Preis-Abruf. Enthaelt optional {EAN},
-  // das beim Abruf durch die Artikel-GTIN ersetzt wird (z.B.
-  // https://produkte.globus.de/hockenheim/search?query={EAN}). Leer = kein Abruf.
+  // das beim Abruf durch die Artikel-GTIN ersetzt wird (z.B. Globus-Suggest:
+  // https://produkte.globus.de/hockenheim/suggest?search={EAN}). Leer = kein Abruf.
   scrapeUrl: text('scrape_url'),
   isFavorite: boolean('is_favorite').notNull().default(false),
   notes: text('notes'),

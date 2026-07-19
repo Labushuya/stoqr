@@ -5,6 +5,23 @@ Neueste Einträge oben. Jeder Eintrag nennt den Commit-Kontext, damit andere LLM
 
 ---
 
+## [Unreleased] — G6-Politur: Reaktivität + Toggle-Feedback (implementiert, Test auf Pi ausstehend)
+
+Feinschliff nach dem 73/73-Testlauf (drei Anmerkungen):
+
+- **Reaktivität (G6-1/G6-3):** Standard-Einheit ändern bzw. „Alle angleichen" aktualisierte die Gebinde-/Einheiten-
+  Anzeige erst nach Browser-Refresh. Ursache: `packDim`/`packVal` waren lokaler `$state`, der nach `invalidateAll()` nie
+  neu aus `product` abgeleitet wurde. Fix: `$effect` synchronisiert beide bei `product`-Änderung (außer während aktiver
+  Bearbeitung). Anzeige stimmt jetzt sofort.
+- **Toggle-Feedback (F2-0):** Das „gespeichert" beim Online-Preis-Abruf-Schalter lag deplatziert in der Checkbox-Zeile;
+  jetzt als eigene, dezente Bestätigungszeile unter dem Toggle (konsistent mit dem restlichen UI).
+- **Doku:** stores.scrapeUrl-Kommentar auf die korrekte Suggest-URL (nicht mehr `search?query=`) angeglichen.
+
+### Commits
+(folgt beim Commit)
+
+---
+
 ## [Unreleased] — G6: Einheiten-Fixes (Preis-Einheit, editierbare Standard-Einheit, Angleichung) (implementiert, Test auf Pi ausstehend)
 
 Behebt den „falsche Einheit im Preisvorschlag" (blihn statt Packung) und macht die eingefrorene Standard-Einheit wieder pflegbar.

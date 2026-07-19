@@ -433,6 +433,17 @@
   let packSaving = $state(false)
   let packEditing = $state(false)
 
+  // Nach invalidateAll() (z.B. Standard-Einheit geaendert / angeglichen) aendert sich
+  // data.product; die lokalen Gebinde-States neu aus product ableiten, damit die
+  // Anzeige ohne Browser-Refresh stimmt. Aktive Bearbeitung nicht ueberschreiben.
+  $effect(() => {
+    if (packEditing) return
+    const vol = Number(product.defaultVolumeMl)
+    const wt = Number(product.defaultWeightG)
+    packDim = vol > 0 ? 'volume' : wt > 0 ? 'mass' : 'none'
+    packVal = vol > 0 ? String(vol / 1000) : wt > 0 ? String(wt / 1000) : ''
+  })
+
   // ── Standard-Einheit editieren (G6) ──────────────────────────────────────
   let unitEditing = $state(false)
   let draftDefaultUnit = $state('')

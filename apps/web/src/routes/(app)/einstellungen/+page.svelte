@@ -295,15 +295,15 @@
           onchange={(e) => (e.currentTarget.closest('form') as HTMLFormElement)?.requestSubmit()}
         />
         <span>Online-Preis-Abruf aktivieren</span>
-        {#if priceScrapeSuccess}
-          <span class="toggle-saved" role="status">
-            <svg width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-              <path d="M4 8l3 3 5-6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-            gespeichert
-          </span>
-        {/if}
       </label>
+      {#if priceScrapeSuccess}
+        <p class="toggle-saved" role="status">
+          <svg width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <path d="M4 8l3 3 5-6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          Gespeichert — Online-Preis-Abruf ist {priceScrapeEnabled ? 'aktiv' : 'deaktiviert'}.
+        </p>
+      {/if}
     </form>
   </section>
 
@@ -633,13 +633,13 @@
     cursor: pointer;
   }
   .toggle-saved {
-    display: inline-flex;
+    display: flex;
     align-items: center;
-    gap: 4px;
+    gap: var(--space-1);
     font-size: var(--text-xs);
     font-weight: 600;
     color: var(--color-success, #16a34a);
-    margin-left: var(--space-2);
+    margin: var(--space-3) 0 0;
   }
   /* ── Coming-soon badge ────────────────────────────────────────────────── */
 
