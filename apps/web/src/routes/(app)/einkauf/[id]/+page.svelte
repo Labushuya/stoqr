@@ -52,6 +52,33 @@
     return `${store} · ${d}`
   }
 
+  // ── Einkauf umbenennen (G8-5a) ────────────────────────────────────────────
+  let renaming = $state(false)
+  let renameValue = $state('')
+  let renameSaving = $state(false)
+  function startRename() {
+    renameValue = trip.name ?? ''
+    renaming = true
+  }
+  async function saveRename() {
+    renameSaving = true
+    try {
+      const res = await fetch(`/api/shopping-trips/${trip.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: renameValue.trim() || null }),
+      })
+      if (!res.ok) { toast.error('Umbenennen fehlgeschlagen.'); return }
+      renaming = false
+      toast.success('Einkauf umbenannt')
+      await invalidateAll()
+    } catch {
+      toast.error('Netzwerkfehler.')
+    } finally {
+      renameSaving = false
+    }
+  }
+
   // ── Positions-Aktionen ─────────────────────────────────────────────────
   async function setRealStatus(i: Item, realStatus: Item['realStatus']) {
     // Toggle: nochmal auf denselben Status → zurück auf 'offen'
@@ -124,8 +151,23 @@
 
   <header class="page-header">
     <div class="title-row">
-      <h1 class="page-title">{tripTitle(trip)}</h1>
-      <span class="status-badge status-badge--{trip.status}">{STATUS_LABEL[trip.status]}</span>
+      {#if renaming}
+        <input
+          class="rename-input"
+          type="text"
+          bind:value={renameValue}
+          placeholder="Name des Einkaufs"
+          maxlength="128"
+          aria-label="Einkauf umbenennen"
+          onkeydown={(e) => { if (e.key === 'Enter') saveRename(); if (e.key === 'Escape') renaming = false }}
+        />
+        <button class="btn-rename" type="button" disabled={renameSaving} onclick={saveRename}>Speichern</button>
+        <button class="btn-rename btn-rename--ghost" type="button" onclick={() => (renaming = false)}>Abbrechen</button>
+      {:else}
+        <h1 class="page-title">{tripTitle(trip)}</h1>
+        <span class="status-badge status-badge--{trip.status}">{STATUS_LABEL[trip.status]}</span>
+        <button class="btn-rename btn-rename--ghost" type="button" onclick={startRename} aria-label="Einkauf umbenennen">Umbenennen</button>
+      {/if}
     </div>
     {#if trip.store}<p class="page-desc">Markt: {trip.store.name}{trip.store.chain ? ` (${trip.store.chain})` : ''}</p>{/if}
   </header>
@@ -207,7 +249,11 @@
 
   .page-header { margin-bottom: var(--space-4); }
   .title-row { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; }
-  .page-title { font-family: var(--font-display); font-size: var(--text-2xl); font-weight: 700; color: var(--color-text-primary); margin: 0; }
+  .rename-input { height: 34px; padding: 0 var(--space-3); border-radius: var(--radius-md); border: 1px solid var(--color-border); background: var(--color-surface); color: var(--color-text-primary); font-size: var(--text-base); min-width: 220px; }
+  .btn-rename { height: 30px; padding: 0 var(--space-3); border-radius: var(--radius-md); border: none; background: var(--color-primary); color: var(--color-text-inverse); font-size: var(--text-xs); font-weight: 600; cursor: pointer; }
+  .btn-rename:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-rename--ghost { background: transparent; border: 1px solid var(--color-border); color: var(--color-text-secondary); }
+  .btn-rename--ghost:hover { border-color: var(--color-primary); color: var(--color-primary); }  .page-title { font-family: var(--font-display); font-size: var(--text-2xl); font-weight: 700; color: var(--color-text-primary); margin: 0; }
   .page-desc { font-size: var(--text-sm); color: var(--color-text-secondary); margin: var(--space-1) 0 0; }
 
   .toolbar { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; margin-bottom: var(--space-4); }

@@ -44,6 +44,7 @@
       id: string
       name: string
       brand: string | null
+      gtin: string | null
       imageUrl: string | null
       categoryId: string | null
       category: Category | null
@@ -498,6 +499,10 @@ Das Produkt bleibt im Katalog.`,
 
             {#if item.product.brand}
               <span class="item-brand">{item.product.brand}</span>
+            {/if}
+
+            {#if item.product.gtin}
+              <span class="item-ean">EAN {item.product.gtin}</span>
             {/if}
 
             <!-- MHD badge -->
@@ -1082,6 +1087,11 @@ Das Produkt bleibt im Katalog.`,
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+  }
+  .item-ean {
+    font-size: 11px;
+    color: var(--color-text-muted);
+    font-variant-numeric: tabular-nums;
   }
 
   .item-breadcrumb {

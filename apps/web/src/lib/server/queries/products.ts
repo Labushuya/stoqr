@@ -10,16 +10,25 @@ import { buildUnitMetaMap, aggregateStock, buildPackSize, type StockTotals } fro
 
 export async function getInventoryItems(
 	householdId: string,
-	filters?: { placeId?: string; status?: string }
+	filters?: { placeId?: string; status?: string; allStatuses?: boolean }
 ) {
 	return db.query.inventoryItems.findMany({
 		where: (item, { and, eq }) =>
 			and(
 				eq(item.householdId, householdId),
-				eq(
-					item.status,
-					(filters?.status ?? 'available') as 'available' | 'consumed' | 'expired' | 'donated' | 'discarded'
-				),
+				// allStatuses: alle Status laden (fuer den „Nur verfuegbare"-Toggle, G8-5c);
+				// sonst der angeforderte Status bzw. Default 'available'.
+				filters?.allStatuses
+					? undefined
+					: eq(
+							item.status,
+							(filters?.status ?? 'available') as
+								| 'available'
+								| 'consumed'
+								| 'expired'
+								| 'donated'
+								| 'discarded'
+						),
 				filters?.placeId ? eq(item.placeId, filters.placeId) : undefined
 			),
 		orderBy: [asc(inventoryItems.bestBeforeDate), desc(inventoryItems.createdAt)],

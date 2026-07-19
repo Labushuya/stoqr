@@ -9,7 +9,9 @@ export const load: PageServerLoad = async ({ locals, url }) => {
   const placeId = url.searchParams.get('placeId') ?? undefined
   const householdId = await requireHouseholdId(locals.user.id)
   const [items, locations, units, categories] = await Promise.all([
-    getInventoryItems(householdId, { placeId }),
+    // Alle Status laden, damit der „Nur verfuegbare"-Toggle clientseitig wirkt
+    // (Default: nur verfuegbare sichtbar; abgeschaltet -> auch verbraucht/gespendet/entsorgt).
+    getInventoryItems(householdId, { placeId, allStatuses: true }),
     getLocations(householdId),
     getUnits(householdId),
     getCategories(),
