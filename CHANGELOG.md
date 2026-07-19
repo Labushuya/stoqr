@@ -32,7 +32,7 @@ Hinweis: Nährwerte/Allergene liefert der Suggest NICHT — der Snapshot ist die
 spätere Ableitung.
 
 ### Commits
-G7-0 (Gebinde-Einheit) = 2964b01 · Rest von G7 folgt beim Commit
+G7-0 (Gebinde-Einheit) = 2964b01 · G7 (Snapshots/Bilder/Backup) = 062658c
 
 ---
 
