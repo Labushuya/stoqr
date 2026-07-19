@@ -391,3 +391,50 @@ export function planInventoryAdjustment(
 
   return { updates, shortfallInBase: 0, needsIncrease: false }
 }
+
+// ---------------------------------------------------------------------------
+// Gebinde-Anzeige (G7): den in ml/g gespeicherten Gebinde-Wert nutzerfreundlich
+// darstellen. mass >=1000 g -> kg, volume >=1000 ml -> l, sonst g/ml. Rein auf
+// Basis der 1000er-Skala (Basiseinheit ist g bzw. ml).
+// ---------------------------------------------------------------------------
+
+export type PackDisplay = { value: number; unitSymbol: string; unitName: string }
+
+/**
+ * Waehlt die passende Anzeige-Einheit fuer einen Gebinde-Basiswert (ml bzw. g).
+ * dimension 'mass' -> g/kg, 'volume' -> ml/l. Liefert null bei nicht-positivem
+ * Wert oder count/unbekannter Dimension (= kein Gebinde).
+ */
+export function pickPackDisplayUnit(
+  baseValue: number,
+  dimension: Dimension,
+  metaMap: Map<string, UnitMeta>
+): PackDisplay | null {
+  if (!Number.isFinite(baseValue) || baseValue <= 0) return null
+  if (dimension === 'mass') {
+    const sym = baseValue >= 1000 ? 'kg' : 'g'
+    const value = baseValue >= 1000 ? baseValue / 1000 : baseValue
+    return { value, unitSymbol: sym, unitName: nameFor(sym, metaMap, sym) }
+  }
+  if (dimension === 'volume') {
+    const sym = baseValue >= 1000 ? 'l' : 'ml'
+    const value = baseValue >= 1000 ? baseValue / 1000 : baseValue
+    return { value, unitSymbol: sym, unitName: nameFor(sym, metaMap, sym) }
+  }
+  return null
+}
+
+/**
+ * Formatiert einen Gebinde-Basiswert als „40 g" / „1,5 l" (de-DE). Leerer String
+ * bei kein Gebinde. Reine Anzeige — der gespeicherte ml/g-Wert bleibt unberuehrt.
+ */
+export function packToDisplay(
+  baseValue: number,
+  dimension: Dimension,
+  metaMap: Map<string, UnitMeta>
+): string {
+  const d = pickPackDisplayUnit(baseValue, dimension, metaMap)
+  if (!d) return ''
+  const num = d.value.toLocaleString('de-DE', { maximumFractionDigits: 3 })
+  return `${num} ${d.unitSymbol}`
+}

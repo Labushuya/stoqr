@@ -5,6 +5,7 @@
   import type { PageData } from './$types'
   import { formatDate, formatStockTotal } from '$lib/utils/format'
   import { getExpiryStatus, getDaysRemaining, getExpiryLabel, EXPIRY_CLASS } from '$lib/utils/expiry'
+  import { buildUnitMetaMap, pickPackDisplayUnit, packToDisplay, type UnitRow } from '$lib/utils/stock'
 
   // ── Props ─────────────────────────────────────────────────────────────────
 
@@ -38,6 +39,12 @@
   // svelte-ignore state_referenced_locally
   let nutrientTypes = $state<NutrientType[]>(data.nutrientTypes as NutrientType[])
   const units = $derived(data.units as Unit[])
+  // Meta-Map (dimension + toBaseFactor) fuer Gebinde-Umrechnung/-Anzeige (G7).
+  const unitMeta = $derived(buildUnitMetaMap(data.units as UnitRow[]))
+  // Waehlbare mass/volume-Einheiten fuer das Gebinde-Feld.
+  const packUnitOptions = $derived(
+    (data.units as UnitRow[]).filter((u) => u.dimension === 'mass' || u.dimension === 'volume')
+  )
   const availableStores = $derived(
     data.availableStores as { id: string; name: string; chain: string | null }[]
   )
@@ -414,34 +421,35 @@
     correctingProposalId = p.id
   }
 
-  // ── Gebinde-Größe (Einheiten v2) ──────────────────────────────────────────
+  // ── Gebinde-Größe (Einheiten v2, G7) ──────────────────────────────────────
   // Ein Gebinde macht die count-Standard-Einheit des Artikels (z.B. "Flasche")
-  // auf Volumen/Masse umrechenbar. Genau eine Dimension; leer = kein Gebinde.
-  // svelte-ignore state_referenced_locally
-  let packDim = $state<'none' | 'volume' | 'mass'>(
-    Number(product.defaultVolumeMl) > 0 ? 'volume' : Number(product.defaultWeightG) > 0 ? 'mass' : 'none'
-  )
-  // Eingabe in l bzw. kg (nutzerfreundlich); DB speichert ml bzw. g.
-  // svelte-ignore state_referenced_locally
-  let packVal = $state(
-    Number(product.defaultVolumeMl) > 0
-      ? String(Number(product.defaultVolumeMl) / 1000)
-      : Number(product.defaultWeightG) > 0
-        ? String(Number(product.defaultWeightG) / 1000)
-        : ''
-  )
+  // auf Volumen/Masse umrechenbar. Eingabe: Betrag + frei waehlbare mass/volume-
+  // Einheit (g/kg/ml/l …); DB speichert immer in ml bzw. g. '' = kein Gebinde.
+  // Ableitung des Anzeige-Werts/-Einheit aus dem gespeicherten ml/g-Wert.
+  function packStateFromProduct(): { unit: string; val: string } {
+    const vol = Number(product.defaultVolumeMl)
+    const wt = Number(product.defaultWeightG)
+    const disp = vol > 0
+      ? pickPackDisplayUnit(vol, 'volume', unitMeta)
+      : wt > 0
+        ? pickPackDisplayUnit(wt, 'mass', unitMeta)
+        : null
+    return disp
+      ? { unit: disp.unitSymbol, val: String(disp.value).replace('.', ',') }
+      : { unit: '', val: '' }
+  }
+  let packUnit = $state<string>(packStateFromProduct().unit)
+  let packVal = $state<string>(packStateFromProduct().val)
   let packSaving = $state(false)
   let packEditing = $state(false)
 
-  // Nach invalidateAll() (z.B. Standard-Einheit geaendert / angeglichen) aendert sich
-  // data.product; die lokalen Gebinde-States neu aus product ableiten, damit die
-  // Anzeige ohne Browser-Refresh stimmt. Aktive Bearbeitung nicht ueberschreiben.
+  // Nach invalidateAll() (Standard-Einheit/Gebinde geaendert / angeglichen) aendert
+  // sich data.product; die lokalen Gebinde-States neu ableiten (nicht waehrend Bearbeitung).
   $effect(() => {
     if (packEditing) return
-    const vol = Number(product.defaultVolumeMl)
-    const wt = Number(product.defaultWeightG)
-    packDim = vol > 0 ? 'volume' : wt > 0 ? 'mass' : 'none'
-    packVal = vol > 0 ? String(vol / 1000) : wt > 0 ? String(wt / 1000) : ''
+    const s = packStateFromProduct()
+    packUnit = s.unit
+    packVal = s.val
   })
 
   // ── Standard-Einheit editieren (G6) ──────────────────────────────────────
@@ -514,14 +522,17 @@
   async function savePack() {
     packSaving = true
     try {
-      // l/kg → ml/g für die Speicherung.
+      // Gewaehlte Einheit → ml/g via toBaseFactor. Leere Einheit = kein Gebinde.
+      const um = packUnit ? unitMeta.get(packUnit) : undefined
       const val = Number(String(packVal).replace(',', '.'))
-      const baseVal = packDim !== 'none' && Number.isFinite(val) && val > 0 ? val * 1000 : null
+      const hasPack = !!um && Number.isFinite(val) && val > 0
+      const baseVal = hasPack ? val * um!.toBaseFactor : null
+      const packDimension = hasPack ? um!.dimension : 'none'
       const res = await fetch(`/api/products/${product.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          packDimension: baseVal == null ? 'none' : packDim,
+          packDimension,
           packSize: baseVal,
         }),
       })
@@ -890,12 +901,11 @@
         {#if packEditing}
           <div class="pack-edit">
             <span class="pack-label">1 {unitLabel(product.defaultUnit)} =</span>
-            <input class="input pack-input" type="text" inputmode="decimal" placeholder="z.B. 1,5"
-                   bind:value={packVal} disabled={packDim === 'none'} aria-label="Gebinde-Größe" />
-            <select class="input pack-dim" bind:value={packDim} aria-label="Einheit der Gebinde-Größe">
-              <option value="none">— kein Gebinde</option>
-              <option value="volume">Liter (l)</option>
-              <option value="mass">Kilogramm (kg)</option>
+            <input class="input pack-input" type="text" inputmode="decimal" placeholder="z.B. 40"
+                   bind:value={packVal} disabled={!packUnit} aria-label="Gebinde-Größe" />
+            <select class="input pack-dim" bind:value={packUnit} aria-label="Einheit der Gebinde-Größe">
+              <option value="">— kein Gebinde</option>
+              {#each packUnitOptions as u (u.symbol)}<option value={u.symbol}>{u.name} ({u.symbol})</option>{/each}
             </select>
             <button class="btn-save-inline" type="button" disabled={packSaving} onclick={savePack}>Speichern</button>
             <button class="btn-cancel-inline" type="button" onclick={() => (packEditing = false)}>Abbrechen</button>
@@ -903,12 +913,12 @@
         {:else}
           <span class="pack-view">
             Gebinde:
-            {#if packDim === 'volume'}<strong>1 {unitLabel(product.defaultUnit)} = {(Number(product.defaultVolumeMl) / 1000).toLocaleString('de-DE', { maximumFractionDigits: 3 })} l</strong>
-            {:else if packDim === 'mass'}<strong>1 {unitLabel(product.defaultUnit)} = {(Number(product.defaultWeightG) / 1000).toLocaleString('de-DE', { maximumFractionDigits: 3 })} kg</strong>
+            {#if Number(product.defaultVolumeMl) > 0}<strong>1 {unitLabel(product.defaultUnit)} = {packToDisplay(Number(product.defaultVolumeMl), 'volume', unitMeta)}</strong>
+            {:else if Number(product.defaultWeightG) > 0}<strong>1 {unitLabel(product.defaultUnit)} = {packToDisplay(Number(product.defaultWeightG), 'mass', unitMeta)}</strong>
             {:else}<span class="pack-none">nicht hinterlegt</span>{/if}
           </span>
           <button class="target-edit-btn" type="button" onclick={() => (packEditing = true)}>
-            {packDim === 'none' ? 'Gebinde festlegen' : 'Ändern'}
+            {Number(product.defaultVolumeMl) > 0 || Number(product.defaultWeightG) > 0 ? 'Ändern' : 'Gebinde festlegen'}
           </button>
         {/if}
       </div>

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { buildUnitMetaMap, aggregateStock, compareToTarget, planInventoryAdjustment, resolveUnitMeta, buildPackSize, type UnitRow } from './stock'
+import { buildUnitMetaMap, aggregateStock, compareToTarget, planInventoryAdjustment, resolveUnitMeta, buildPackSize, pickPackDisplayUnit, packToDisplay, type UnitRow } from './stock'
 import { formatStockTotal } from './format'
 
 // Repräsentative System-Units (wie in Migration 0007 gebackfillt).
@@ -324,5 +324,29 @@ describe('planInventoryAdjustment mit packSize (FIFO in Flaschen)', () => {
     const plan = planInventoryAdjustment(items, 4500, { dimension: 'volume' }, meta, flaschePack)
     const aUpd = plan.updates.find((u) => u.id === 'a')
     expect(aUpd?.newQuantity).toBeCloseTo(1, 5) // 1 Flasche, NICHT 1500
+  })
+})
+
+describe('pickPackDisplayUnit / packToDisplay (Gebinde-Anzeige, G7)', () => {
+  it('mass < 1000 -> g', () => {
+    expect(pickPackDisplayUnit(40, 'mass', meta)).toEqual({ value: 40, unitSymbol: 'g', unitName: 'Gramm' })
+    expect(packToDisplay(40, 'mass', meta)).toBe('40 g')
+  })
+  it('mass >= 1000 -> kg', () => {
+    expect(pickPackDisplayUnit(1500, 'mass', meta)).toEqual({ value: 1.5, unitSymbol: 'kg', unitName: 'Kilogramm' })
+    expect(packToDisplay(1500, 'mass', meta)).toBe('1,5 kg')
+  })
+  it('volume < 1000 -> ml', () => {
+    expect(packToDisplay(250, 'volume', meta)).toBe('250 ml')
+  })
+  it('volume >= 1000 -> l', () => {
+    expect(pickPackDisplayUnit(1500, 'volume', meta)).toEqual({ value: 1.5, unitSymbol: 'l', unitName: 'Liter' })
+    expect(packToDisplay(1500, 'volume', meta)).toBe('1,5 l')
+  })
+  it('0 / negativ / count -> kein Gebinde', () => {
+    expect(pickPackDisplayUnit(0, 'mass', meta)).toBeNull()
+    expect(pickPackDisplayUnit(-5, 'volume', meta)).toBeNull()
+    expect(pickPackDisplayUnit(100, 'count', meta)).toBeNull()
+    expect(packToDisplay(0, 'mass', meta)).toBe('')
   })
 })
