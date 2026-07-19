@@ -3,7 +3,7 @@
 > Kanonisches Datenmodell und Entwicklungsplan. Diese Datei ist führend für Absicht,
 > Logik und Ziel von stoqr. Bei Widersprüchen zwischen Code und dieser Datei gilt diese Datei.
 
-Letzte Aktualisierung: 2026-07-19 (G7: Globus-Katalog-Snapshots + Bilder + Backup + freie Gebinde-Einheit implementiert, Test auf Pi ausstehend)
+Letzte Aktualisierung: 2026-07-20 (G8: Snapshot→Artikel-Übernahme, Markt-Merken, Update-Diagnose, On-demand-Katalog, Quick-Wins; Test auf Pi ausstehend)
 
 ---
 
@@ -222,6 +222,13 @@ Inventur (Ist erfassen) → Soll-Ist-Bedarf → Einkaufsliste (virtuelle Bestän
 ---
 
 ## Offene Punkte / noch zu testen (nicht bestätigt)
+
+**G8 (Migration 0016) — Test auf Pi ausstehend:**
+- **G8-1:** Katalog sichern → Snapshot mit Bild → „Übernehmen" (Bild angehakt) → Artikel-Detailseite zeigt das Bild; Name/Kategorie nur wenn angehakt/leer. Ohne Artikel-Match: „Übernehmen" gesperrt.
+- **G8-2:** easy-add mit Markt → Artikel-Detailseite zeigt den Markt als Bezugsquelle-Chip; nächster Bestand hat den Markt vorbelegt.
+- **G8-3:** Update-Check nennt die konkrete Ursache (z.B. „kein Internetzugang zu GitHub").
+- **G8-4:** Migration 0016 (pg_trgm/GIN, failsafe); beim Anlegen nach „mineralwasser" suchen → „Aus Globus-Katalog"-Treffer mit Bild; Auswahl legt Artikel an. Live-Suggest nur einmalig bei wenig lokalen Treffern + aktivem Abruf.
+- **G8-5:** Einkauf umbenennen persistiert; EAN auf /inventar sichtbar; „Nur verfügbare"-Toggle wirkt (verbrauchte ein-/ausblenden).
 
 **G7 — Katalog-Snapshots + Bilder + Backup + Gebinde-Einheit (Migration 0015, Volume stoqr_media) — Test auf Pi ausstehend:**
 - Container-Neustart → Migration 0015 (Tabelle globus_snapshots), `/data/media` beschreibbar (entrypoint mkdir), Volume `stoqr_media` gemountet.

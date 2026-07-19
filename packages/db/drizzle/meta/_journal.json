@@ -112,6 +112,13 @@
       "when": 1783800010000,
       "tag": "0015_globus_snapshots",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1783800011000,
+      "tag": "0016_snapshots_name_trgm",
+      "breakpoints": true
     }
   ]
 }

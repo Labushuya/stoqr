@@ -335,6 +335,25 @@ const BLOCKS = [
     ]
   },
   {
+    tag: "G8", name: "Snapshot→Artikel, Markt, On-demand-Katalog & Quick-Wins", desc: "Katalog-Daten in Artikel übernehmen, Markt merken, Update-Diagnose, Katalog-Suche beim Anlegen, Quick-Wins.",
+    items: [
+      { id: "G8-1", title: "Katalog-Snapshot in Artikel übernehmen (Bild)", steps: ["Einstellungen → Katalog-Sicherung → offener Vorschlag mit Bild.", "Feld „Bild“ ankreuzen (vorausgewählt), dann „Übernehmen“."],
+        expect: "Der zugeordnete Artikel zeigt danach das Bild (Detailseite). Name/Kategorie werden nur übernommen, wenn angehakt (bzw. Artikelfeld leer). Ohne Artikel-Match ist „Übernehmen“ gesperrt." },
+      { id: "G8-2", title: "Markt wird am Artikel gemerkt", steps: ["Bestand hinzufügen (easy-add) mit Markt „Globus“ → speichern.", "Artikel-Detailseite öffnen → Bezugsquellen-Chips prüfen. Danach erneut einen Bestand desselben Artikels anlegen."],
+        expect: "„Globus“ ist auf der Detailseite als Bezugsquelle markiert; beim erneuten Anlegen ist der Markt vorbelegt." },
+      { id: "G8-3", title: "Update-Check nennt die Ursache", steps: ["Versionsanzeige unten → Update prüfen."],
+        expect: "Statt pauschal „Prüfung nicht möglich“ die konkrete Ursache (z.B. „kein Internetzugang zu GitHub“, „GitHub-Rate-Limit“)." },
+      { id: "G8-4", title: "On-demand-Katalog-Suche beim Anlegen", steps: ["Online-Preis-Abruf aktiv + Globus-Markt mit Suggest-URL.", "Bestand hinzufügen → im Suchfeld einen Begriff tippen (z.B. „mineralwasser“)."],
+        expect: "Neben lokalen Treffern erscheint ein Block „Aus Globus-Katalog“ mit Bild; „Anlegen“ erzeugt den Artikel (Name/EAN/Bild) und wählt ihn aus. Kein Massen-Crawl." },
+      { id: "G8-5a", title: "Einkauf umbenennen", steps: ["Einkauf-Run öffnen → „Umbenennen“ → Name eingeben → Speichern."],
+        expect: "Der Name bleibt nach Reload erhalten (Titel + Breadcrumb)." },
+      { id: "G8-5b", title: "EAN auf der Inventar-Übersicht", steps: ["/inventar öffnen (Artikel mit EAN)."],
+        expect: "Die EAN wird je Karte angezeigt." },
+      { id: "G8-5c", title: "„Nur verfügbare“-Toggle wirkt", steps: ["/inventar: einen Bestand als verbraucht markieren.", "Toggle „Nur verfügbare“ aus- und wieder einschalten."],
+        expect: "Ausgeschaltet erscheinen verbrauchte/gespendete/entsorgte Bestände; eingeschaltet werden sie ausgeblendet." },
+    ]
+  },
+  {
     tag: "F2", name: "Online-Preis-Abruf & Staging", desc: "Globus-Scraping (In-App aktivierbar); abgerufene Preise landen als Vorschlag (proposed) und werden erst nach Freigabe maßgeblich. Failsafe.",
     items: [
       { id: "F2-0", title: "Online-Preis-Abruf aktivieren (In-App-Schalter)", steps: ["Einstellungen → Abschnitt „Online-Preis-Abruf“.", "Schalter „Online-Preis-Abruf aktivieren“ einschalten."],

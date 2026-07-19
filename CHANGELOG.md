@@ -5,6 +5,29 @@ Neueste Einträge oben. Jeder Eintrag nennt den Commit-Kontext, damit andere LLM
 
 ---
 
+## [Unreleased] — G8: Snapshot→Artikel + Markt-Merken + Update-Diagnose + On-demand-Katalog + Quick-Wins (implementiert, Test auf Pi ausstehend)
+
+Folge-Rückmeldungen nach G7.
+
+- **G8-1 Snapshot→Artikel:** „Übernehmen" schreibt die angekreuzten Katalog-Felder (Bild/Name/Kategorie) in den
+  zugeordneten Artikel (`applySnapshotToProduct`, `updateProduct` um `imageUrl` erweitert). Bild vorausgewählt; leere
+  Felder werden gefüllt, angekreuzte überschreiben; nur bei product_id, sonst 409. UI: Feld-Checkboxen je Vorschlag.
+- **G8-2 Markt-Merken:** Einbuchen (POST /api/inventory) merkt den Herkunftsmarkt ergänzend als Bezugsquelle am Artikel
+  (`addStoreForProduct`, product_stores, idempotent); `suggestStorePlaceForProduct` nutzt product_stores als Fallback-Hint.
+- **G8-3 Update-Diagnose:** Update-Check zeigt die konkrete Ursache (kein Internet / GitHub-Rate-Limit / Build ohne SHA)
+  statt pauschal „Prüfung nicht möglich".
+- **G8-4 On-demand-Katalog-Suche:** Migration 0016 (pg_trgm + GIN-Index auf `globus_snapshots.name`, failsafe).
+  `searchCatalogSnapshots` (lokaler Katalog) + `GET /api/catalog/search` (lokal + einmaliger Live-Suggest mit Klartext-
+  Query via `applyQueryToUrl`, +Snapshots+Bilder). easy-add zeigt „Aus Globus-Katalog"-Treffer; Auswahl legt Artikel
+  mit Name/EAN/Bild an. KEIN Massen-Crawl (Nährwerte weiter über OFF).
+- **G8-5 Quick-Wins:** Einkauf umbenennen (Run-Detailseite); EAN auf /inventar-Übersicht; „Nur verfügbare"-Toggle wirkt
+  (Loader lädt alle Status).
+
+### Commits
+G8-2/3 = 4364ea6 · G8-5 = dadc0f0 · G8-1 = f86cf01 · G8-4 folgt beim Commit
+
+---
+
 ## [Unreleased] — G7: Globus-Katalog-Snapshots + Bilder + Backup + Gebinde-Einheit (implementiert, Test auf Pi ausstehend)
 
 - **Gebinde-Einheit frei wählbar (G7-0):** der „1 Packung = …"-Selektor bot nur l/kg → jetzt Betrag + freie

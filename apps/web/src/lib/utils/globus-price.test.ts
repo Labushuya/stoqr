@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   applyEanToUrl,
+  applyQueryToUrl,
   parsePriceToCents,
   parseGlobusSuggestJson,
   extractImageUrlsByEan,
@@ -37,6 +38,19 @@ describe('applyEanToUrl', () => {
     expect(applyEanToUrl('https://x.de/{EAN}', '')).toBeNull()
     expect(applyEanToUrl('', '123')).toBeNull()
     expect(applyEanToUrl(null, '123')).toBeNull()
+  })
+})
+
+describe('applyQueryToUrl', () => {
+  it('ersetzt {EAN} durch den (encodeten) Suchbegriff', () => {
+    expect(applyQueryToUrl('https://produkte.globus.de/hockenheim/suggest?search={EAN}', 'mineralwasser classic')).toBe(
+      'https://produkte.globus.de/hockenheim/suggest?search=mineralwasser%20classic',
+    )
+  })
+  it('liefert null bei leerer Vorlage/Query', () => {
+    expect(applyQueryToUrl('https://x.de/{EAN}', '')).toBeNull()
+    expect(applyQueryToUrl('', 'cola')).toBeNull()
+    expect(applyQueryToUrl(null, 'cola')).toBeNull()
   })
 })
 

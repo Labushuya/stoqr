@@ -35,6 +35,23 @@ export function applyEanToUrl(
 }
 
 /**
+ * Setzt einen freien Suchbegriff in die Markt-Abruf-URL ein (On-demand-Katalog,
+ * G8-4). Nutzt denselben {EAN}-Platzhalter wie die EAN-Suche (der Globus-Suggest
+ * akzeptiert sowohl EAN als auch Klartext). Defensiv: leere Vorlage/Query → null.
+ */
+export function applyQueryToUrl(
+  template: string | null | undefined,
+  query: string | null | undefined,
+): string | null {
+  const tpl = typeof template === 'string' ? template.trim() : ''
+  if (tpl === '') return null
+  if (!tpl.includes(EAN_PLACEHOLDER)) return tpl
+  const q = typeof query === 'string' ? query.trim() : ''
+  if (q === '') return null
+  return tpl.split(EAN_PLACEHOLDER).join(encodeURIComponent(q))
+}
+
+/**
  * Wandelt einen Preis-String in Cent um.
  * - „0.29" → 29, „15.99" → 1599, „1,19" → 119, „2" → 200
  * - komma/punkt-tolerant; unparsbar → `null`

@@ -110,6 +110,11 @@ async function fetchSuggest(url: string): Promise<GlobusSuggestProduct[]> {
   }
 }
 
+/** Oeffentlicher Zugriff auf alle Suggest-Treffer einer URL (On-demand-Katalog-Suche, G8-4). */
+export async function fetchGlobusSuggest(url: string): Promise<GlobusSuggestProduct[]> {
+  return fetchSuggest(url)
+}
+
 /**
  * Liefert den PREIS des Treffers mit exakt passender EAN (in Cent). Kein Match
  * oder Treffer ohne Preis → null (nie throw).

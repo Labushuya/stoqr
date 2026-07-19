@@ -119,6 +119,33 @@ export async function listProposedSnapshotsForProduct(productId: string, househo
   })
 }
 
+/**
+ * Durchsucht den lokalen Katalog (globus_snapshots) nach Name oder EAN. Liefert je
+ * EAN den neuesten Eintrag (dedupe), unabhaengig vom Status (auch confirmed/rejected
+ * sind gueltige Katalog-Daten). Fuer die On-demand-Suche beim Artikel-Anlegen (G8-4).
+ */
+export async function searchCatalogSnapshots(householdId: string, q: string, limit = 20) {
+  const term = q.trim()
+  if (term === '') return []
+  const rows = await db.query.globusSnapshots.findMany({
+    where: (s, { and, eq, or, ilike }) =>
+      and(eq(s.householdId, householdId), or(ilike(s.name, `%${term}%`), eq(s.gtin, term))),
+    orderBy: [desc(globusSnapshots.fetchedAt)],
+    limit: 200,
+    columns: { id: true, gtin: true, name: true, category: true, priceCt: true, localImagePath: true },
+  })
+  // Dedupe je EAN (neuester zuerst durch orderBy), auf limit kuerzen.
+  const seen = new Set<string>()
+  const out: typeof rows = []
+  for (const r of rows) {
+    if (seen.has(r.gtin)) continue
+    seen.add(r.gtin)
+    out.push(r)
+    if (out.length >= limit) break
+  }
+  return out
+}
+
 export async function getSnapshotCounts(householdId: string) {
   const proposed = await db.query.globusSnapshots.findMany({
     where: (s, { and, eq }) => and(eq(s.householdId, householdId), eq(s.status, 'proposed')),

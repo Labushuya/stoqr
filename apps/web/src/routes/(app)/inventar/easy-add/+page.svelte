@@ -22,6 +22,15 @@
     defaultUnit?: string | null
   }
 
+  // Globus-Katalog-Treffer (On-demand, G8-4) — noch kein Artikel angelegt.
+  type CatalogResult = {
+    id: string
+    gtin: string
+    name: string | null
+    category: string[] | null
+    localImagePath: string | null
+  }
+
   type LocationTree = {
     id: string
     name: string
@@ -56,6 +65,8 @@
     (data.preselectedProduct as ProductResult | null)?.name ?? ''
   )
   let searchResults = $state<ProductResult[]>([])
+  let catalogResults = $state<CatalogResult[]>([])
+  let catalogAdding = $state<string | null>(null)
   let searchLoading = $state(false)
   // svelte-ignore state_referenced_locally
   let selectedProduct = $state<ProductResult | null>(
@@ -163,27 +174,62 @@
     const q = searchQuery.trim()
     if (!q) {
       searchResults = []
+      catalogResults = []
       return
     }
     searchDebounceTimer = setTimeout(async () => {
       searchLoading = true
       try {
-        const res = await fetch(`/api/products?q=${encodeURIComponent(q)}`)
-        if (res.ok) {
-          searchResults = await res.json()
+        const [prodRes, catRes] = await Promise.all([
+          fetch(`/api/products?q=${encodeURIComponent(q)}`),
+          fetch(`/api/catalog/search?q=${encodeURIComponent(q)}`),
+        ])
+        if (prodRes.ok) searchResults = await prodRes.json()
+        if (catRes.ok) {
+          const b = await catRes.json().catch(() => ({ results: [] }))
+          catalogResults = (b.results as CatalogResult[]) ?? []
         }
       } catch {
         // silent
       } finally {
         searchLoading = false
       }
-    }, 300)
+    }, 400)
+  }
+
+  // Katalog-Treffer -> Artikel anlegen (name/gtin/category/imageUrl) und auswaehlen.
+  async function selectCatalog(c: CatalogResult) {
+    catalogAdding = c.id
+    try {
+      const res = await fetch('/api/products', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: c.name ?? c.gtin,
+          gtin: c.gtin,
+          imageUrl: c.localImagePath ? `/media/${c.localImagePath}` : undefined,
+        }),
+      })
+      const created = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        // 409 = EAN existiert bereits: dann per Suche den vorhandenen Artikel nehmen.
+        const found = await fetch(`/api/products?q=${encodeURIComponent(c.gtin)}`).then((r) => r.ok ? r.json() : [])
+        if (Array.isArray(found) && found[0]) { selectProduct(found[0]); return }
+        return
+      }
+      selectProduct(created as ProductResult)
+    } catch {
+      // silent
+    } finally {
+      catalogAdding = null
+    }
   }
 
   function selectProduct(p: ProductResult) {
     selectedProduct = p
     searchQuery = p.name
     searchResults = []
+    catalogResults = []
     // Einheit-Vorauswahl: Standard-Einheit des Artikels uebernehmen,
     // solange der Nutzer die Einheit nicht selbst gesetzt hat und sie existiert.
     if (!unitTouched && p.defaultUnit && unitOptions.some((u) => u.symbol === p.defaultUnit)) {
@@ -228,6 +274,7 @@
     selectedProduct = null
     searchQuery = ''
     searchResults = []
+    catalogResults = []
     scannedGtin = ''
     scannerNotFound = false
     unitTouched = false
@@ -645,13 +692,38 @@
         </ul>
       {:else if searchQuery.trim().length >= 2 && !searchLoading}
         <div class="no-results">
-          <p class="no-results-text">Kein Treffer für <strong>„{searchQuery}"</strong></p>
+          <p class="no-results-text">Kein lokaler Treffer für <strong>„{searchQuery}"</strong></p>
           <a class="link-new-product" href="/inventar">
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
               <path d="M7 2v10M2 7h10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
             </svg>
             Neuen Artikel anlegen
           </a>
+        </div>
+      {/if}
+
+      <!-- Globus-Katalog-Treffer (On-demand, G8-4): Artikel per Klick anlegen -->
+      {#if catalogResults.length > 0}
+        <div class="catalog-block">
+          <p class="catalog-heading">Aus Globus-Katalog</p>
+          <ul class="results-list" role="listbox" aria-label="Katalog-Treffer">
+            {#each catalogResults as c (c.id)}
+              <li role="option" aria-selected="false">
+                <button class="result-item" type="button" disabled={catalogAdding === c.id} onclick={() => selectCatalog(c)}>
+                  {#if c.localImagePath}
+                    <img class="result-thumb" src={`/media/${c.localImagePath}`} alt="" loading="lazy" />
+                  {:else}
+                    <span class="result-icon" aria-hidden="true">🛒</span>
+                  {/if}
+                  <span class="result-info">
+                    <span class="result-name">{c.name ?? c.gtin}</span>
+                    <span class="result-brand">EAN {c.gtin}{#if c.category?.length} · {c.category.join(' › ')}{/if}</span>
+                  </span>
+                  <span class="result-cat">{catalogAdding === c.id ? '…' : 'Anlegen'}</span>
+                </button>
+              </li>
+            {/each}
+          </ul>
         </div>
       {/if}
     {/if}
@@ -1409,6 +1481,23 @@
     flex-shrink: 0;
     width: 28px;
     text-align: center;
+  }
+  .result-thumb {
+    width: 32px;
+    height: 32px;
+    object-fit: cover;
+    border-radius: var(--radius-sm);
+    flex-shrink: 0;
+    background: var(--color-surface-sunken);
+  }
+  .catalog-block { margin-top: var(--space-3); }
+  .catalog-heading {
+    font-size: var(--text-xs);
+    font-weight: 700;
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin: 0 0 var(--space-1);
   }
 
   .result-info {
