@@ -500,6 +500,10 @@
       showToast(`Angeglichen: ${b.items} Bestände (${b.converted} umgerechnet, ${b.relabeled} umbenannt)`)
       normalizeOpen = false
       await invalidateAll()
+      // Bestandsliste rendert aus lokalem $state `siblings` (nicht aus data) →
+      // nach dem Reload neu aus data.siblings uebernehmen, damit die angeglichenen
+      // Einheiten/Mengen der Bestaende ohne Browser-Refresh sichtbar sind.
+      siblings = data.siblings as Sibling[]
     } catch {
       showToast('Netzwerkfehler.', 'error')
     } finally {
