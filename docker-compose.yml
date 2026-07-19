@@ -12,8 +12,11 @@ services:
       PUBLIC_APP_URL: https://${DOMAIN}
       ENCRYPTION_KEY: ${ENCRYPTION_KEY}
       OFF_USER_AGENT: stoqr/0.1.0 (https://github.com/Labushuya/stoqr)
+      MEDIA_DIR: /data/media
       TZ: ${TZ:-Europe/Berlin}
       NODE_ENV: production
+    volumes:
+      - stoqr_media:/data/media
     depends_on:
       postgres:
         condition: service_healthy
@@ -53,6 +56,7 @@ services:
 
 volumes:
   postgres_data:
+  stoqr_media:
 
 networks:
   proxy:

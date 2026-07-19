@@ -318,6 +318,23 @@ const BLOCKS = [
     ]
   },
   {
+    tag: "G7", name: "Katalog-Snapshots, Bilder & freie Gebinde-Einheit", desc: "Freie Gebinde-Einheit (g/kg/ml/l); Globus-Katalog-Sicherung mit Historie/Approval + Bild-Download.",
+    items: [
+      { id: "G7-1", title: "Gebinde mit freier Einheit (g statt 0,04 kg)", steps: ["Artikel mit Stückzahl-Standard-Einheit (z.B. „Packung“) öffnen.", "„Gebinde festlegen“ → Betrag 40 + Einheit „Gramm (g)“ → Speichern."],
+        expect: "Anzeige „1 Packung = 40 g“ (NICHT 0,04 kg). Mit 1,5 + „Liter (l)“ → „1,5 l“. Gesamtbestand/Estimate bleiben korrekt." },
+      { id: "G7-2", title: "Katalog jetzt sichern", steps: ["Voraussetzung: Online-Preis-Abruf aktiv, Globus-Markt mit Suggest-URL, Artikel mit EAN zugeordnet.", "Einstellungen → „Katalog-Sicherung (Globus)“ → „Katalog jetzt sichern“."],
+        expect: "Ergebnis-Toast („X neu, Y unverändert…“). Für Artikel mit gefundener EAN erscheint ein Vorschlag mit Name/Kategorie/Preis und — falls vorhanden — Bild-Thumbnail." },
+      { id: "G7-3", title: "Erneuter Sync ohne Änderung", steps: ["Direkt nochmal „Katalog jetzt sichern“ (ohne dass sich bei Globus etwas geändert hat)."],
+        expect: "Ergebnis meldet „unverändert“; es entstehen KEINE neuen doppelten Vorschläge." },
+      { id: "G7-4", title: "Vorschlag übernehmen / verwerfen", steps: ["Bei einem offenen Vorschlag „Übernehmen“ bzw. „Verwerfen“ klicken."],
+        expect: "Der Vorschlag verschwindet aus der Liste; /aktivitaet zeigt den Übergang (globus_snapshots)." },
+      { id: "G7-5", title: "Bild-Anzeige (Volume)", steps: ["Einen Vorschlag mit Thumbnail betrachten; Bild-URL ist /media/…"],
+        expect: "Das Bild lädt (aus dem lokalen Volume, nur für den eigenen Haushalt sichtbar)." },
+      { id: "G7-6", title: "Failsafe / Struktur-Check", steps: ["Optional: Markt-URL kurz verbiegen oder Artikel mit nicht geführter EAN testen."],
+        expect: "Sync läuft ohne Absturz durch (übersprungen/fehlgeschlagen gezählt). Bei 0 Treffern trotz EANs erscheint die Warnung „Globus-Struktur evtl. geändert“." },
+    ]
+  },
+  {
     tag: "F2", name: "Online-Preis-Abruf & Staging", desc: "Globus-Scraping (In-App aktivierbar); abgerufene Preise landen als Vorschlag (proposed) und werden erst nach Freigabe maßgeblich. Failsafe.",
     items: [
       { id: "F2-0", title: "Online-Preis-Abruf aktivieren (In-App-Schalter)", steps: ["Einstellungen → Abschnitt „Online-Preis-Abruf“.", "Schalter „Online-Preis-Abruf aktivieren“ einschalten."],

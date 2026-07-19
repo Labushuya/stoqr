@@ -307,6 +307,69 @@ export const productPricesRelations = relations(productPrices, ({ one }) => ({
 }));
 
 // ---------------------------------------------------------------------------
+// globus_snapshots (Block G7) — Roh-Landing-Zone fuer den Online-Katalog.
+//
+// Beim Katalog-Sync wird je Artikel-EAN das komplette verifizierte Globus-
+// Suggest-JSON gespeichert (name, category, price, currency, Bild) inkl. Rohdaten.
+// Aenderung unter gleicher EAN erzeugt einen neuen 'proposed'-Snapshot, der wie
+// Preisvorschlaege bestaetigt/verworfen wird (Historie + Approval). productId/
+// storeId nullable (Landing-Zone kann vor Produkt-Match existieren).
+// ---------------------------------------------------------------------------
+
+export const globusSnapshots = pgTable(
+  'globus_snapshots',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    householdId: text('household_id')
+      .notNull()
+      .references(() => households.id),
+    productId: uuid('product_id').references(() => products.id, { onDelete: 'set null' }),
+    storeId: uuid('store_id').references(() => stores.id, { onDelete: 'set null' }),
+    gtin: varchar('gtin', { length: 14 }).notNull(),
+    name: varchar('name', { length: 255 }),
+    category: text('category').array(),
+    priceCt: integer('price_ct'), // nullable: preislose Treffer erlaubt
+    currency: varchar('currency', { length: 8 }),
+    imageRemoteUrl: text('image_remote_url'),
+    localImagePath: text('local_image_path'), // Pfad im MEDIA_DIR; null wenn kein Bild
+    rawJson: jsonb('raw_json').notNull(),
+    status: varchar('status', { length: 16 })
+      .notNull()
+      .default('proposed')
+      .$type<'proposed' | 'confirmed' | 'rejected'>(),
+    source: varchar('source', { length: 16 }).notNull().default('globus').$type<'globus'>(),
+    fetchedAt: timestamp('fetched_at').notNull().defaultNow(),
+    reviewedAt: timestamp('reviewed_at'),
+    reviewedBy: text('reviewed_by').references(() => users.id),
+    createdBy: text('created_by').references(() => users.id),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+  },
+  (table) => ({
+    gtinHouseholdIdx: index('globus_snapshots_gtin_household_idx').on(table.gtin, table.householdId),
+    productIdx: index('globus_snapshots_product_idx').on(table.productId),
+    // Max. 1 offener Vorschlag je EAN+Haushalt (verhindert Snapshot-Flut).
+    proposedUniq: uniqueIndex('globus_snapshots_proposed_uniq')
+      .on(table.gtin, table.householdId)
+      .where(sql`status = 'proposed'`),
+  })
+);
+
+export const globusSnapshotsRelations = relations(globusSnapshots, ({ one }) => ({
+  product: one(products, {
+    fields: [globusSnapshots.productId],
+    references: [products.id],
+  }),
+  store: one(stores, {
+    fields: [globusSnapshots.storeId],
+    references: [stores.id],
+  }),
+  household: one(households, {
+    fields: [globusSnapshots.householdId],
+    references: [households.id],
+  }),
+}));
+
+// ---------------------------------------------------------------------------
 // nutrient_types
 // ---------------------------------------------------------------------------
 

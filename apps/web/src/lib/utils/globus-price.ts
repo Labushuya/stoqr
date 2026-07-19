@@ -54,7 +54,11 @@ export function parsePriceToCents(value: string | number | null | undefined): nu
 export type GlobusSuggestProduct = {
   ean: string
   name: string
-  priceCt: number
+  priceCt: number | null // null = Treffer ohne (parsbaren) Preis (fuer Snapshot erlaubt)
+  category: string[]
+  currency: string | null
+  imageUrl: string | null
+  raw: unknown // vollstaendiges geparstes Suggest-JSON (fuer globus_snapshots.rawJson)
 }
 
 // HTML-Entities, die in den JSON-Attributwerten vorkommen, dekodieren.
@@ -63,20 +67,48 @@ function decodeEntities(s: string): string {
     .replace(/&quot;/g, '"')
     .replace(/&#0?39;/g, "'")
     .replace(/&apos;/g, "'")
-    .replace(/&amp;/g, '&')
+    .replace(/&auml;/g, 'ä')
+    .replace(/&ouml;/g, 'ö')
+    .replace(/&uuml;/g, 'ü')
+    .replace(/&Auml;/g, 'Ä')
+    .replace(/&Ouml;/g, 'Ö')
+    .replace(/&Uuml;/g, 'Ü')
+    .replace(/&szlig;/g, 'ß')
+    .replace(/&euro;/g, '€')
+    .replace(/&nbsp;/g, ' ')
     .replace(/&lt;/g, '<')
     .replace(/&gt;/g, '>')
-    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+}
+
+/**
+ * Extrahiert je EAN die Produktbild-URL aus dem Suggest-HTML. Globus benennt die
+ * Bilder nach der EAM (`…/media/…/{EAN}_….jpg`), daher Zuordnung ueber die EAN
+ * im Dateinamen. Defensiv: kein Input / keine Bilder → leere Map.
+ */
+export function extractImageUrlsByEan(html: string | null | undefined): Map<string, string> {
+  const map = new Map<string, string>()
+  if (typeof html !== 'string' || html.length === 0) return map
+  const re = /<img[^>]+src="([^"]*\/(\d{8,14})_[^"]*\.(?:jpe?g|png|webp)(?:\?[^"]*)?)"/gi
+  let m: RegExpExecArray | null
+  while ((m = re.exec(html)) !== null) {
+    const url = m[1]
+    const ean = m[2]
+    if (ean && url && !map.has(ean)) map.set(ean, url)
+  }
+  return map
 }
 
 /**
  * Extrahiert alle Suggest-Treffer aus dem Globus-Suggest-HTML. Liest die
  * `data-etracker-search-suggest-product`-JSON-Objekte, dekodiert HTML-Entities,
- * parst sie einzeln (ein defekter Treffer verwirft nicht die uebrigen).
+ * parst sie einzeln (ein defekter Treffer verwirft nicht die uebrigen) und ordnet
+ * je EAN die Bild-URL zu. Preislose Treffer bleiben erhalten (priceCt=null).
  * Defensiv: kein Input / keine Treffer → `[]`.
  */
 export function parseGlobusSuggestJson(html: string | null | undefined): GlobusSuggestProduct[] {
   if (typeof html !== 'string' || html.length === 0) return []
+  const imgByEan = extractImageUrlsByEan(html)
   const results: GlobusSuggestProduct[] = []
   // Attributwert steht in einfachen ODER doppelten Quotes.
   const re = new RegExp(`${SUGGEST_ATTR}=(?:'([^']*)'|"([^"]*)")`, 'g')
@@ -85,16 +117,31 @@ export function parseGlobusSuggestJson(html: string | null | undefined): GlobusS
     const raw = m[1] ?? m[2] ?? ''
     if (!raw) continue
     try {
-      const obj = JSON.parse(decodeEntities(raw)) as {
+      const decoded = decodeEntities(raw)
+      const obj = JSON.parse(decoded) as {
         id?: unknown
         name?: unknown
         price?: unknown
+        category?: unknown
+        currency?: unknown
       }
       const ean = typeof obj.id === 'string' ? obj.id.trim() : ''
+      if (ean === '') continue
       const name = typeof obj.name === 'string' ? decodeEntities(obj.name).trim() : ''
       const priceCt = parsePriceToCents(obj.price as string | number | undefined)
-      if (ean === '' || priceCt === null || priceCt <= 0) continue
-      results.push({ ean, name, priceCt })
+      const category = Array.isArray(obj.category)
+        ? obj.category.filter((c): c is string => typeof c === 'string').map((c) => decodeEntities(c))
+        : []
+      const currency = typeof obj.currency === 'string' ? obj.currency : null
+      results.push({
+        ean,
+        name,
+        priceCt: priceCt !== null && priceCt > 0 ? priceCt : null,
+        category,
+        currency,
+        imageUrl: imgByEan.get(ean) ?? null,
+        raw: obj,
+      })
     } catch {
       // defekter Treffer → ueberspringen
     }

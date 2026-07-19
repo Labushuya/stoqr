@@ -1,5 +1,7 @@
 <script lang="ts">
   import { enhance } from '$app/forms'
+  import { invalidateAll } from '$app/navigation'
+  import { toast } from '$lib/stores/toast'
   import type { PageData, ActionData } from './$types'
 
   // ── Props ──────────────────────────────────────────────────────────────────
@@ -20,6 +22,68 @@
   // svelte-ignore state_referenced_locally
   let priceScrapeEnabled = $state(data.priceScrapeEnabled ?? false)
   let priceScrapeSaving = $state(false)
+
+  // ── Katalog-Sicherung (Globus-Snapshots, G7) ─────────────────────────────────
+  type Snapshot = {
+    id: string
+    gtin: string
+    name: string | null
+    category: string[] | null
+    priceCt: number | null
+    currency: string | null
+    localImagePath: string | null
+    product: { id: string; name: string } | null
+  }
+  // svelte-ignore state_referenced_locally
+  let proposedSnapshots = $state<Snapshot[]>((data.proposedSnapshots as Snapshot[]) ?? [])
+  let syncing = $state(false)
+  let snapshotBusy = $state<string | null>(null)
+
+  function fmtSnapPrice(ct: number | null): string {
+    if (ct == null) return '—'
+    return (ct / 100).toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })
+  }
+
+  async function runCatalogSync() {
+    syncing = true
+    try {
+      const res = await fetch('/api/catalog/sync', { method: 'POST' })
+      const b = await res.json().catch(() => ({}))
+      if (!res.ok) { toast.error(String(b?.error ?? `Fehler ${res.status}`)); return }
+      const parts = [`${b.proposedCreated ?? 0} neu`, `${b.unchanged ?? 0} unverändert`]
+      if (b.skipped) parts.push(`${b.skipped} übersprungen`)
+      if (b.failed) parts.push(`${b.failed} fehlgeschlagen`)
+      toast.success(parts.join(', '))
+      if (b.structureWarning) {
+        toast.error('Achtung: keine Treffer trotz EANs — Globus-Struktur evtl. geändert.')
+      }
+      await invalidateAll()
+      proposedSnapshots = (data.proposedSnapshots as Snapshot[]) ?? []
+    } catch {
+      toast.error('Netzwerkfehler beim Katalog-Abruf.')
+    } finally {
+      syncing = false
+    }
+  }
+
+  async function reviewSnapshot(id: string, action: 'confirm' | 'reject') {
+    snapshotBusy = id
+    try {
+      const res = await fetch(`/api/catalog/snapshots/${id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action }),
+      })
+      const b = await res.json().catch(() => ({}))
+      if (!res.ok) { toast.error(String(b?.error ?? `Fehler ${res.status}`)); return }
+      toast.success(action === 'confirm' ? 'Snapshot übernommen' : 'Snapshot verworfen')
+      proposedSnapshots = proposedSnapshots.filter((s) => s.id !== id)
+    } catch {
+      toast.error('Netzwerkfehler.')
+    } finally {
+      snapshotBusy = null
+    }
+  }
 
   // ── Category tolerance state ───────────────────────────────────────────────
 
@@ -305,6 +369,60 @@
         </p>
       {/if}
     </form>
+  </section>
+
+  <!-- ── Section: Katalog-Sicherung (Globus-Snapshots, G7) ──────────────── -->
+
+  <section class="settings-section">
+    <div class="section-header">
+      <h2 class="section-title">
+        <span class="section-icon" aria-hidden="true">
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+            <path d="M3 5.5C3 4 5.7 3 9 3s6 1 6 2.5M3 5.5V13c0 1.5 2.7 2.5 6 2.5s6-1 6-2.5V5.5M3 9.25c0 1.5 2.7 2.5 6 2.5s6-1 6-2.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+          </svg>
+        </span>
+        Katalog-Sicherung (Globus)
+      </h2>
+      <p class="section-desc">
+        Sichert je Artikel mit EAN die aktuellen Globus-Katalogdaten (Name, Kategorie, Preis, Bild)
+        als lokalen Snapshot. Änderungen werden als Vorschlag angezeigt und müssen bestätigt werden.
+        Voraussetzung: Online-Preis-Abruf aktiv + Markt mit Abruf-URL.
+      </p>
+    </div>
+
+    <div class="form-footer">
+      <button class="btn-primary" type="button" disabled={syncing} onclick={runCatalogSync}>
+        {#if syncing}<span class="spinner" aria-hidden="true"></span> Sichere Katalog…{:else}Katalog jetzt sichern{/if}
+      </button>
+    </div>
+
+    {#if proposedSnapshots.length > 0}
+      <div class="snap-list">
+        <h3 class="snap-heading">Offene Vorschläge ({proposedSnapshots.length})</h3>
+        {#each proposedSnapshots as s (s.id)}
+          <div class="snap-item">
+            {#if s.localImagePath}
+              <img class="snap-thumb" src={`/media/${s.localImagePath}`} alt="" loading="lazy" />
+            {:else}
+              <div class="snap-thumb snap-thumb--empty" aria-hidden="true"></div>
+            {/if}
+            <div class="snap-info">
+              <span class="snap-name">{s.name ?? '(ohne Name)'}</span>
+              <span class="snap-meta">
+                EAN {s.gtin}
+                {#if s.priceCt != null} · {fmtSnapPrice(s.priceCt)}{/if}
+                {#if s.category?.length} · {s.category.join(' › ')}{/if}
+                {#if s.product} · Artikel: {s.product.name}{:else} · (kein Artikel-Match){/if}
+              </span>
+            </div>
+            <div class="snap-actions">
+              <button class="btn-save-inline" type="button" disabled={snapshotBusy === s.id} onclick={() => reviewSnapshot(s.id, 'confirm')}>Übernehmen</button>
+              <button class="btn-cancel-inline" type="button" disabled={snapshotBusy === s.id} onclick={() => reviewSnapshot(s.id, 'reject')}>Verwerfen</button>
+            </div>
+          </div>
+        {/each}
+      </div>
+    {/if}
   </section>
 
   <!-- ── Section 2: MHD-Toleranz nach Kategorie ─────────────────────────── -->
@@ -616,6 +734,17 @@
     margin: 0;
     line-height: 1.6;
   }
+
+  /* ── Katalog-Snapshots (G7) ───────────────────────────────────────────── */
+  .snap-list { margin-top: var(--space-5); display: flex; flex-direction: column; gap: var(--space-2); }
+  .snap-heading { font-size: var(--text-sm); font-weight: 700; color: var(--color-text-primary); margin: 0 0 var(--space-1); }
+  .snap-item { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-2) var(--space-3); border: 1px solid var(--color-border); border-radius: var(--radius-md); }
+  .snap-thumb { width: 40px; height: 40px; object-fit: cover; border-radius: var(--radius-sm); flex-shrink: 0; background: var(--color-surface-sunken); }
+  .snap-thumb--empty { border: 1px dashed var(--color-border); }
+  .snap-info { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+  .snap-name { font-size: var(--text-sm); font-weight: 600; color: var(--color-text-primary); }
+  .snap-meta { font-size: var(--text-xs); color: var(--color-text-muted); }
+  .snap-actions { display: flex; gap: var(--space-2); flex-shrink: 0; }
 
   .toggle-row {
     display: flex;
@@ -959,8 +1088,7 @@
     align-items: center;
     gap: var(--space-1);
     height: 30px;
-    padding: 0 var(--space-3);
-    border-radius: var(--radius-md);
+    padding: 0 var(--space-3);    border-radius: var(--radius-md);
     border: none;
     background-color: var(--color-primary);
     color: var(--color-text-inverse);

@@ -5,6 +5,37 @@ Neueste Einträge oben. Jeder Eintrag nennt den Commit-Kontext, damit andere LLM
 
 ---
 
+## [Unreleased] — G7: Globus-Katalog-Snapshots + Bilder + Backup + Gebinde-Einheit (implementiert, Test auf Pi ausstehend)
+
+- **Gebinde-Einheit frei wählbar (G7-0):** der „1 Packung = …"-Selektor bot nur l/kg → jetzt Betrag + freie
+  mass/volume-Einheit (g/kg/ml/l); intern weiter ml/g (`baseVal = val * toBaseFactor`). Anzeige heuristisch
+  (`pickPackDisplayUnit`/`packToDisplay` in stock.ts, +5 Vitest). 40 g bleibt „40 g". Keine Migration.
+- **globus_snapshots (Migration 0015):** append-only Roh-Landing-Zone für den Online-Katalog mit Historie + Approval
+  (status proposed/confirmed/rejected, partieller proposed-Unique je EAN+Haushalt). Speichert das komplette
+  Suggest-JSON (name, category[], priceCt, currency, Bild-URL, rawJson). product_id/store_id nullable.
+- **Parser erweitert:** `parseGlobusSuggestJson` liefert jetzt category/currency/imageUrl/raw (Bild via EAN im
+  Dateinamen, `extractImageUrlsByEan`); preislose Treffer bleiben erhalten (`priceCt` nullable). Umlaut-Entities
+  dekodiert. `scrapeGlobusPrice` bleibt preis-strikt (Guard), neue `scrapeGlobusSnapshot(url,gtin)→{product,totalHits}`.
+- **Bilder als Datei im Volume:** `lib/server/media` lädt Bilder failsafe (8s, Content-Type/Größe, atomar) unter
+  `{household}/{gtin}.ext`; DB speichert nur den Pfad. Neues Docker-Volume `stoqr_media` (+ `MEDIA_DIR`, entrypoint-mkdir).
+  Ausliefer-Route `/media/[...path]` (auth + household-scope + Traversal-Guard, `resolveMediaPath` +4 Vitest).
+- **Query-Layer** `globus-snapshots.ts`: `recordSnapshot` (Diff via `snapshotDiffers` +6 Vitest; nur bei Änderung neuer
+  Vorschlag, alter superseded), list/confirm/reject/counts.
+- **Katalog-Sync** `POST /api/catalog/sync`: sequenziell + rate-limitiert über alle Artikel mit EAN + Markt-URL;
+  Bild-Download + Snapshot; Aggregat `{proposedCreated, unchanged, skipped, failed, structureWarning}`.
+  Struktur-Check warnt, wenn trotz EANs 0 Treffer (Globus-Format geändert). Review-Endpoint
+  `POST /api/catalog/snapshots/[id]`.
+- **Einstellungen-UI:** Section „Katalog-Sicherung (Globus)" mit Sync-Button + Review-Liste (Thumbnail,
+  Übernehmen/Verwerfen).
+
+Hinweis: Nährwerte/Allergene liefert der Suggest NICHT — der Snapshot ist die Roh-Landing-Zone (`rawJson`) für eine
+spätere Ableitung.
+
+### Commits
+G7-0 (Gebinde-Einheit) = 2964b01 · Rest von G7 folgt beim Commit
+
+---
+
 ## [Unreleased] — G6-Politur: Reaktivität + Toggle-Feedback (implementiert, Test auf Pi ausstehend)
 
 Feinschliff nach dem 73/73-Testlauf (drei Anmerkungen):

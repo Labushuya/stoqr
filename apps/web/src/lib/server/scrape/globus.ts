@@ -13,7 +13,7 @@ import { env } from '$env/dynamic/private'
 import { eq } from 'drizzle-orm'
 import { db } from '$lib/server/db'
 import { expiryConfig } from '@stoqr/db'
-import { applyEanToUrl, parseGlobusSuggestJson, matchSuggestByEan } from '$lib/utils/globus-price'
+import { applyEanToUrl, parseGlobusSuggestJson, matchSuggestByEan, type GlobusSuggestProduct } from '$lib/utils/globus-price'
 
 const TIMEOUT_MS = 8000
 const DEFAULT_USER_AGENT =
@@ -79,11 +79,11 @@ function hostOf(url: string): string {
 }
 
 /**
- * Ruft den Globus-Suggest-Endpunkt ab und liefert den Preis des Treffers mit
- * exakt passender EAN (in Cent). Gibt bei JEDEM Fehler, leerem Ergebnis oder
- * fehlendem EAN-Match `null` zurueck (nie throw).
+ * Ruft den Globus-Suggest-Endpunkt ab und parst alle Treffer. Gemeinsame Basis
+ * fuer Preis-Abruf und Katalog-Snapshot. Bei JEDEM Fehler → leeres Ergebnis
+ * (nie throw). `totalHits` = Anzahl geparster Treffer (fuer den Struktur-Check).
  */
-export async function scrapeGlobusPrice(url: string, gtin: string): Promise<ScrapedPrice | null> {
+async function fetchSuggest(url: string): Promise<GlobusSuggestProduct[]> {
   const ctrl = new AbortController()
   const t = setTimeout(() => ctrl.abort(), TIMEOUT_MS)
   try {
@@ -98,23 +98,37 @@ export async function scrapeGlobusPrice(url: string, gtin: string): Promise<Scra
     })
     if (!res.ok) {
       console.warn(`[scrape/globus] ${hostOf(url)} → HTTP ${res.status}`)
-      return null
+      return []
     }
-    const html = await res.text()
-    const products = parseGlobusSuggestJson(html)
-    const match = matchSuggestByEan(products, gtin)
-    if (!match) {
-      console.warn(
-        `[scrape/globus] ${hostOf(url)} → kein Treffer fuer EAN ${gtin} (${products.length} Treffer gesamt)`,
-      )
-      return null
-    }
-    return { priceCt: match.priceCt, name: match.name, ean: match.ean }
+    return parseGlobusSuggestJson(await res.text())
   } catch (err) {
     const reason = err instanceof Error ? err.name : 'unknown'
     console.warn(`[scrape/globus] ${hostOf(url)} → Fehler (${reason})`)
-    return null
+    return []
   } finally {
     clearTimeout(t)
   }
+}
+
+/**
+ * Liefert den PREIS des Treffers mit exakt passender EAN (in Cent). Kein Match
+ * oder Treffer ohne Preis → null (nie throw).
+ */
+export async function scrapeGlobusPrice(url: string, gtin: string): Promise<ScrapedPrice | null> {
+  const match = matchSuggestByEan(await fetchSuggest(url), gtin)
+  if (!match || match.priceCt == null) return null
+  return { priceCt: match.priceCt, name: match.name, ean: match.ean }
+}
+
+/**
+ * Liefert den kompletten Katalog-Treffer (inkl. category/currency/imageUrl/raw,
+ * auch ohne Preis) mit exakt passender EAN + Gesamt-Trefferzahl (fuer den
+ * Struktur-Check des Katalog-Syncs). Kein Fehler wird geworfen.
+ */
+export async function scrapeGlobusSnapshot(
+  url: string,
+  gtin: string,
+): Promise<{ product: GlobusSuggestProduct | null; totalHits: number }> {
+  const products = await fetchSuggest(url)
+  return { product: matchSuggestByEan(products, gtin), totalHits: products.length }
 }

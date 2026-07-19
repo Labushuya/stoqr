@@ -9,9 +9,12 @@ services:
       BETTER_AUTH_URL: http://localhost:3000
       PUBLIC_APP_URL: http://localhost:3000
       ENCRYPTION_KEY: 0000000000000000000000000000000000000000000000000000000000000000
+      MEDIA_DIR: /data/media
       NODE_ENV: development
     ports:
       - "3000:3000"
+    volumes:
+      - stoqr_media_dev:/data/media
     depends_on:
       postgres:
         condition: service_healthy
@@ -38,6 +41,7 @@ services:
 
 volumes:
   postgres_dev_data:
+  stoqr_media_dev:
 
 networks:
   internal:

@@ -105,6 +105,13 @@
       "when": 1783800009000,
       "tag": "0014_price_scrape_settings",
       "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1783800010000,
+      "tag": "0015_globus_snapshots",
+      "breakpoints": true
     }
   ]
 }

@@ -3,7 +3,7 @@
 > Kanonisches Datenmodell und Entwicklungsplan. Diese Datei ist führend für Absicht,
 > Logik und Ziel von stoqr. Bei Widersprüchen zwischen Code und dieser Datei gilt diese Datei.
 
-Letzte Aktualisierung: 2026-07-19 (G6: Einheiten-Fixes — Preis-Einheit aus Beständen, editierbare Standard-Einheit, Angleichung; Test auf Pi ausstehend)
+Letzte Aktualisierung: 2026-07-19 (G7: Globus-Katalog-Snapshots + Bilder + Backup + freie Gebinde-Einheit implementiert, Test auf Pi ausstehend)
 
 ---
 
@@ -222,6 +222,14 @@ Inventur (Ist erfassen) → Soll-Ist-Bedarf → Einkaufsliste (virtuelle Bestän
 ---
 
 ## Offene Punkte / noch zu testen (nicht bestätigt)
+
+**G7 — Katalog-Snapshots + Bilder + Backup + Gebinde-Einheit (Migration 0015, Volume stoqr_media) — Test auf Pi ausstehend:**
+- Container-Neustart → Migration 0015 (Tabelle globus_snapshots), `/data/media` beschreibbar (entrypoint mkdir), Volume `stoqr_media` gemountet.
+- **Gebinde:** Artikel mit count-Standard-Einheit → „Gebinde festlegen" → 40 + „Gramm (g)" → Anzeige „1 Packung = 40 g" (nicht 0,04 kg); 1,5 + „Liter (l)" → „1,5 l".
+- **Sync:** Online-Preis-Abruf aktiv + Globus-Markt mit Suggest-URL, Artikel mit EAN zugeordnet → Einstellungen → „Katalog jetzt sichern" → Vorschläge (Name/Kategorie/Preis/Bild) erscheinen; Bild-Thumbnail lädt über /media. Erneuter Sync ohne Änderung → „unverändert". Geänderter Wert → neuer Vorschlag.
+- **Review:** Snapshot „Übernehmen"/„Verwerfen" → verschwindet aus der Liste; /aktivitaet zeigt die Übergänge.
+- **Struktur-Check:** bei 0 Treffern trotz vorhandener EANs → Warnung „Globus-Struktur evtl. geändert".
+- **Failsafe:** kein Bild / Netzwerkfehler bei einzelnen Artikeln → Sync läuft durch (skipped/failed), kein Crash.
 
 **G6 — Einheiten-Fixes — Test auf Pi ausstehend:**
 - Preisvorschlag nutzt die Einheit der vorhandenen Bestände (z.B. „Packung"), nicht mehr eine alte custom-Einheit („blihn").

@@ -3,6 +3,7 @@ import {
   applyEanToUrl,
   parsePriceToCents,
   parseGlobusSuggestJson,
+  extractImageUrlsByEan,
   matchSuggestByEan,
 } from './globus-price'
 
@@ -13,6 +14,7 @@ const REAL_SUGGEST_HTML = `
   <div class="search-suggest suggest-products">
     <a class="search-suggest-product js-result">
       <input type="hidden" data-etracker-search-suggest-product='{"id":"4306188415978","name":"Mineralwasser, Classic","category":["Men&uuml;","Getr&auml;nke","Wasser","Mineralwasser"],"price":"0.29","currency":"EUR"}'>
+      <img src="https://produkte.globus.de/media/29/77/06/1774332551/4306188415978_f33fc833.jpg?1774332551">
       <div class="col search-suggest-product-name">Mineralwasser, Classic</div>
       <span class="search-suggest-product-price">0,29&nbsp;&euro;</span>
     </a>
@@ -58,13 +60,33 @@ describe('parsePriceToCents', () => {
   })
 })
 
+describe('extractImageUrlsByEan', () => {
+  it('ordnet Bild-URL der EAN im Dateinamen zu', () => {
+    const m = extractImageUrlsByEan(REAL_SUGGEST_HTML)
+    expect(m.get('4306188415978')).toContain('4306188415978_f33fc833.jpg')
+  })
+  it('leere Map ohne Bilder/Input', () => {
+    expect(extractImageUrlsByEan('').size).toBe(0)
+    expect(extractImageUrlsByEan(null).size).toBe(0)
+  })
+})
+
 describe('parseGlobusSuggestJson', () => {
-  it('extrahiert alle Treffer aus echtem Suggest-HTML', () => {
+  it('extrahiert Treffer inkl. category/currency/imageUrl/raw', () => {
     const r = parseGlobusSuggestJson(REAL_SUGGEST_HTML)
     expect(r).toHaveLength(2)
-    expect(r[0]).toEqual({ ean: '4306188415978', name: 'Mineralwasser, Classic', priceCt: 29 })
+    expect(r[0]).toMatchObject({
+      ean: '4306188415978',
+      name: 'Mineralwasser, Classic',
+      priceCt: 29,
+      category: ['Menü', 'Getränke', 'Wasser', 'Mineralwasser'],
+      currency: 'EUR',
+    })
+    expect(r[0].imageUrl).toContain('4306188415978_f33fc833.jpg')
+    expect(r[0].raw).toBeTruthy()
     expect(r[1].ean).toBe('5449000017987')
     expect(r[1].priceCt).toBe(1599)
+    expect(r[1].imageUrl).toBeNull() // kein <img> fuer diesen Treffer
   })
   it('dekodiert HTML-Entities im Namen', () => {
     const r = parseGlobusSuggestJson(REAL_SUGGEST_HTML)
@@ -81,13 +103,16 @@ describe('parseGlobusSuggestJson', () => {
       <input data-etracker-search-suggest-product='{kaputt'>
       <input data-etracker-search-suggest-product='{"id":"111","name":"Gut","price":"1.00"}'>`
     const r = parseGlobusSuggestJson(html)
-    expect(r).toEqual([{ ean: '111', name: 'Gut', priceCt: 100 }])
+    expect(r).toHaveLength(1)
+    expect(r[0]).toMatchObject({ ean: '111', name: 'Gut', priceCt: 100 })
   })
-  it('ignoriert Treffer ohne EAN oder ohne gueltigen Preis', () => {
+  it('behaelt preislose Treffer mit priceCt=null (fuer Snapshot), verwirft nur fehlende EAN', () => {
     const html = `
       <input data-etracker-search-suggest-product='{"name":"kein id","price":"1.00"}'>
-      <input data-etracker-search-suggest-product='{"id":"222","price":"0"}'>`
-    expect(parseGlobusSuggestJson(html)).toEqual([])
+      <input data-etracker-search-suggest-product='{"id":"222","name":"Ohne Preis","price":"0"}'>`
+    const r = parseGlobusSuggestJson(html)
+    expect(r).toHaveLength(1)
+    expect(r[0]).toMatchObject({ ean: '222', priceCt: null })
   })
 })
 
