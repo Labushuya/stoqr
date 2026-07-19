@@ -3,7 +3,7 @@
 > Kanonisches Datenmodell und Entwicklungsplan. Diese Datei ist führend für Absicht,
 > Logik und Ziel von stoqr. Bei Widersprüchen zwischen Code und dieser Datei gilt diese Datei.
 
-Letzte Aktualisierung: 2026-07-19 (G5: Globus-Scraper korrekt gebaut — Suggest-Endpunkt + JSON, am echten HTML verifiziert; Test auf Pi ausstehend)
+Letzte Aktualisierung: 2026-07-19 (G6: Einheiten-Fixes — Preis-Einheit aus Beständen, editierbare Standard-Einheit, Angleichung; Test auf Pi ausstehend)
 
 ---
 
@@ -222,6 +222,16 @@ Inventur (Ist erfassen) → Soll-Ist-Bedarf → Einkaufsliste (virtuelle Bestän
 ---
 
 ## Offene Punkte / noch zu testen (nicht bestätigt)
+
+**G6 — Einheiten-Fixes — Test auf Pi ausstehend:**
+- Preisvorschlag nutzt die Einheit der vorhandenen Bestände (z.B. „Packung"), nicht mehr eine alte custom-Einheit („blihn").
+- Artikel-Detailseite: „Standard-Einheit" ist jetzt per Selektor änderbar (behebt den eingefrorenen defaultUnit).
+- „Alle angleichen…"-Dialog: Zieleinheit wählen, Modus „nur umbenennen" oder „Menge umrechnen" (mit Beispielen). Setzt Artikel + alle Bestände (auch verbraucht/gespendet/entsorgt) auf die Einheit; convert rechnet 500 g→0,5 kg, bei Stückzahl nur umbenennen.
+
+**Geplant (noch nicht gebaut) — G7: Globus-Katalog-Snapshot + Bilder + Backup:** eigene Tabelle `globus_snapshots`
+(append-only, status proposed/confirmed/rejected, volle JSON-Historie + Approval wie Preise); Produktbilder als Datei in
+neues Docker-Volume (`stoqr_media`, DB nur Pfad); Katalog-Sync + Struktur-Check in Einstellungen; speist später
+Nährwerte/Allergene/Preise. Parser um category/currency/imageUrl/rawJson erweitern. (Nach G6-Test, eigener Plan.)
 
 **G5 — Globus-Scraper (Suggest-Endpunkt) — Test auf Pi ausstehend:**
 - Markt „Globus" → Abruf-URL `https://produkte.globus.de/hockenheim/suggest?search={EAN}` (Anleitung im Feld).

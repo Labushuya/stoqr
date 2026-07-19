@@ -5,6 +5,26 @@ Neueste Einträge oben. Jeder Eintrag nennt den Commit-Kontext, damit andere LLM
 
 ---
 
+## [Unreleased] — G6: Einheiten-Fixes (Preis-Einheit, editierbare Standard-Einheit, Angleichung) (implementiert, Test auf Pi ausstehend)
+
+Behebt den „falsche Einheit im Preisvorschlag" (blihn statt Packung) und macht die eingefrorene Standard-Einheit wieder pflegbar.
+
+- **Preis-Vorschlags-Einheit** kommt jetzt aus der **häufigsten verwendeten Bestands-Einheit** (nur `available`) →
+  Fallback `defaultUnit` → `piece`. `suggestStockUnitForProduct` (products.ts, `mostFrequent` auf Modul-Ebene gezogen).
+  Fetch + Fetch-all nutzen sie. Behebt „blihn"-Vorschlag bei Artikeln, deren defaultUnit alt/falsch ist.
+- **Standard-Einheit editierbar:** Auf der Artikel-Detailseite ein „Standard-Einheit"-Selektor (PATCH /api/products/[id]
+  {defaultUnit}). Ursache des Bugs: kein Formular konnte defaultUnit ändern und die easy-add-Automatik greift nur bei
+  leerem/`piece`-Default → einmal „blihn", für immer „blihn". Jetzt manuell änderbar.
+- **Quick-Win „Alle angleichen":** `POST /api/products/[id]/normalize-unit {unit, mode}` setzt defaultUnit + ALLE
+  Bestände (jeder Status: available/consumed/donated/discarded/expired) auf eine Einheit. Modus **relabel** (nur Label)
+  oder **convert** (Menge via toBaseFactor umrechnen, wo mass/volume-Dimension passt; sonst relabel). Dialog erklärt
+  beide Optionen mit konkreten Beispielen (500 g→0,5 kg / 2 Packung→2 Stück). Audit.
+
+### Commits
+(folgt beim Commit)
+
+---
+
 ## [Unreleased] — G5: Globus-Scraper korrekt gebaut (Suggest-Endpunkt + JSON) (implementiert, Test auf Pi ausstehend)
 
 Der bisherige Scraper funktionierte nie: er lud die Globus-`/search`-Seite (rendert Produkte erst per JS → leeres HTML)

@@ -110,26 +110,26 @@ export async function listInventoryForProduct(productId: string, householdId: st
 // (Block C: neue Bestaende erben bekannte Werte desselben Artikels)
 // ---------------------------------------------------------------------------
 
+// Haeufigsten Wert bestimmen; bei Gleichstand gewinnt der zuerst gesehene
+// (Liste ist nach createdAt desc sekundaer sortiert → juengster zuerst).
+function mostFrequent<T>(values: (T | null | undefined)[]): T | null {
+	const counts = new Map<T, number>();
+	let best: T | null = null;
+	let bestCount = 0;
+	for (const v of values) {
+		if (v == null) continue;
+		const c = (counts.get(v) ?? 0) + 1;
+		counts.set(v, c);
+		if (c > bestCount) {
+			best = v;
+			bestCount = c;
+		}
+	}
+	return best;
+}
+
 export async function suggestStorePlaceForProduct(productId: string, householdId: string) {
 	const items = await listInventoryForProduct(productId, householdId);
-
-	// Haeufigsten Wert bestimmen; bei Gleichstand gewinnt der zuerst gesehene
-	// (Liste ist nach createdAt desc sekundaer sortiert → juengster zuerst).
-	function mostFrequent<T>(values: (T | null | undefined)[]): T | null {
-		const counts = new Map<T, number>();
-		let best: T | null = null;
-		let bestCount = 0;
-		for (const v of values) {
-			if (v == null) continue;
-			const c = (counts.get(v) ?? 0) + 1;
-			counts.set(v, c);
-			if (c > bestCount) {
-				best = v;
-				bestCount = c;
-			}
-		}
-		return best;
-	}
 
 	const placeId = mostFrequent(items.map((i) => i.place?.id));
 	const storeId = mostFrequent(items.map((i) => i.store?.id));
@@ -144,6 +144,20 @@ export async function suggestStorePlaceForProduct(productId: string, householdId
 	}
 
 	return { locationId, storageId, placeId, storeId };
+}
+
+/**
+ * Haeufigste Einheit der VERFUEGBAREN Bestaende eines Artikels (fuer die
+ * Preis-Vorschlags-Einheit). Nur `available` zaehlt, damit konsumierte/
+ * entsorgte Altbestaende die Einheit nicht in eine veraltete ziehen.
+ * Kein Bestand → null (Aufrufer faellt auf defaultUnit/'piece' zurueck).
+ */
+export async function suggestStockUnitForProduct(
+	productId: string,
+	householdId: string
+): Promise<string | null> {
+	const items = await listInventoryForProduct(productId, householdId);
+	return mostFrequent(items.filter((i) => i.status === 'available').map((i) => i.unit));
 }
 
 // ---------------------------------------------------------------------------

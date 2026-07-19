@@ -6,6 +6,7 @@ import { eq, and } from 'drizzle-orm'
 import { requireHouseholdId } from '$lib/server/queries/households'
 import { writeAudit } from '$lib/server/queries/audit'
 import { recordProposedPrice } from '$lib/server/queries/prices'
+import { suggestStockUnitForProduct } from '$lib/server/queries/products'
 import { scrapeGlobusPrice, isPriceScrapeEnabled, resolveScrapeUrl } from '$lib/server/scrape/globus'
 
 // ---------------------------------------------------------------------------
@@ -50,12 +51,16 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
     const parsed = await scrapeGlobusPrice(url, product.gtin)
     if (!parsed) return json({ proposed: null, reason: 'no-price' })
 
+    // Einheit des Vorschlags: haeufigste Bestands-Einheit (das, was der User sieht),
+    // sonst defaultUnit, sonst 'piece'. Behebt den „falsche Einheit"-Fall.
+    const stockUnit = await suggestStockUnitForProduct(product.id, householdId)
+
     const row = await recordProposedPrice({
       householdId,
       productId: product.id,
       storeId: store.id,
       priceCt: parsed.priceCt,
-      unit: product.defaultUnit ?? 'piece',
+      unit: stockUnit ?? product.defaultUnit ?? 'piece',
       createdBy: locals.user.id,
     })
 

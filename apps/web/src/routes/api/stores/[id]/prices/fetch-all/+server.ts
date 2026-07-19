@@ -6,6 +6,7 @@ import { eq, and, inArray } from 'drizzle-orm'
 import { requireHouseholdId } from '$lib/server/queries/households'
 import { writeAudit } from '$lib/server/queries/audit'
 import { recordProposedPrice } from '$lib/server/queries/prices'
+import { suggestStockUnitForProduct } from '$lib/server/queries/products'
 import { scrapeGlobusPrice, isPriceScrapeEnabled, resolveScrapeUrl } from '$lib/server/scrape/globus'
 import { listProductIdsForStore } from '$lib/server/queries/product-stores'
 
@@ -68,12 +69,14 @@ export const POST: RequestHandler = async ({ locals, params }) => {
         skipped++
         continue
       }
+      // Einheit: haeufigste Bestands-Einheit → defaultUnit → 'piece'.
+      const stockUnit = await suggestStockUnitForProduct(p.id, householdId)
       const row = await recordProposedPrice({
         householdId,
         productId: p.id,
         storeId: store.id,
         priceCt: parsed.priceCt,
-        unit: p.defaultUnit ?? 'piece',
+        unit: stockUnit ?? p.defaultUnit ?? 'piece',
         createdBy: locals.user.id,
       })
       proposedCreated++

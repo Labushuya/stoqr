@@ -305,6 +305,19 @@ const BLOCKS = [
     ]
   },
   {
+    tag: "G6", name: "Einheiten-Fixes", desc: "Standard-Einheit editierbar, Preisvorschlag nutzt Bestands-Einheit, „Alle angleichen“-Aktion.",
+    items: [
+      { id: "G6-1", title: "Standard-Einheit ändern", steps: ["Artikel-Detailseite öffnen.", "Bei „Standard-Einheit“ auf „Ändern“, eine andere Einheit wählen, „Speichern“."],
+        expect: "Die Standard-Einheit lässt sich ändern und bleibt nach Reload erhalten (kein eingefrorener/unsichtbarer Wert mehr)." },
+      { id: "G6-2", title: "Preisvorschlag nutzt Bestands-Einheit", steps: ["Artikel mit Beständen in „Packung“, Standard-Einheit ggf. abweichend.", "Online-Preis abrufen (Markt mit Suggest-URL)."],
+        expect: "Der Vorschlag zeigt die Einheit der vorhandenen Bestände (z.B. „/ Packung“), NICHT eine alte/custom Einheit wie „blihn“." },
+      { id: "G6-3", title: "Alle auf eine Einheit angleichen (nur umbenennen)", steps: ["Detailseite → „Alle angleichen…“.", "Zieleinheit wählen, Modus „Nur umbenennen“, „Angleichen“."],
+        expect: "Artikel + ALLE Bestände (auch verbraucht/gespendet/entsorgt) tragen danach die Zieleinheit; Mengen unverändert. Dialog erklärt beide Modi mit Beispielen." },
+      { id: "G6-4", title: "Angleichen mit Umrechnung", steps: ["Bestand mit mass/volume-Einheit (z.B. 500 g).", "„Alle angleichen…“ → Zieleinheit kg → Modus „Menge umrechnen“ → „Angleichen“."],
+        expect: "500 g wird zu 0,5 kg umgerechnet. Bei Stückzahl-Zieleinheit (nicht umrechenbar) erscheint der Hinweis, dass nur umbenannt wird." },
+    ]
+  },
+  {
     tag: "F2", name: "Online-Preis-Abruf & Staging", desc: "Globus-Scraping (In-App aktivierbar); abgerufene Preise landen als Vorschlag (proposed) und werden erst nach Freigabe maßgeblich. Failsafe.",
     items: [
       { id: "F2-0", title: "Online-Preis-Abruf aktivieren (In-App-Schalter)", steps: ["Einstellungen → Abschnitt „Online-Preis-Abruf“.", "Schalter „Online-Preis-Abruf aktivieren“ einschalten."],

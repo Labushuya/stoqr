@@ -433,6 +433,69 @@
   let packSaving = $state(false)
   let packEditing = $state(false)
 
+  // ── Standard-Einheit editieren (G6) ──────────────────────────────────────
+  let unitEditing = $state(false)
+  let draftDefaultUnit = $state('')
+  let unitSaving = $state(false)
+
+  function startUnitEdit() {
+    draftDefaultUnit = product.defaultUnit
+    unitEditing = true
+  }
+  async function saveDefaultUnit() {
+    unitSaving = true
+    try {
+      const res = await fetch(`/api/products/${product.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ defaultUnit: draftDefaultUnit }),
+      })
+      if (!res.ok) { showToast('Fehler beim Speichern der Einheit', 'error'); return }
+      showToast('Standard-Einheit gespeichert')
+      unitEditing = false
+      await invalidateAll()
+    } catch {
+      showToast('Netzwerkfehler.', 'error')
+    } finally {
+      unitSaving = false
+    }
+  }
+
+  // ── „Alle auf eine Einheit angleichen" (Artikel + alle Bestände) (G6) ─────
+  let normalizeOpen = $state(false)
+  let normalizeUnit = $state('')
+  let normalizeMode = $state<'relabel' | 'convert'>('relabel')
+  let normalizeSaving = $state(false)
+
+  function openNormalizeModal() {
+    normalizeUnit = product.defaultUnit
+    normalizeMode = 'relabel'
+    normalizeOpen = true
+  }
+  // Dimension der aktuell im Dialog gewählten Zieleinheit (für Beispiel/Modus-Hinweis).
+  const normalizeTargetDim = $derived(
+    (units.find((u) => u.symbol === normalizeUnit)?.dimension ?? 'count') as 'mass' | 'volume' | 'count',
+  )
+  async function runNormalize() {
+    normalizeSaving = true
+    try {
+      const res = await fetch(`/api/products/${product.id}/normalize-unit`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ unit: normalizeUnit, mode: normalizeMode }),
+      })
+      const b = await res.json().catch(() => ({}))
+      if (!res.ok) { showToast(b?.error ?? 'Fehler beim Angleichen', 'error'); return }
+      showToast(`Angeglichen: ${b.items} Bestände (${b.converted} umgerechnet, ${b.relabeled} umbenannt)`)
+      normalizeOpen = false
+      await invalidateAll()
+    } catch {
+      showToast('Netzwerkfehler.', 'error')
+    } finally {
+      normalizeSaving = false
+    }
+  }
+
   async function savePack() {
     packSaving = true
     try {
@@ -788,6 +851,24 @@
       {/if}
     </div>
 
+    <!-- Standard-Einheit des Artikels (editierbar) + Angleichung aller Bestände -->
+    <div class="pack-row">
+      {#if unitEditing}
+        <div class="pack-edit">
+          <span class="pack-label">Standard-Einheit:</span>
+          <select class="input" bind:value={draftDefaultUnit} aria-label="Standard-Einheit">
+            {#each units as u (u.id)}<option value={u.symbol}>{u.name}</option>{/each}
+          </select>
+          <button class="btn-save-inline" type="button" disabled={unitSaving} onclick={saveDefaultUnit}>Speichern</button>
+          <button class="btn-cancel-inline" type="button" onclick={() => (unitEditing = false)}>Abbrechen</button>
+        </div>
+      {:else}
+        <span class="pack-view">Standard-Einheit: <strong>{unitLabel(product.defaultUnit)}</strong></span>
+        <button class="target-edit-btn" type="button" onclick={startUnitEdit}>Ändern</button>
+        <button class="target-edit-btn" type="button" onclick={openNormalizeModal}>Alle angleichen…</button>
+      {/if}
+    </div>
+
     <!-- Gebinde-Größe (nur sinnvoll, wenn die Standard-Einheit eine Stückzahl-Einheit ist) -->
     {#if (units.find((u) => u.symbol === product.defaultUnit)?.dimension ?? 'count') === 'count'}
       <div class="pack-row">
@@ -1115,6 +1196,47 @@
   {/if}
   {#snippet footer()}
     <button class="btn-link" type="button" onclick={closeLocationPicker}>Abbrechen</button>
+  {/snippet}
+</Modal>
+
+<!-- ── Einheit angleichen (Artikel + alle Bestände) ───────────────────────── -->
+<Modal open={normalizeOpen} title="Einheit angleichen" size="sm" onClose={() => (normalizeOpen = false)}>
+  <p class="norm-desc">
+    Setzt die Standard-Einheit dieses Artikels <strong>und alle seine Bestände</strong>
+    (auch verbrauchte, gespendete, entsorgte) auf eine Einheit. Betrifft nur diesen Artikel,
+    nicht das übrige Inventar.
+  </p>
+  <label class="norm-field">
+    <span class="norm-label">Zieleinheit</span>
+    <select class="input" bind:value={normalizeUnit} aria-label="Zieleinheit">
+      {#each units as u (u.id)}<option value={u.symbol}>{u.name}</option>{/each}
+    </select>
+  </label>
+  <div class="norm-modes">
+    <label class="norm-mode">
+      <input type="radio" value="relabel" bind:group={normalizeMode} />
+      <span>
+        <strong>Nur umbenennen</strong> — Mengen bleiben gleich, nur die Einheit wird umgeschrieben.
+        <em>Beispiel: „2 Packung“ → „2 {unitLabel(normalizeUnit)}“ (Zahl unverändert).</em>
+      </span>
+    </label>
+    <label class="norm-mode">
+      <input type="radio" value="convert" bind:group={normalizeMode} />
+      <span>
+        <strong>Menge umrechnen</strong> — wo möglich (gleiche mass/volume-Dimension) wird die Menge
+        korrekt umgerechnet, sonst nur umbenannt.
+        <em>Beispiel: „500 g“ → „0,5 kg“. Bei Stückzahl-Einheiten (Packung ↔ Flasche) nicht umrechenbar → nur umbenannt.</em>
+      </span>
+    </label>
+  </div>
+  {#if normalizeTargetDim === 'count' && normalizeMode === 'convert'}
+    <p class="norm-warn">Zieleinheit ist eine Stückzahl-Einheit — hier wird nichts umgerechnet, nur umbenannt.</p>
+  {/if}
+  {#snippet footer()}
+    <button class="btn-link" type="button" onclick={() => (normalizeOpen = false)}>Abbrechen</button>
+    <button class="btn-secondary" type="button" disabled={normalizeSaving} onclick={runNormalize}>
+      {normalizeSaving ? 'Wird angeglichen…' : 'Angleichen'}
+    </button>
   {/snippet}
 </Modal>
 
@@ -1631,4 +1753,14 @@
   .pack-label { font-size: var(--text-sm); color: var(--color-text-secondary); }
   .pack-input { flex: 0 1 90px; }
   .pack-dim { flex: 0 1 150px; }
+
+  /* ── Einheit-Angleichung-Modal (G6) ───────────────────────────────────── */
+  .norm-desc { font-size: var(--text-sm); color: var(--color-text-secondary); line-height: 1.6; margin: 0 0 var(--space-4); }
+  .norm-field { display: flex; flex-direction: column; gap: var(--space-1); margin-bottom: var(--space-4); }
+  .norm-label { font-size: var(--text-xs); font-weight: 600; color: var(--color-text-secondary); }
+  .norm-modes { display: flex; flex-direction: column; gap: var(--space-3); }
+  .norm-mode { display: flex; gap: var(--space-2); align-items: flex-start; font-size: var(--text-sm); color: var(--color-text-primary); cursor: pointer; line-height: 1.5; }
+  .norm-mode input { margin-top: 3px; accent-color: var(--color-primary); }
+  .norm-mode em { display: block; color: var(--color-text-muted); font-size: var(--text-xs); margin-top: 2px; }
+  .norm-warn { font-size: var(--text-xs); color: #c2410c; background: #fff7ed; border-radius: var(--radius-md); padding: var(--space-2) var(--space-3); margin: var(--space-3) 0 0; }
 </style>
