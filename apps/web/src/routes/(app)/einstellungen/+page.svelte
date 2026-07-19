@@ -66,17 +66,30 @@
     }
   }
 
+  // Angekreuzte Uebernahme-Felder je Snapshot (Bild vorausgewaehlt).
+  let snapFields = $state<Record<string, { image: boolean; name: boolean; category: boolean }>>({})
+  // Fuer jeden offenen Snapshot einen Feld-Zustand vorhalten (bind: braucht MemberExpression).
+  $effect(() => {
+    for (const s of proposedSnapshots) {
+      if (!snapFields[s.id]) snapFields[s.id] = { image: true, name: false, category: false }
+    }
+  })
+
   async function reviewSnapshot(id: string, action: 'confirm' | 'reject') {
     snapshotBusy = id
     try {
+      const payload =
+        action === 'confirm'
+          ? { action, fields: snapFields[id] ?? { image: true, name: false, category: false } }
+          : { action }
       const res = await fetch(`/api/catalog/snapshots/${id}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action }),
+        body: JSON.stringify(payload),
       })
       const b = await res.json().catch(() => ({}))
       if (!res.ok) { toast.error(String(b?.error ?? `Fehler ${res.status}`)); return }
-      toast.success(action === 'confirm' ? 'Snapshot übernommen' : 'Snapshot verworfen')
+      toast.success(action === 'confirm' ? 'In Artikel übernommen' : 'Vorschlag verworfen')
       proposedSnapshots = proposedSnapshots.filter((s) => s.id !== id)
     } catch {
       toast.error('Netzwerkfehler.')
@@ -414,9 +427,17 @@
                 {#if s.category?.length} · {s.category.join(' › ')}{/if}
                 {#if s.product} · Artikel: {s.product.name}{:else} · (kein Artikel-Match){/if}
               </span>
+              {#if s.product && snapFields[s.id]}
+                <div class="snap-fields">
+                  <span class="snap-fields-label">Übernehmen:</span>
+                  <label><input type="checkbox" bind:checked={snapFields[s.id].image} /> Bild</label>
+                  <label><input type="checkbox" bind:checked={snapFields[s.id].name} /> Name</label>
+                  <label><input type="checkbox" bind:checked={snapFields[s.id].category} /> Kategorie</label>
+                </div>
+              {/if}
             </div>
             <div class="snap-actions">
-              <button class="btn-save-inline" type="button" disabled={snapshotBusy === s.id} onclick={() => reviewSnapshot(s.id, 'confirm')}>Übernehmen</button>
+              <button class="btn-save-inline" type="button" disabled={snapshotBusy === s.id || !s.product} title={s.product ? '' : 'Kein Artikel zugeordnet'} onclick={() => reviewSnapshot(s.id, 'confirm')}>Übernehmen</button>
               <button class="btn-cancel-inline" type="button" disabled={snapshotBusy === s.id} onclick={() => reviewSnapshot(s.id, 'reject')}>Verwerfen</button>
             </div>
           </div>
@@ -745,6 +766,10 @@
   .snap-name { font-size: var(--text-sm); font-weight: 600; color: var(--color-text-primary); }
   .snap-meta { font-size: var(--text-xs); color: var(--color-text-muted); }
   .snap-actions { display: flex; gap: var(--space-2); flex-shrink: 0; }
+  .snap-fields { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; margin-top: 4px; font-size: var(--text-xs); color: var(--color-text-secondary); }
+  .snap-fields-label { color: var(--color-text-muted); }
+  .snap-fields label { display: inline-flex; align-items: center; gap: 3px; cursor: pointer; }
+  .snap-fields input { accent-color: var(--color-primary); }
 
   .toggle-row {
     display: flex;

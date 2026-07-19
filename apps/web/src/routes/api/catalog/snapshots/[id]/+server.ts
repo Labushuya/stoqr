@@ -2,32 +2,43 @@ import { json } from '@sveltejs/kit'
 import type { RequestHandler } from './$types'
 import { requireHouseholdId } from '$lib/server/queries/households'
 import { writeAudit } from '$lib/server/queries/audit'
-import { confirmSnapshot, rejectSnapshot } from '$lib/server/queries/globus-snapshots'
+import { applySnapshotToProduct, rejectSnapshot } from '$lib/server/queries/globus-snapshots'
 
 // ---------------------------------------------------------------------------
-// POST /api/catalog/snapshots/[id]  { action: 'confirm' | 'reject' }  (G7)
-// Bestaetigt/verwirft einen offenen Globus-Snapshot-Vorschlag.
+// POST /api/catalog/snapshots/[id]
+//   { action: 'confirm', fields?: { image?, name?, category? } } | { action: 'reject' }
+// Bestaetigt einen Snapshot und uebernimmt die angekreuzten Katalog-Felder in den
+// zugeordneten Artikel (G8-1), oder verwirft ihn.
 // ---------------------------------------------------------------------------
 
 export const POST: RequestHandler = async ({ locals, params, request }) => {
   if (!locals.user) return json({ error: 'Unauthorized' }, { status: 401 })
   const householdId = await requireHouseholdId(locals.user.id)
 
-  const body = (await request.json().catch(() => ({}))) as { action?: 'confirm' | 'reject' }
+  const body = (await request.json().catch(() => ({}))) as {
+    action?: 'confirm' | 'reject'
+    fields?: { image?: boolean; name?: boolean; category?: boolean }
+  }
 
   if (body.action === 'confirm') {
-    const row = await confirmSnapshot(params.id, householdId, locals.user.id)
-    if (!row) return json({ error: 'Snapshot nicht gefunden' }, { status: 404 })
+    const fields = body.fields ?? { image: true }
+    const res = await applySnapshotToProduct(params.id, householdId, fields, locals.user.id)
+    if (!res.ok) {
+      if (res.reason === 'no-product') {
+        return json({ error: 'Diesem Vorschlag ist kein Artikel zugeordnet.' }, { status: 409 })
+      }
+      return json({ error: 'Snapshot nicht gefunden' }, { status: 404 })
+    }
     await writeAudit({
       householdId,
       userId: locals.user.id,
       action: 'UPDATE',
       tableName: 'globus_snapshots',
-      recordId: row.id,
+      recordId: params.id,
       oldValues: { status: 'proposed' },
-      newValues: { status: 'confirmed' },
+      newValues: { status: 'confirmed', applied: fields },
     })
-    return json({ ok: true, snapshot: row })
+    return json({ ok: true })
   }
 
   if (body.action === 'reject') {

@@ -1,7 +1,8 @@
 import { db } from '$lib/server/db'
-import { globusSnapshots } from '@stoqr/db'
+import { globusSnapshots, products, categories } from '@stoqr/db'
 import { and, eq, desc } from 'drizzle-orm'
 import { snapshotDiffers, type SnapshotComparable } from '$lib/utils/snapshot-diff'
+import { updateProduct } from '$lib/server/queries/products'
 
 export { snapshotDiffers }
 
@@ -124,6 +125,65 @@ export async function getSnapshotCounts(householdId: string) {
     columns: { id: true },
   })
   return { proposed: proposed.length }
+}
+
+/**
+ * Uebernimmt gewaehlte Katalog-Felder eines Snapshots in den zugeordneten Artikel
+ * und setzt den Snapshot auf 'confirmed'. Nur wenn der Snapshot offen ist, dem
+ * Haushalt gehoert UND einem Artikel zugeordnet ist (productId gesetzt).
+ * fields: welche Felder uebernommen werden (angekreuzt). image nutzt den lokalen
+ * /media-Pfad. „leere Felder fuellen" ist Default; angekreuzte Felder ueberschreiben.
+ * Kategorie best-effort per Namensabgleich; ohne Treffer nicht gesetzt.
+ * Return: { ok, reason? }.
+ */
+export async function applySnapshotToProduct(
+  id: string,
+  householdId: string,
+  fields: { image?: boolean; name?: boolean; category?: boolean },
+  reviewedBy?: string | null
+): Promise<{ ok: boolean; reason?: string }> {
+  const snap = await db.query.globusSnapshots.findFirst({
+    where: (s, { and, eq }) =>
+      and(eq(s.id, id), eq(s.householdId, householdId), eq(s.status, 'proposed')),
+  })
+  if (!snap) return { ok: false, reason: 'not-found' }
+  if (!snap.productId) return { ok: false, reason: 'no-product' }
+
+  const product = await db.query.products.findFirst({
+    where: eq(products.id, snap.productId),
+    columns: { id: true, name: true, imageUrl: true, categoryId: true },
+  })
+  if (!product) return { ok: false, reason: 'no-product' }
+
+  const patch: { name?: string; imageUrl?: string | null; categoryId?: string | null } = {}
+
+  // Bild: lokaler /media-Pfad; angekreuzt -> immer setzen, sonst nur wenn leer.
+  if (snap.localImagePath) {
+    const localUrl = `/media/${snap.localImagePath}`
+    if (fields.image || !product.imageUrl) patch.imageUrl = localUrl
+  }
+  // Name: angekreuzt -> setzen; ohne Ankreuzen NICHT (Name ist Kern-Stammdatum).
+  if (fields.name && snap.name && snap.name.trim() !== '') {
+    patch.name = snap.name.trim()
+  }
+  // Kategorie best-effort: letzte (spezifischste) Kategorie per Name matchen.
+  if (fields.category && Array.isArray(snap.category) && snap.category.length > 0) {
+    const wanted = snap.category[snap.category.length - 1].trim().toLowerCase()
+    const cats = await db.select({ id: categories.id, name: categories.name }).from(categories)
+    const match = cats.find((c) => c.name.trim().toLowerCase() === wanted)
+    if (match && (fields.category || !product.categoryId)) patch.categoryId = match.id
+  }
+
+  if (Object.keys(patch).length > 0) {
+    await updateProduct(product.id, patch)
+  }
+
+  await db
+    .update(globusSnapshots)
+    .set({ status: 'confirmed', reviewedAt: new Date(), reviewedBy: reviewedBy ?? null })
+    .where(eq(globusSnapshots.id, id))
+
+  return { ok: true }
 }
 
 /** Snapshot bestaetigen (status='confirmed'). Nur offene Vorschlaege. */

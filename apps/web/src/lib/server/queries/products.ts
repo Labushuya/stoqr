@@ -464,6 +464,7 @@ export async function updateProduct(
 		categoryId: string | null;
 		defaultUnit: string;
 		gtin: string | null;
+		imageUrl: string | null;
 		defaultVolumeMl: number | string | null;
 		defaultWeightG: number | string | null;
 		defaultQuantity: number | string;
@@ -476,6 +477,7 @@ export async function updateProduct(
 	if (data.categoryId !== undefined) patch.categoryId = data.categoryId;
 	if (data.defaultUnit !== undefined) patch.defaultUnit = data.defaultUnit;
 	if (data.gtin !== undefined) patch.gtin = data.gtin;
+	if (data.imageUrl !== undefined) patch.imageUrl = data.imageUrl;
 	// Gebinde-Größe (Einheiten v2): numeric-Felder als String; null = kein Gebinde.
 	if (data.defaultVolumeMl !== undefined)
 		patch.defaultVolumeMl = data.defaultVolumeMl == null ? null : String(data.defaultVolumeMl);
