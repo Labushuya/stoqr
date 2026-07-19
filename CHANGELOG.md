@@ -18,7 +18,7 @@ Feinschliff nach dem 73/73-Testlauf (drei Anmerkungen):
 - **Doku:** stores.scrapeUrl-Kommentar auf die korrekte Suggest-URL (nicht mehr `search?query=`) angeglichen.
 
 ### Commits
-(folgt beim Commit)
+1433cb3 (G6-Politur — Reaktivität, Toggle-Feedback, Doku)
 
 ---
 
