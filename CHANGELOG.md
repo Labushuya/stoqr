@@ -24,7 +24,7 @@ Wichtige Erkenntnis: EAN 4104420060821 (mein Test) fand nichts, weil Globus Hock
 Bug. Reale EANs (4306188415978, 5449000017987) liefern korrekt Preise.
 
 ### Commits
-(folgt beim Commit)
+f0b5af6 (G5 — Suggest-Parser, Scrape-Wrapper, URL-Anleitung, Toggle-Feedback)
 
 ---
 
