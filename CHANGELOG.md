@@ -21,7 +21,7 @@ Behebt den „falsche Einheit im Preisvorschlag" (blihn statt Packung) und macht
   beide Optionen mit konkreten Beispielen (500 g→0,5 kg / 2 Packung→2 Stück). Audit.
 
 ### Commits
-(folgt beim Commit)
+317fd91 (G6 — Preis-Einheit, editierbare Standard-Einheit, Angleichung)
 
 ---
 
