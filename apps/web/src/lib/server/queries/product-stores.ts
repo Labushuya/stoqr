@@ -55,3 +55,17 @@ export async function setStoresForProduct(productId: string, householdId: string
   }
   return listStoresForProduct(productId, householdId)
 }
+
+/**
+ * Fügt EINEN Markt ergänzend zur Artikel-Zuordnung hinzu (ohne bestehende zu
+ * entfernen). Idempotent. Genutzt vom Einbuchen (easy-add): der Ist-Herkunftsmarkt
+ * eines Bestands wird zusätzlich als Bezugsquelle am Artikel gemerkt.
+ */
+export async function addStoreForProduct(productId: string, householdId: string, storeId: string) {
+  await db
+    .insert(productStores)
+    .values({ productId, storeId, householdId })
+    .onConflictDoNothing({
+      target: [productStores.productId, productStores.storeId, productStores.householdId],
+    })
+}

@@ -10,6 +10,7 @@ import {
 import { requireHouseholdId } from '$lib/server/queries/households'
 import { writeAudit } from '$lib/server/queries/audit'
 import { recordPrice } from '$lib/server/queries/prices'
+import { addStoreForProduct } from '$lib/server/queries/product-stores'
 import { db } from '$lib/server/db'
 import { places, storages, locations, nutrientTypes, productNutrients, products } from '@stoqr/db'
 import { eq, inArray } from 'drizzle-orm'
@@ -231,6 +232,17 @@ export const POST: RequestHandler = async ({ locals, request }) => {
     gtin: gtin ?? undefined,
     purchasePriceCt: purchasePriceCt ?? undefined,
   })
+
+  // Ist-Herkunftsmarkt ergaenzend als Bezugsquelle am Artikel merken (G8-2),
+  // damit die Markt-Zuordnung (product_stores) nach dem Einbuchen stimmt und
+  // kuenftige Bestaende diesen Markt vorgeschlagen bekommen. Best-effort.
+  if (storeId && resolvedProductId) {
+    try {
+      await addStoreForProduct(resolvedProductId, householdId, storeId)
+    } catch (err) {
+      console.error('[inventory POST] addStoreForProduct fehlgeschlagen', err)
+    }
+  }
 
   // Audit-Log: neuer Bestandsartikel (nach erfolgreicher Mutation).
   await writeAudit({

@@ -56,7 +56,7 @@ export const GET: RequestHandler = async () => {
 				}
 			: null
 		const updateAvailable = latestSha ? latestSha !== GIT_SHA : null
-		return json({ current, latest, updateAvailable })
+		return json({ current, latest, updateAvailable, reason: latestSha ? undefined : 'no-latest-sha' })
 	} catch {
 		return json({ current, latest: null, updateAvailable: null, reason: 'fetch-failed' })
 	}

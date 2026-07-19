@@ -31,6 +31,7 @@
     current: { gitShaShort: string; buildTime: string }
     latest: { gitShaShort: string } | null
     updateAvailable: boolean | null
+    reason?: string
   }
   let versionShort = $state('…')
   let checkState = $state<'idle' | 'checking' | 'current' | 'update' | 'unknown'>('idle')
@@ -43,6 +44,18 @@
       .then((v: VersionInfo) => { versionShort = v.current?.gitShaShort ?? 'unbekannt' })
       .catch(() => { versionShort = 'unbekannt' })
   })
+
+  // Uebersetzt den reason des /api/version-Endpunkts in eine verstaendliche Ursache.
+  function updateCheckReason(reason?: string): string {
+    if (reason === 'fetch-failed') return 'Prüfung nicht möglich — kein Internetzugang zu GitHub'
+    if (reason === 'no-build-sha') return 'Prüfung nicht möglich — Build ohne Versions-SHA'
+    if (reason?.startsWith('github-')) {
+      const code = reason.slice('github-'.length)
+      if (code === '403') return 'Prüfung nicht möglich — GitHub-Rate-Limit (später erneut versuchen)'
+      return `Prüfung nicht möglich — GitHub antwortete mit ${code}`
+    }
+    return 'Prüfung nicht möglich'
+  }
 
   async function checkForUpdate() {
     checkState = 'checking'
@@ -59,11 +72,11 @@
         checkMsg = 'Bereits aktuell'
       } else {
         checkState = 'unknown'
-        checkMsg = 'Prüfung nicht möglich'
+        checkMsg = updateCheckReason(v.reason)
       }
     } catch {
       checkState = 'unknown'
-      checkMsg = 'Prüfung nicht möglich'
+      checkMsg = 'Prüfung nicht möglich (App nicht erreichbar)'
     }
   }
 

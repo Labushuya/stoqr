@@ -132,7 +132,18 @@ export async function suggestStorePlaceForProduct(productId: string, householdId
 	const items = await listInventoryForProduct(productId, householdId);
 
 	const placeId = mostFrequent(items.map((i) => i.place?.id));
-	const storeId = mostFrequent(items.map((i) => i.store?.id));
+	let storeId = mostFrequent(items.map((i) => i.store?.id));
+
+	// Fallback (G8-2): kein Herkunftsmarkt aus vorhandenen Bestaenden bekannt →
+	// den (ersten) am Artikel zugeordneten Markt (product_stores) vorschlagen.
+	if (!storeId) {
+		const [ps] = await db.query.productStores.findMany({
+			where: (t, { and, eq }) => and(eq(t.productId, productId), eq(t.householdId, householdId)),
+			columns: { storeId: true },
+			limit: 1,
+		});
+		storeId = ps?.storeId ?? null;
+	}
 
 	// Ort-Kette (location → storage → place) fuer den vorgeschlagenen Platz auffuellen
 	let locationId: string | null = null;
