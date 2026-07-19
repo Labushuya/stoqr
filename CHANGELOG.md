@@ -5,6 +5,29 @@ Neueste Einträge oben. Jeder Eintrag nennt den Commit-Kontext, damit andere LLM
 
 ---
 
+## [Unreleased] — G5: Globus-Scraper korrekt gebaut (Suggest-Endpunkt + JSON) (implementiert, Test auf Pi ausstehend)
+
+Der bisherige Scraper funktionierte nie: er lud die Globus-`/search`-Seite (rendert Produkte erst per JS → leeres HTML)
+und nutzte einen geratenen, nicht existierenden Selektor. **Am echten HTML verifiziert** und neu gebaut:
+
+- **Datenquelle = Suggest-Endpunkt** `/{filiale}/suggest?search={EAN}` — liefert serverseitig (ohne JS) je Treffer ein
+  JSON `data-etracker-search-suggest-product='{"id":"<EAN>","name":…,"price":"0.29","currency":"EUR"}'`. Verifiziert
+  mit EAN 4306188415978 → „Mineralwasser, Classic", 0,29 €.
+- **Neuer Parser** `parseGlobusSuggestJson` (JSON statt HTML-Raten) + `matchSuggestByEan` (exakter EAN-Match, sonst null)
+  + `parsePriceToCents` („0.29"→29). 14 Vitest gegen echtes Fixture-Snippet.
+- **scrapeGlobusPrice(url, gtin)** holt die Suggest-URL (X-Requested-With, Browser-UA), matcht exakt auf `products.gtin`.
+  Kein Treffer / Artikel nicht im Sortiment → sauber „Kein Onlinepreis gefunden" (kein Crash). Failsafe unverändert.
+- **URL-Feld-Anleitung** korrigiert auf die Suggest-URL (`…/suggest?search={EAN}`).
+- **Toggle-Erfolgs-Feedback** entschlackt: kompaktes „✓ gespeichert" neben dem Schalter statt fehlplatziertem Alert-Banner.
+
+Wichtige Erkenntnis: EAN 4104420060821 (mein Test) fand nichts, weil Globus Hockenheim den Artikel nicht führt — kein
+Bug. Reale EANs (4306188415978, 5449000017987) liefern korrekt Preise.
+
+### Commits
+(folgt beim Commit)
+
+---
+
 ## [Unreleased] — G4: In-App-Schalter + {EAN}-URL + Bugfixes + Dark-Mode-Icons (implementiert, Test auf Pi ausstehend)
 
 Korrektur der G2-Fehlinterpretation (Filiale/Region war falsch) + Testfeedback-Fixes.

@@ -56,14 +56,14 @@ export const POST: RequestHandler = async ({ locals, params }) => {
   for (let i = 0; i < prodRows.length; i++) {
     const p = prodRows[i]
     const url = resolveScrapeUrl(store, p.gtin)
-    if (!url) {
-      // Keine aufloesbare URL (z.B. Artikel ohne EAN, nur Region hinterlegt).
+    if (!url || !p.gtin) {
+      // Keine aufloesbare URL oder keine EAN am Artikel.
       skipped++
       continue
     }
     try {
       if (i > 0) await sleep(RATE_LIMIT_MS)
-      const parsed = await scrapeGlobusPrice(url)
+      const parsed = await scrapeGlobusPrice(url, p.gtin)
       if (!parsed) {
         skipped++
         continue

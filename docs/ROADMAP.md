@@ -3,7 +3,7 @@
 > Kanonisches Datenmodell und Entwicklungsplan. Diese Datei ist führend für Absicht,
 > Logik und Ziel von stoqr. Bei Widersprüchen zwischen Code und dieser Datei gilt diese Datei.
 
-Letzte Aktualisierung: 2026-07-19 (G4: In-App-Schalter + {EAN}-URL + Bugfixes/Dark-Mode implementiert, Test auf Pi ausstehend)
+Letzte Aktualisierung: 2026-07-19 (G5: Globus-Scraper korrekt gebaut — Suggest-Endpunkt + JSON, am echten HTML verifiziert; Test auf Pi ausstehend)
 
 ---
 
@@ -222,6 +222,14 @@ Inventur (Ist erfassen) → Soll-Ist-Bedarf → Einkaufsliste (virtuelle Bestän
 ---
 
 ## Offene Punkte / noch zu testen (nicht bestätigt)
+
+**G5 — Globus-Scraper (Suggest-Endpunkt) — Test auf Pi ausstehend:**
+- Markt „Globus" → Abruf-URL `https://produkte.globus.de/hockenheim/suggest?search={EAN}` (Anleitung im Feld).
+- Artikel mit realer, bei Globus geführter EAN (z.B. Mineralwasser Classic 4306188415978) → „Online abrufen" → Preis-Vorschlag 0,29 € erscheint.
+- Artikel mit EAN, die Globus nicht führt → „Kein Onlinepreis gefunden" (kein Crash) — das ist korrektes Verhalten, kein Bug.
+- Sammel-Abruf je Markt → Vorschläge für alle geführten EANs; nicht geführte → skipped.
+- Danach F2-3…10 aus dem Test-Manifest (Übernehmen/Korrigieren/Verwerfen/Audit) durchspielbar.
+- Toggle-Erfolg: „✓ gespeichert" erscheint kompakt neben dem Schalter (kein fehlplatziertes Banner).
 
 **G4 (Migration 0014) — Test auf Pi ausstehend (behebt F2-Testblocker + G2-Fehlinterpretation):**
 - **In-App-Schalter:** Einstellungen → „Online-Preis-Abruf" → Schalter AN → Abruf-UI erscheint (kein Env-Setzen mehr). AUS → Buttons weg, API 403.

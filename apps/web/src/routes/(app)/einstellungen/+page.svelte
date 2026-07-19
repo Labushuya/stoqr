@@ -295,17 +295,15 @@
           onchange={(e) => (e.currentTarget.closest('form') as HTMLFormElement)?.requestSubmit()}
         />
         <span>Online-Preis-Abruf aktivieren</span>
+        {#if priceScrapeSuccess}
+          <span class="toggle-saved" role="status">
+            <svg width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+              <path d="M4 8l3 3 5-6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            gespeichert
+          </span>
+        {/if}
       </label>
-
-      {#if priceScrapeSuccess}
-        <div class="alert alert--success" role="status">
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-            <circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.5"/>
-            <path d="M5 8l2 2 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-          {priceScrapeEnabled ? 'Online-Preis-Abruf aktiviert.' : 'Online-Preis-Abruf deaktiviert.'}
-        </div>
-      {/if}
     </form>
   </section>
 
@@ -633,6 +631,15 @@
     height: 18px;
     accent-color: var(--color-primary);
     cursor: pointer;
+  }
+  .toggle-saved {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: var(--text-xs);
+    font-weight: 600;
+    color: var(--color-success, #16a34a);
+    margin-left: var(--space-2);
   }
   /* ── Coming-soon badge ────────────────────────────────────────────────── */
 

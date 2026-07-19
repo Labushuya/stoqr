@@ -1,20 +1,29 @@
 // ---------------------------------------------------------------------------
-// Online-Preis-Abruf (server-only, I/O) — Block F2/G4.
+// Online-Preis-Abruf (server-only, I/O) — Block F2/G4/G5.
 //
-// Failsafe „in jeder Hinsicht": scrapeGlobusPrice wirft NIE. Timeout (8s),
-// Netz-, DNS-, HTTP-, Parse- und Selektor-Fehler enden alle in `null`. Der
-// reine HTML-Parser liegt testbar in lib/utils/globus-price.ts.
-// Opt-in ueber den In-App-Schalter expiry_config.price_scrape_enabled (default AUS).
+// Nutzt den Globus-Suggest-Endpunkt (/{filiale}/suggest?search={EAN}), der
+// serverseitig JSON pro Treffer liefert (die /search-Seite rendert erst per JS).
+// scrapeGlobusPrice waehlt den Treffer mit exakt passender EAN. Failsafe „in
+// jeder Hinsicht": wirft NIE — Timeout (8s), Netz-/HTTP-/Parse-Fehler, kein
+// EAN-Match → alles `null`. Opt-in ueber den In-App-Schalter
+// expiry_config.price_scrape_enabled (default AUS).
 // ---------------------------------------------------------------------------
 
 import { env } from '$env/dynamic/private'
 import { eq } from 'drizzle-orm'
 import { db } from '$lib/server/db'
 import { expiryConfig } from '@stoqr/db'
-import { parseGlobusPriceHtml, applyEanToUrl, type ParsedPrice } from '$lib/utils/globus-price'
+import { applyEanToUrl, parseGlobusSuggestJson, matchSuggestByEan } from '$lib/utils/globus-price'
 
 const TIMEOUT_MS = 8000
-const DEFAULT_USER_AGENT = 'stoqr-price/0.1'
+const DEFAULT_USER_AGENT =
+  'Mozilla/5.0 (compatible; stoqr-price/0.1; +https://github.com/Labushuya/stoqr)'
+
+export type ScrapedPrice = {
+  priceCt: number
+  name: string
+  ean: string
+}
 
 /**
  * In-App-Schalter (household-weit): Online-Preis-Abruf nur aktiv, wenn in den
@@ -70,10 +79,11 @@ function hostOf(url: string): string {
 }
 
 /**
- * Ruft eine Globus-Produktseite ab und extrahiert den Preis in Cent.
- * Gibt bei JEDEM Fehler oder fehlendem Treffer `null` zurueck (nie throw).
+ * Ruft den Globus-Suggest-Endpunkt ab und liefert den Preis des Treffers mit
+ * exakt passender EAN (in Cent). Gibt bei JEDEM Fehler, leerem Ergebnis oder
+ * fehlendem EAN-Match `null` zurueck (nie throw).
  */
-export async function scrapeGlobusPrice(url: string): Promise<ParsedPrice | null> {
+export async function scrapeGlobusPrice(url: string, gtin: string): Promise<ScrapedPrice | null> {
   const ctrl = new AbortController()
   const t = setTimeout(() => ctrl.abort(), TIMEOUT_MS)
   try {
@@ -82,6 +92,8 @@ export async function scrapeGlobusPrice(url: string): Promise<ParsedPrice | null
       headers: {
         'User-Agent': env.PRICE_SCRAPE_USER_AGENT || DEFAULT_USER_AGENT,
         'Accept-Language': 'de-DE,de;q=0.9',
+        // Der Suggest-Endpunkt wird per XHR aufgerufen; Header signalisiert das.
+        'X-Requested-With': 'XMLHttpRequest',
       },
     })
     if (!res.ok) {
@@ -89,9 +101,15 @@ export async function scrapeGlobusPrice(url: string): Promise<ParsedPrice | null
       return null
     }
     const html = await res.text()
-    const parsed = parseGlobusPriceHtml(html)
-    if (!parsed) console.warn(`[scrape/globus] ${hostOf(url)} → kein Preis im HTML`)
-    return parsed
+    const products = parseGlobusSuggestJson(html)
+    const match = matchSuggestByEan(products, gtin)
+    if (!match) {
+      console.warn(
+        `[scrape/globus] ${hostOf(url)} → kein Treffer fuer EAN ${gtin} (${products.length} Treffer gesamt)`,
+      )
+      return null
+    }
+    return { priceCt: match.priceCt, name: match.name, ean: match.ean }
   } catch (err) {
     const reason = err instanceof Error ? err.name : 'unknown'
     console.warn(`[scrape/globus] ${hostOf(url)} → Fehler (${reason})`)

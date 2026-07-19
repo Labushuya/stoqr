@@ -42,12 +42,12 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
     if (!product) return json({ error: 'Artikel nicht gefunden' }, { status: 404 })
 
     const url = resolveScrapeUrl(store, product.gtin)
-    if (!url) {
-      // Keine Abruf-URL am Markt (oder {EAN} ohne EAN am Artikel) → nichts abrufbar.
+    if (!url || !product.gtin) {
+      // Keine Abruf-URL am Markt oder keine EAN am Artikel → nichts abrufbar.
       return json({ proposed: null, reason: 'no-source' })
     }
 
-    const parsed = await scrapeGlobusPrice(url)
+    const parsed = await scrapeGlobusPrice(url, product.gtin)
     if (!parsed) return json({ proposed: null, reason: 'no-price' })
 
     const row = await recordProposedPrice({

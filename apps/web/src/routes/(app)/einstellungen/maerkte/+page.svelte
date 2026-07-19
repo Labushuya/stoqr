@@ -390,7 +390,7 @@
                       if (e.key === 'Escape') cancelEdit()
                     }}
                   />
-                  <p class="field-hint">Suchseite des Markts mit <code>{'{EAN}'}</code> als Platzhalter für die Artikel-EAN. Beispiel: <code>https://produkte.globus.de/hockenheim/search?query={'{EAN}'}</code></p>
+                  <p class="field-hint">Produkt-Such-URL des Markts mit <code>{'{EAN}'}</code> als Platzhalter für die Artikel-EAN. Für Globus die <strong>Suggest</strong>-URL nutzen: <code>https://produkte.globus.de/hockenheim/suggest?search={'{EAN}'}</code> (Filiale ggf. anpassen).</p>
                 </div>
                 {#if editError}
                   <p class="field-error">{editError}</p>
@@ -569,7 +569,7 @@
           aria-label="Abruf-URL des neuen Markts"
           onkeydown={(e) => { if (e.key === 'Enter') addStore() }}
         />
-        <p class="field-hint">Suchseite des Markts mit <code>{'{EAN}'}</code> als Platzhalter für die Artikel-EAN. Beispiel: <code>https://produkte.globus.de/hockenheim/search?query={'{EAN}'}</code></p>
+        <p class="field-hint">Produkt-Such-URL des Markts mit <code>{'{EAN}'}</code> als Platzhalter für die Artikel-EAN. Für Globus die <strong>Suggest</strong>-URL nutzen: <code>https://produkte.globus.de/hockenheim/suggest?search={'{EAN}'}</code> (Filiale ggf. anpassen).</p>
       </div>
       <div class="add-footer">
         <button

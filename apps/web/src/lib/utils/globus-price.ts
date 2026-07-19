@@ -1,25 +1,26 @@
 // ---------------------------------------------------------------------------
-// Globus-Preis-Parser (reine Funktionen, testbar) — Block F2.
+// Globus-Preis-Parser (reine Funktionen, testbar) — Block F2/G5.
 //
-// Extrahiert aus einer Globus-Produktseite (HTML) einen Preis in Cent. Bewusst
-// Best-Effort und defensiv: bei fehlendem Selektor, unerwartetem Markup, leerem
-// Text oder unparsbarem Preis wird IMMER `null` zurueckgegeben — nie geworfen.
+// Globus (Shopware 6) rendert die Ergebnis-Seite (/search) per JavaScript, ein
+// serverseitiger fetch sieht dort KEINE Preise. Der Suggest-Endpunkt
+// (/{filiale}/suggest?search=…) liefert dagegen serverseitig fertiges HTML mit
+// eingebettetem JSON pro Treffer:
+//   <input ... data-etracker-search-suggest-product='{"id":"<EAN>","name":"…","price":"0.29","currency":"EUR"}'>
+// Wir parsen dieses JSON (robust) und matchen exakt auf die gesuchte EAN.
+// Bewusst defensiv: jeder Fehler / kein Treffer → leeres Ergebnis bzw. null.
 // Der Netzwerk-Teil liegt server-only in lib/server/scrape/globus.ts.
 // ---------------------------------------------------------------------------
-
-import { parse } from 'node-html-parser'
-
-// Zentrale Selektor-Konstante: bei HTML-Aenderungen auf Globus nur hier anpassen.
-export const GLOBUS_PRICE_SELECTOR = 'div.unit-price .discount-price'
 
 // Platzhalter in der Markt-Abruf-URL, der beim Abruf durch die Artikel-GTIN ersetzt wird.
 export const EAN_PLACEHOLDER = '{EAN}'
 
+// Attribut, das Globus je Suggest-Treffer mit dem strukturierten JSON traegt.
+const SUGGEST_ATTR = 'data-etracker-search-suggest-product'
+
 /**
- * Setzt die GTIN in eine Markt-Abruf-URL ein (G4). Enthaelt die Vorlage den
+ * Setzt die GTIN in eine Markt-Abruf-URL ein. Enthaelt die Vorlage den
  * {EAN}-Platzhalter, muss eine GTIN vorhanden sein (sonst null). Ohne Platzhalter
- * wird die URL unveraendert zurueckgegeben (statische Produkt-URL bleibt erlaubt).
- * Defensiv: leere Vorlage → null.
+ * wird die URL unveraendert zurueckgegeben. Defensiv: leere Vorlage → null.
  */
 export function applyEanToUrl(
   template: string | null | undefined,
@@ -33,50 +34,83 @@ export function applyEanToUrl(
   return tpl.split(EAN_PLACEHOLDER).join(encodeURIComponent(g))
 }
 
-export type ParsedPrice = {
+/**
+ * Wandelt einen Preis-String in Cent um.
+ * - „0.29" → 29, „15.99" → 1599, „1,19" → 119, „2" → 200
+ * - komma/punkt-tolerant; unparsbar → `null`
+ */
+export function parsePriceToCents(value: string | number | null | undefined): number | null {
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? Math.round(value * 100) : null
+  }
+  if (typeof value !== 'string') return null
+  const norm = value.trim().replace(',', '.')
+  if (norm === '') return null
+  const n = Number.parseFloat(norm)
+  if (!Number.isFinite(n) || n < 0) return null
+  return Math.round(n * 100)
+}
+
+export type GlobusSuggestProduct = {
+  ean: string
+  name: string
   priceCt: number
-  raw: string
+}
+
+// HTML-Entities, die in den JSON-Attributwerten vorkommen, dekodieren.
+function decodeEntities(s: string): string {
+  return s
+    .replace(/&quot;/g, '"')
+    .replace(/&#0?39;/g, "'")
+    .replace(/&apos;/g, "'")
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&nbsp;/g, ' ')
 }
 
 /**
- * Wandelt einen Preistext in Cent um.
- * - „Ab 1,19 €" → 119, „2 €" → 200, „12,50 €" → 1250, „1.19 €" → 119
- * - komma/punkt-tolerant; kein erkennbarer Preis → `null`
+ * Extrahiert alle Suggest-Treffer aus dem Globus-Suggest-HTML. Liest die
+ * `data-etracker-search-suggest-product`-JSON-Objekte, dekodiert HTML-Entities,
+ * parst sie einzeln (ein defekter Treffer verwirft nicht die uebrigen).
+ * Defensiv: kein Input / keine Treffer → `[]`.
  */
-export function parseEuroToCents(text: string | null | undefined): number | null {
-  if (typeof text !== 'string') return null
-  // Euro mit Dezimalstellen: „1,19 €" / „12.50 €" (2 Nachkommastellen bevorzugt).
-  const dec = text.match(/(\d{1,4})[.,](\d{2})\s*€/)
-  if (dec) {
-    const euros = Number.parseInt(dec[1], 10)
-    const cents = Number.parseInt(dec[2], 10)
-    if (Number.isFinite(euros) && Number.isFinite(cents)) return euros * 100 + cents
+export function parseGlobusSuggestJson(html: string | null | undefined): GlobusSuggestProduct[] {
+  if (typeof html !== 'string' || html.length === 0) return []
+  const results: GlobusSuggestProduct[] = []
+  // Attributwert steht in einfachen ODER doppelten Quotes.
+  const re = new RegExp(`${SUGGEST_ATTR}=(?:'([^']*)'|"([^"]*)")`, 'g')
+  let m: RegExpExecArray | null
+  while ((m = re.exec(html)) !== null) {
+    const raw = m[1] ?? m[2] ?? ''
+    if (!raw) continue
+    try {
+      const obj = JSON.parse(decodeEntities(raw)) as {
+        id?: unknown
+        name?: unknown
+        price?: unknown
+      }
+      const ean = typeof obj.id === 'string' ? obj.id.trim() : ''
+      const name = typeof obj.name === 'string' ? decodeEntities(obj.name).trim() : ''
+      const priceCt = parsePriceToCents(obj.price as string | number | undefined)
+      if (ean === '' || priceCt === null || priceCt <= 0) continue
+      results.push({ ean, name, priceCt })
+    } catch {
+      // defekter Treffer → ueberspringen
+    }
   }
-  // Ganzzahliger Euro-Betrag ohne Nachkommastellen: „2 €".
-  const whole = text.match(/(\d{1,4})\s*€/)
-  if (whole) {
-    const euros = Number.parseInt(whole[1], 10)
-    if (Number.isFinite(euros)) return euros * 100
-  }
-  return null
+  return results
 }
 
 /**
- * Parst ein Globus-Produkt-HTML und liefert den Preis in Cent.
- * Alles defensiv: jeder Fehler / fehlende Treffer → `null`.
+ * Waehlt aus den Suggest-Treffern den mit exakt passender EAN. Kein Match → null
+ * (kein „falscher Artikel"). GTIN wird getrimmt verglichen.
  */
-export function parseGlobusPriceHtml(html: string | null | undefined): ParsedPrice | null {
-  if (typeof html !== 'string' || html.length === 0) return null
-  try {
-    const root = parse(html)
-    const el = root.querySelector(GLOBUS_PRICE_SELECTOR)
-    if (!el) return null
-    const raw = el.text?.trim() ?? ''
-    if (!raw) return null
-    const priceCt = parseEuroToCents(raw)
-    if (priceCt === null || priceCt <= 0) return null
-    return { priceCt, raw }
-  } catch {
-    return null
-  }
+export function matchSuggestByEan(
+  products: GlobusSuggestProduct[],
+  gtin: string | null | undefined,
+): GlobusSuggestProduct | null {
+  const g = typeof gtin === 'string' ? gtin.trim() : ''
+  if (g === '') return null
+  return products.find((p) => p.ean === g) ?? null
 }
