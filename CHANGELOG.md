@@ -24,7 +24,7 @@ Folge-Rückmeldungen nach G7.
   (Loader lädt alle Status).
 
 ### Commits
-G8-2/3 = 4364ea6 · G8-5 = dadc0f0 · G8-1 = f86cf01 · G8-4 folgt beim Commit
+G8-2/3 = 4364ea6 · G8-5 = dadc0f0 · G8-1 = f86cf01 · G8-4 = c806fc7
 
 ---
 
