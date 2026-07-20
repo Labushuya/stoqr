@@ -27,7 +27,7 @@ Preis-Modell (`product_prices`/`purchasePriceCt`) bewusst nicht angefasst. Gates
 Manifest: neue Items G11-1a/b/c, G11-2, G11-3; G10-3 geschärft (Client-Guard).
 
 ### Commits
-(folgt)
+b4382ed (G11 — ProductForm, {EAN}-Guard, Sammel-Abruf-Transparenz)
 
 ---
 
