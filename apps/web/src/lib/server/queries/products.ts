@@ -1,5 +1,5 @@
 import { db } from '$lib/server/db'
-import { products, inventoryItems, categories } from '@stoqr/db'
+import { products, inventoryItems, categories, productFieldSources } from '@stoqr/db'
 import { eq, asc, desc, and, ilike } from 'drizzle-orm'
 import { getUnits } from './households'
 import { buildUnitMetaMap, aggregateStock, buildPackSize, type StockTotals } from '$lib/utils/stock'
@@ -530,6 +530,44 @@ export async function getProductById(id: string) {
 		},
 	});
 	return product ?? null;
+}
+
+// ---------------------------------------------------------------------------
+// Feld-Provenienz (G15) — Quelle je Stammdaten-Feld: 'off'|'globus'|'manual'.
+// ---------------------------------------------------------------------------
+
+export type ProductField = 'name' | 'brand' | 'image' | 'category' | 'unit';
+export type FieldSource = 'off' | 'globus' | 'manual';
+
+/** Setzt die Herkunft je Feld (Upsert auf (product_id, field)). Leere Map = no-op. */
+export async function setFieldSources(
+	productId: string,
+	sources: Partial<Record<ProductField, FieldSource>>
+): Promise<void> {
+	const entries = Object.entries(sources).filter(([, v]) => v != null) as [ProductField, FieldSource][];
+	if (entries.length === 0) return;
+	for (const [field, source] of entries) {
+		await db
+			.insert(productFieldSources)
+			.values({ productId, field, source })
+			.onConflictDoUpdate({
+				target: [productFieldSources.productId, productFieldSources.field],
+				set: { source, updatedAt: new Date() },
+			});
+	}
+}
+
+/** Liefert die Herkunft je Feld als Map (fehlende Felder bleiben undefined). */
+export async function getFieldSources(
+	productId: string
+): Promise<Partial<Record<ProductField, FieldSource>>> {
+	const rows = await db
+		.select({ field: productFieldSources.field, source: productFieldSources.source })
+		.from(productFieldSources)
+		.where(eq(productFieldSources.productId, productId));
+	const out: Partial<Record<ProductField, FieldSource>> = {};
+	for (const r of rows) out[r.field as ProductField] = r.source;
+	return out;
 }
 
 // ---------------------------------------------------------------------------

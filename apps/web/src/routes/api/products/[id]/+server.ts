@@ -1,6 +1,6 @@
 import { json } from '@sveltejs/kit'
 import type { RequestHandler } from './$types'
-import { deleteProduct, updateProduct, getProductById } from '$lib/server/queries/products'
+import { deleteProduct, updateProduct, getProductById, setFieldSources, type ProductField } from '$lib/server/queries/products'
 import { requireHouseholdId } from '$lib/server/queries/households'
 import { writeAudit } from '$lib/server/queries/audit'
 import { isUniqueViolation } from '$lib/server/db-errors'
@@ -89,6 +89,18 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
       oldValues: beforeRow ? Object.fromEntries(auditKeys.map((k) => [k, beforeRow[k]])) : null,
       newValues: patch as Record<string, unknown>,
     })
+
+    // Feld-Herkunft: NUR tatsaechlich geaenderte Stammdaten-Felder → 'manual'
+    // (Vergleich patch vs. before). Unveraenderte Felder behalten OFF/Globus (G15).
+    const b = (before ?? {}) as Record<string, unknown>
+    const changed = (col: string) => col in patch && (patch as Record<string, unknown>)[col] !== b[col]
+    const srcs: Partial<Record<ProductField, 'manual'>> = {}
+    if (changed('name')) srcs.name = 'manual'
+    if (changed('brand')) srcs.brand = 'manual'
+    if (changed('imageUrl')) srcs.image = 'manual'
+    if (changed('categoryId')) srcs.category = 'manual'
+    if (changed('defaultUnit')) srcs.unit = 'manual'
+    await setFieldSources(params.id, srcs)
 
     return json(product ?? updated)
   } catch (err) {

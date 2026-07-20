@@ -3,6 +3,7 @@
   import ConfirmModal from '$lib/components/ConfirmModal.svelte'
   import Modal from '$lib/components/Modal.svelte'
   import ProductForm from '$lib/components/ProductForm.svelte'
+  import SourceBadge from '$lib/components/SourceBadge.svelte'
   import type { PageData } from './$types'
   import { formatDate, formatStockTotal } from '$lib/utils/format'
   import { getExpiryStatus, getDaysRemaining, getExpiryLabel, EXPIRY_CLASS } from '$lib/utils/expiry'
@@ -35,6 +36,10 @@
   // ── Static data ─────────────────────────────────────────────────────────
 
   const product = $derived(data.product)
+  // Feld-Herkunft (OFF/Globus/manuell) je Stammdaten-Feld (G15).
+  const fieldSources = $derived(
+    (data.fieldSources ?? {}) as Partial<Record<'name' | 'brand' | 'image' | 'category' | 'unit', 'off' | 'globus' | 'manual'>>
+  )
   // Nutrient types are a $state (not $derived) so custom types added at runtime
   // become immediately selectable.
   // svelte-ignore state_referenced_locally
@@ -902,9 +907,10 @@
         </div>
       {/if}
       <div class="product-info">
-        <h1 class="product-name">{product.name}</h1>
-        {#if product.brand}<span class="product-brand">{product.brand}</span>{/if}
-        {#if product.category}<span class="product-category">{product.category.name}</span>{/if}
+        <h1 class="product-name">{product.name} <SourceBadge source={fieldSources.name} /></h1>
+        {#if product.brand}<span class="product-brand">{product.brand} <SourceBadge source={fieldSources.brand} /></span>{/if}
+        {#if product.category}<span class="product-category">{product.category.name} <SourceBadge source={fieldSources.category} /></span>{/if}
+        {#if fieldSources.image}<span class="product-img-source">Bild: <SourceBadge source={fieldSources.image} /></span>{/if}
         {#if product.gtin}
           <span class="product-ean" title="EAN / Barcode">
             <svg width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden="true">
@@ -1013,9 +1019,7 @@
           <div class="nutrient-row">
             <span class="nutrient-name">
               {nutrientName(row.nutrientTypeId)}
-              <span class="nutrient-source" class:nutrient-source--off={row.source === 'off'} title={row.source === 'off' ? 'Von OpenFoodFacts' : 'Manuell gepflegt'}>
-                {row.source === 'off' ? 'OFF' : 'manuell'}
-              </span>
+              <SourceBadge source={row.source === 'off' ? 'off' : 'manual'} />
             </span>
             <input
               class="input nutrient-value"
@@ -1716,18 +1720,7 @@
     gap: var(--space-2);
   }
   .nutrient-name { flex: 1; font-size: var(--text-sm); color: var(--color-text-primary); min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-  .nutrient-source {
-    display: inline-block;
-    margin-left: var(--space-2);
-    font-size: 10px;
-    font-weight: 600;
-    padding: 1px 6px;
-    border-radius: 999px;
-    background: var(--color-surface-sunken);
-    color: var(--color-text-muted);
-    vertical-align: middle;
-  }
-  .nutrient-source--off { background: var(--color-primary-subtle); color: var(--color-primary); }
+  .product-img-source { font-size: var(--text-xs); color: var(--color-text-muted); }
   .nutrient-header { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); flex-wrap: wrap; }
   .btn-off { flex-shrink: 0; }
   .nutrient-value { width: 96px; flex-shrink: 0; }

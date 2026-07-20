@@ -180,6 +180,7 @@ export const productsRelations = relations(products, ({ one, many }) => ({
     relationName: 'productCreator',
   }),
   nutrients: many(productNutrients),
+  fieldSources: many(productFieldSources),
   inventoryItems: many(inventoryItems),
   stockTargets: many(stockTargets),
   shoppingListItems: many(shoppingListItems),
@@ -427,6 +428,40 @@ export const productNutrientsRelations = relations(productNutrients, ({ one }) =
   nutrientType: one(nutrientTypes, {
     fields: [productNutrients.nutrientTypeId],
     references: [nutrientTypes.id],
+  }),
+}));
+
+// ---------------------------------------------------------------------------
+// product_field_sources — Feld-Provenienz je Artikel (G15).
+// Genau EINE Zeile je (product, field): woher stammt der aktuelle Wert dieses
+// Stammdaten-Felds — 'off' (OpenFoodFacts, initiale Basis), 'globus' (Markt-
+// Katalog-Abgleich) oder 'manual' (im Formular geaendert). Analog product_nutrients.
+// field ∈ 'name'|'brand'|'image'|'category'|'unit'. Keine Zeile = unbekannt/Basis.
+// ---------------------------------------------------------------------------
+
+export const productFieldSources = pgTable(
+  'product_field_sources',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    productId: uuid('product_id')
+      .notNull()
+      .references(() => products.id, { onDelete: 'cascade' }),
+    field: varchar('field', { length: 24 }).notNull(),
+    source: varchar('source', { length: 16 }).notNull().$type<'off' | 'globus' | 'manual'>(),
+    updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  },
+  (table) => ({
+    productFieldUniq: uniqueIndex('product_field_sources_product_field_uniq').on(
+      table.productId,
+      table.field
+    ),
+  })
+);
+
+export const productFieldSourcesRelations = relations(productFieldSources, ({ one }) => ({
+  product: one(products, {
+    fields: [productFieldSources.productId],
+    references: [products.id],
   }),
 }));
 

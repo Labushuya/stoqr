@@ -13,7 +13,7 @@ import { eq, and, asc } from 'drizzle-orm'
 import { error, fail, redirect } from '@sveltejs/kit'
 import type { PageServerLoad, Actions } from './$types'
 import { requireHouseholdId, getUnits } from '$lib/server/queries/households'
-import { deleteProduct, listInventoryForProduct, getCategories } from '$lib/server/queries/products'
+import { deleteProduct, listInventoryForProduct, getCategories, getFieldSources } from '$lib/server/queries/products'
 import { getNutrientTypes } from '$lib/server/queries/nutrients'
 import { getStockTargetForProduct } from '$lib/server/queries/stock-targets'
 import { listStoresForProduct } from '$lib/server/queries/product-stores'
@@ -93,6 +93,9 @@ export const load: PageServerLoad = async ({ params, locals }) => {
     getCategories(),
   ]);
 
+  // Feld-Herkunft (OFF/Globus/manuell) je Stammdaten-Feld des Artikels (G15).
+  const fieldSources = await getFieldSources(item.product.id);
+
   // Haushalts-Ablaufkonfiguration (für Badge-Berechnung)
   const cfg = await db.query.expiryConfig.findFirst({
     where: eq(expiryConfig.householdId, householdId),
@@ -155,6 +158,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
   return {
     item,
     product: item.product,
+    fieldSources,
     siblings,
     nutrientTypes,
     units,

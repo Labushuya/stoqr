@@ -533,6 +533,7 @@
 
             {#if r.snapshot && (r.diff.any || canTakePrice(r))}
               <div class="snap-diff">
+                <p class="snap-diff-legend">Aktueller Wert → <strong>Globus-Katalog</strong> (angekreuzte Felder werden übernommen)</p>
                 {#if r.diff.name.differs}
                   <label class="snap-diff-row">
                     <input type="checkbox" checked={snapFields[r.snapshot.id]?.name} onchange={() => toggleSnapField(r.snapshot!.id, 'name')} />
@@ -883,6 +884,7 @@
   .snap-diff-old { color: var(--color-text-muted); text-decoration: line-through; }
   .snap-diff-arrow { color: var(--color-text-muted); }
   .snap-diff-new { color: var(--color-text-primary); font-weight: 500; }
+  .snap-diff-legend { font-size: var(--text-xs); color: var(--color-text-muted); margin: 0 0 var(--space-1); }
   .snap-diff-hint { color: var(--color-text-muted); font-size: var(--text-xs); }
   .sync-warning { margin-top: var(--space-4); display: flex; align-items: flex-start; gap: var(--space-2); padding: var(--space-3); border-radius: var(--radius-md); background: color-mix(in srgb, var(--color-warning, #d97706) 12%, transparent); border: 1px solid color-mix(in srgb, var(--color-warning, #d97706) 40%, transparent); color: var(--color-text-primary); font-size: var(--text-sm); }
   .sync-warning-icon { font-size: 1.1em; line-height: 1; flex-shrink: 0; }

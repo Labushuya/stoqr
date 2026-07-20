@@ -4,6 +4,7 @@ import { db } from '$lib/server/db'
 import { products, categories, productNutrients } from '@stoqr/db'
 import { eq, sql } from 'drizzle-orm'
 import { extractOffNutrients, type OffNutrient } from '$lib/utils/off-nutrients'
+import { setFieldSources, type ProductField } from '$lib/server/queries/products'
 
 // ---------------------------------------------------------------------------
 // OFF category tag → stoqr category slug mapping (best-effort, extensible)
@@ -364,6 +365,21 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
 
   if (!productRow) {
     return json({ error: 'Product write failed' }, { status: 500 })
+  }
+
+  // Feld-Herkunft 'off' setzen — nur fuer Stammdaten-Felder, die OFF wirklich
+  // geliefert hat UND die auch tatsaechlich am Artikel stehen (Bild z.B. nur,
+  // wenn das gespeicherte Bild das OFF-Bild ist — ein vorhandenes bleibt via
+  // coalesce erhalten). Bei nutrientsOnly werden Stammdaten NICHT angefasst → keine
+  // Herkunfts-Aenderung (G15 / G14-5).
+  if (!nutrientsOnly) {
+    const srcs: Partial<Record<ProductField, 'off'>> = {}
+    if (name) srcs.name = 'off'
+    if (brand) srcs.brand = 'off'
+    if (categoryId) srcs.category = 'off'
+    if (unit) srcs.unit = 'off'
+    if (imageUrl && productRow.imageUrl === imageUrl) srcs.image = 'off'
+    await setFieldSources(productId, srcs)
   }
 
   return json({

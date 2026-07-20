@@ -108,7 +108,7 @@
 <div class="wrap">
   <header class="top">
     <h1>stoqr — Test-Manifest</h1>
-    <p class="subtitle">Blöcke A–E + F/F2 + G/G6/G7/G8/G10/G11/G12/G13 · logisch aufbauender Durchlauf · Stand nach G13 (OFF-Refresh + Katalog-Preis)</p>
+    <p class="subtitle">Blöcke A–E + F/F2 + G/G6/G7/G8/G10/G11/G12/G13/G15 · logisch aufbauender Durchlauf · Stand nach G15 (Feld-Herkunft)</p>
 
     <div class="pre">
       <h2>Voraussetzung (kein Testschritt)</h2>
@@ -395,6 +395,19 @@ const BLOCKS = [
         expect: "Je Zeile ein Badge „OFF“ (von OpenFoodFacts) bzw. „manuell“ (selbst gepflegt/geändert). Manuelles Überschreiben setzt die Zeile auf „manuell“." },
       { id: "G13-1", title: "Erneuter OFF-Abruf überschreibt manuelle Änderungen", steps: ["Nährwerte abrufen.", "Einen Wert manuell ändern ODER eine Zeile löschen.", "Erneut „Von OpenFoodFacts abrufen“."],
         expect: "Die manuellen Änderungen werden mit den frischen OFF-Werten ÜBERSCHRIEBEN; gelöschte Nährwerte kommen zurück (vorher: erneuter Abruf tat nichts, weil 7-Tage-Cache). Die Artikel-Stammdaten (Name/Bild/Kategorie) bleiben dabei UNVERÄNDERT." },
+    ]
+  },
+  {
+    tag: "G15", name: "Feld-Herkunft (OFF / Globus / manuell)", desc: "Jedes Stammdaten-Feld trägt seine Quelle: OFF liefert die initiale Basis, Globus-Katalog aktualisiert selektiv, manuelles Bearbeiten setzt nur geänderte Felder auf 'manuell'.",
+    items: [
+      { id: 'G15-1', title: 'Herkunft-Badges auf der Artikel-Detailseite', steps: ['Neuen Artikel per Barcode/OFF anlegen.', 'Detailseite oeffnen und Kopf (Name, Marke, Kategorie, Bild) betrachten.'],
+        expect: 'Hinter Name/Marke/Kategorie (plus Zeile Bild:) je ein Herkunfts-Badge: OFF (OpenFoodFacts), Globus oder manuell. Frische OFF-Anlage zeigt ueberall OFF. Artikel ohne erfasste Herkunft zeigen kein Badge (kein Fehler).' },
+      { id: 'G15-2', title: 'Katalog-Abgleich setzt Herkunft auf Globus', steps: ['Katalog sichern (Sync).', 'Im Katalog-Spiegel bei einem Artikel z.B. Bild ankreuzen und uebernehmen.', 'Artikel-Detailseite oeffnen.'],
+        expect: 'Im Spiegel steht die Legende Aktueller Wert zu Globus-Katalog. Nach dem Uebernehmen zeigt das uebernommene Feld auf der Detailseite das Badge Globus (vorher OFF). Nur die angekreuzten Felder wechseln.' },
+      { id: 'G15-3', title: 'Manuelles Bearbeiten setzt NUR geaenderte Felder auf manuell', steps: ['Artikel bearbeiten (Detailseite, Bearbeiten).', 'NUR den Namen aendern, speichern.'],
+        expect: 'Nur das Name-Badge wechselt auf manuell. Bild/Kategorie/Marke behalten ihre bisherige Herkunft (OFF/Globus) - unveraenderte Felder werden nicht als manuell markiert.' },
+      { id: 'G15-4', title: 'easy-add nennt die Quelle', steps: ['Bestand hinzufuegen und Barcode eines neuen Artikels scannen (via OFF angelegt).'],
+        expect: 'Am ausgewaehlten Artikel erscheint der Hinweis Stammdaten von OpenFoodFacts. Bei manueller Auswahl eines vorhandenen Artikels erscheint der Hinweis NICHT.' },
     ]
   },
   {

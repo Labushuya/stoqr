@@ -94,6 +94,9 @@
 
   // EAN / barcode scanner (this stock entry's EAN)
   let scannedGtin = $state('')
+  // Hinweis: der ausgewaehlte Artikel wurde gerade per Barcode von OpenFoodFacts
+  // bezogen/angelegt (G15 — Quelle transparent machen).
+  let offHint = $state(false)
   let showScanner = $state(false)
   let scannerLoading = $state(false)
   let scannerNotFound = $state(false)
@@ -184,6 +187,7 @@
     selectedProduct = p
     searchQuery = p.name
     searchResults = []
+    offHint = false
     // Einheit-Vorauswahl: Standard-Einheit des Artikels uebernehmen,
     // solange der Nutzer die Einheit nicht selbst gesetzt hat und sie existiert.
     if (!unitTouched && p.defaultUnit && unitOptions.some((u) => u.symbol === p.defaultUnit)) {
@@ -228,6 +232,7 @@
     selectedProduct = null
     searchQuery = ''
     searchResults = []
+    offHint = false
     scannedGtin = ''
     scannerNotFound = false
     unitTouched = false
@@ -322,6 +327,8 @@
               category: null,
               defaultUnit: product.defaultUnit ?? null,
             })
+            // Nach selectProduct setzen (das den Hint sonst zuruecksetzt).
+            offHint = true
           } else {
             searchQuery = product.name
             onSearchInput()
@@ -576,6 +583,9 @@
           {/if}
           {#if scannedGtin}
             <span class="selected-brand">EAN {scannedGtin}</span>
+          {/if}
+          {#if offHint}
+            <span class="selected-off-hint">Stammdaten von OpenFoodFacts</span>
           {/if}
         </div>
         <button class="selected-clear" type="button" aria-label="Produkt entfernen" onclick={clearProduct}>
@@ -1524,6 +1534,12 @@
   .selected-brand {
     font-size: var(--text-xs);
     color: var(--color-text-muted);
+  }
+
+  .selected-off-hint {
+    font-size: var(--text-xs);
+    font-weight: 600;
+    color: var(--color-primary);
   }
 
   .selected-clear {

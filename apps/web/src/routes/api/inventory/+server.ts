@@ -5,6 +5,8 @@ import {
   getInventoryItem,
   createInventoryItem,
   createProduct,
+  setFieldSources,
+  type ProductField,
   getOrCreateProductByGtin,
 } from '$lib/server/queries/products'
 import { requireHouseholdId } from '$lib/server/queries/households'
@@ -140,6 +142,14 @@ export const POST: RequestHandler = async ({ locals, request }) => {
         defaultVolumeMl: defaultVolumeML ?? undefined,
         createdBy: locals.user.id,
       })
+      // Beim Anlegen ueber easy-add stammt der Payload aus einem OFF-/Barcode-Scan
+      // → gesetzte Stammdaten-Felder als 'off' kennzeichnen (G15).
+      const srcs: Partial<Record<ProductField, 'off'>> = { name: 'off' }
+      if (brand) srcs.brand = 'off'
+      if (imageUrl) srcs.image = 'off'
+      if (categoryId) srcs.category = 'off'
+      if (defaultUnit ?? unit) srcs.unit = 'off'
+      await setFieldSources(resolvedProductId, srcs)
     }
   } else {
     // productId was supplied directly — treat as reusing an existing product

@@ -3,7 +3,7 @@ import { globusSnapshots, products, categories, inventoryItems, productStores } 
 import { and, eq, desc } from 'drizzle-orm'
 import { snapshotDiffers, type SnapshotComparable } from '$lib/utils/snapshot-diff'
 import { computeMirrorDiff, type MirrorDiff } from '$lib/utils/mirror-diff'
-import { updateProduct, createProduct, suggestStockUnitForProduct } from '$lib/server/queries/products'
+import { updateProduct, createProduct, suggestStockUnitForProduct, setFieldSources, type ProductField } from '$lib/server/queries/products'
 import { recordProposedPrice } from '$lib/server/queries/prices'
 
 export { snapshotDiffers }
@@ -329,6 +329,12 @@ export async function applySnapshotToProduct(
 
   if (Object.keys(patch).length > 0) {
     await updateProduct(product.id, patch)
+    // Herkunft der uebernommenen Felder auf 'globus' setzen (G15).
+    const srcs: Partial<Record<ProductField, 'globus'>> = {}
+    if (patch.name !== undefined) srcs.name = 'globus'
+    if (patch.imageUrl !== undefined) srcs.image = 'globus'
+    if (patch.categoryId !== undefined) srcs.category = 'globus'
+    await setFieldSources(product.id, srcs)
   }
 
   // Preis: angekreuzt + Katalog hat Preis + Markt-Bezug → als Preis-VORSCHLAG
@@ -403,6 +409,12 @@ export async function materializeSnapshotToProduct(
     .update(globusSnapshots)
     .set({ productId })
     .where(eq(globusSnapshots.id, snapshotId))
+
+  // Herkunft der aus dem Katalog gesetzten Felder → 'globus' (G15).
+  const srcs: Partial<Record<ProductField, 'globus'>> = { name: 'globus' }
+  if (imageUrl) srcs.image = 'globus'
+  if (categoryId) srcs.category = 'globus'
+  await setFieldSources(productId, srcs)
 
   return {
     id: productId,

@@ -5,6 +5,32 @@ Neueste Einträge oben. Jeder Eintrag nennt den Commit-Kontext, damit andere LLM
 
 ---
 
+## [Unreleased] — G15: Feld-Provenienz (OFF / Globus / manuell) für Artikel-Stammdaten (implementiert, Test auf Pi ausstehend)
+
+Nutzer-Klarstellung nach dem Bild-Debakel: OFF darf beim initialen Anlegen alles liefern, aber **jedes Feld muss
+seine Herkunft explizit tragen**, und Markt-Daten (Globus) sollen die OFF-Werte **selektiv, feldweise** ersetzen.
+Kernprinzip: OFF = initiale Basis → bei Bedarf feldweise mit Markt-Daten aktualisieren.
+
+- **Datenmodell:** neue Tabelle `product_field_sources(product_id, field, source, updated_at)` (Migration 0017,
+  analog `product_nutrients`; `field` ∈ name/brand/image/category/unit; `source` ∈ 'off'|'globus'|'manual'). Additiv,
+  kein Backfill — fehlende Zeile = keine Herkunft (UI zeigt kein Badge). Query-Helper `setFieldSources`/`getFieldSources`.
+- **Schreibpfade setzen die Quelle:** OFF-Anlegen (`api/barcode`) → gelieferte Felder 'off' (Bild nur, wenn das
+  gespeicherte Bild wirklich das OFF-Bild ist); Globus-Katalog (`applySnapshotToProduct`/`materializeSnapshotToProduct`)
+  → übernommene Felder 'globus'; manueller PATCH (`api/products/[id]`) → **nur tatsächlich geänderte Felder** 'manual'
+  (Server-Diff before↔patch); manuelles Anlegen (POST) → 'manual'; easy-add-Neuanlage → 'off' (Scan-Herkunft).
+- **UI:** neue `SourceBadge.svelte` (OFF/Globus/manuell-Pill). Detailseite-Header zeigt je Feld (Name/Marke/Kategorie/Bild)
+  die Herkunft; der Nährwert-Badge (G12-3) nutzt jetzt dieselbe Komponente. Katalog-Spiegel bekommt die Legende
+  „Aktueller Wert → Globus-Katalog". easy-add zeigt am gescannten Artikel „Stammdaten von OpenFoodFacts".
+- **Bild-Regel (bestätigt):** OFF initial, Globus nur per Abgleich wählbar — nie automatisch (G14-2 bleibt).
+
+Gates: typecheck 0, lint 0/33, build ✓, vitest 105/105. Manifest: neuer G15-Block. (Merkregel stale-$derived-Reseed
+als Projekt-Notiz festgehalten.)
+
+### Commits
+(folgt)
+
+---
+
 ## [Unreleased] — G14: Vier Regressionen aus G12/G13 behoben (implementiert, Test auf Pi ausstehend)
 
 Nach dem G13-Deploy vier Symptome gemeldet — drei davon direkte Folgen meiner G12/G13-Änderungen. Diagnose (Workflow), am Code verifiziert:

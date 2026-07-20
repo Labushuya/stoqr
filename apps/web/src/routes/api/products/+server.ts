@@ -1,6 +1,6 @@
 import { json } from '@sveltejs/kit'
 import type { RequestHandler } from './$types'
-import { searchProducts, createProduct, getProductById } from '$lib/server/queries/products'
+import { searchProducts, createProduct, getProductById, setFieldSources, type ProductField } from '$lib/server/queries/products'
 import { requireHouseholdId } from '$lib/server/queries/households'
 import { writeAudit } from '$lib/server/queries/audit'
 import { isUniqueViolation } from '$lib/server/db-errors'
@@ -69,6 +69,14 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 
     // Return the full product (with category) so callers can update UI without a reload
     const product = await getProductById(productId)
+
+    // Manuell angelegter Artikel (ProductForm) → gesetzte Stammdaten-Felder 'manual' (G15).
+    const srcs: Partial<Record<ProductField, 'manual'>> = { name: 'manual' }
+    if (brand) srcs.brand = 'manual'
+    if (imageUrl) srcs.image = 'manual'
+    if (categoryId) srcs.category = 'manual'
+    if (defaultUnit) srcs.unit = 'manual'
+    await setFieldSources(productId, srcs)
 
     await writeAudit({
       householdId,
