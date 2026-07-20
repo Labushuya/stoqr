@@ -108,7 +108,7 @@
 <div class="wrap">
   <header class="top">
     <h1>stoqr — Test-Manifest</h1>
-    <p class="subtitle">Blöcke A–E · logisch aufbauender Durchlauf · Stand nach Block E (M2)</p>
+    <p class="subtitle">Blöcke A–E + F/F2 + G/G6/G7/G8/G10 · logisch aufbauender Durchlauf · Stand nach G10 (Katalog-Spiegel)</p>
 
     <div class="pre">
       <h2>Voraussetzung (kein Testschritt)</h2>
@@ -126,7 +126,8 @@
     <div class="progress-meta">
       <span id="count">0 / 0 erledigt</span>
       <span class="actions">
-        <button class="act primary" onclick="copyExport()">📋 Ergebnis kopieren (Markdown)</button>
+        <button class="act primary" onclick="copyExport(true)">📋 Offene + Notizen kopieren</button>
+        <button class="act" onclick="copyExport(false)">Alles kopieren</button>
         <button class="act" onclick="resetAll()">Zurücksetzen</button>
       </span>
     </div>
@@ -318,39 +319,52 @@ const BLOCKS = [
     ]
   },
   {
-    tag: "G7", name: "Katalog-Snapshots, Bilder & freie Gebinde-Einheit", desc: "Freie Gebinde-Einheit (g/kg/ml/l); Globus-Katalog-Sicherung mit Historie/Approval + Bild-Download.",
+    tag: "G7", name: "Katalog-Snapshots, Bilder & freie Gebinde-Einheit", desc: "Freie Gebinde-Einheit (g/kg/ml/l); Katalog-Sicherung als EAN-Spiegel des Bestands: je Artikel-mit-EAN neuester Snapshot + Feld-Diff (Name/Bild/Kategorie), einzeln oder komplett übernehmbar.",
     items: [
       { id: "G7-1", title: "Gebinde mit freier Einheit (g statt 0,04 kg)", steps: ["Artikel mit Stückzahl-Standard-Einheit (z.B. „Packung“) öffnen.", "„Gebinde festlegen“ → Betrag 40 + Einheit „Gramm (g)“ → Speichern."],
         expect: "Anzeige „1 Packung = 40 g“ (NICHT 0,04 kg). Mit 1,5 + „Liter (l)“ → „1,5 l“. Gesamtbestand/Estimate bleiben korrekt." },
-      { id: "G7-2", title: "Katalog jetzt sichern", steps: ["Voraussetzung: Online-Preis-Abruf aktiv, Globus-Markt mit Suggest-URL, Artikel mit EAN zugeordnet.", "Einstellungen → „Katalog-Sicherung (Globus)“ → „Katalog jetzt sichern“."],
-        expect: "Ergebnis-Toast („X neu, Y unverändert…“). Für Artikel mit gefundener EAN erscheint ein Vorschlag mit Name/Kategorie/Preis und — falls vorhanden — Bild-Thumbnail." },
+      { id: "G7-2", title: "Katalog sichern & Spiegel füllen", steps: ["Voraussetzung: Online-Preis-Abruf aktiv, Globus-Markt mit Suggest-URL, Artikel mit EAN zugeordnet.", "Einstellungen → „Katalog-Sicherung (Globus)“ → „Katalog jetzt sichern“."],
+        expect: "Ergebnis-Toast („X neu, Y unverändert, ggf. übersprungen/fehlgeschlagen“). Danach steht jeder Bestands-Artikel-mit-EAN in der Liste „Bestands-Artikel im Katalog“ mit Thumbnail, EAN und — falls vorhanden — Katalog-Preis. Artikel mit Abweichung (Name/Bild/Kategorie) stehen zuoberst und sind aufgeklappt, Badge „abweichend“." },
       { id: "G7-3", title: "Erneuter Sync ohne Änderung", steps: ["Direkt nochmal „Katalog jetzt sichern“ (ohne dass sich bei Globus etwas geändert hat)."],
-        expect: "Ergebnis meldet „unverändert“; es entstehen KEINE neuen doppelten Vorschläge." },
-      { id: "G7-4", title: "Vorschlag übernehmen / verwerfen", steps: ["Bei einem offenen Vorschlag „Übernehmen“ bzw. „Verwerfen“ klicken."],
-        expect: "Der Vorschlag verschwindet aus der Liste; /aktivitaet zeigt den Übergang (globus_snapshots)." },
-      { id: "G7-5", title: "Bild-Anzeige (Volume)", steps: ["Einen Vorschlag mit Thumbnail betrachten; Bild-URL ist /media/…"],
+        expect: "Ergebnis meldet „unverändert“. Der Spiegel bleibt unverändert: weiterhin genau EINE Zeile je EAN (keine Dopplung), keine neuen Abweichungen." },
+      { id: "G7-4", title: "Abweichung übernehmen / ignorieren", steps: ["Bei einem abweichenden Artikel einzelne Felder ankreuzen und „Übernehmen“ klicken — oder „Alles übernehmen“ bzw. „Ignorieren“."],
+        expect: "Der Artikel verschwindet NICHT aus der Liste (EAN-Spiegel). Die übernommenen Felder stehen danach im Artikel, die Abweichung ist weg → die Zeile zeigt „Katalogdaten stimmen mit dem Artikel überein“ und rutscht nach unten (Badge „aktuell“). /aktivitaet zeigt den Übergang (globus_snapshots → confirmed/rejected)." },
+      { id: "G7-5", title: "Bild-Anzeige (Volume)", steps: ["Einen Spiegel-Eintrag mit Thumbnail betrachten; Bild-URL ist /media/…"],
         expect: "Das Bild lädt (aus dem lokalen Volume, nur für den eigenen Haushalt sichtbar)." },
-      { id: "G7-6", title: "Failsafe / Struktur-Check", steps: ["Optional: Markt-URL kurz verbiegen oder Artikel mit nicht geführter EAN testen."],
-        expect: "Sync läuft ohne Absturz durch (übersprungen/fehlgeschlagen gezählt). Bei 0 Treffern trotz EANs erscheint die Warnung „Globus-Struktur evtl. geändert“." },
+      { id: "G7-6", title: "Failsafe / Struktur-Check + URL-Validierung", steps: ["Beim Markt eine Abruf-URL OHNE {EAN}-Platzhalter speichern.", "Optional: Sync mit gültigen EANs ausführen, die Globus nicht liefert."],
+        expect: "URL ohne {EAN} wird beim Speichern ABGELEHNT („Abruf-URL muss den Platzhalter {EAN} enthalten“), nicht erst im Sync übersprungen. Der Sync selbst läuft ohne Absturz durch (übersprungen/fehlgeschlagen gezählt). Bei 0 Treffern trotz EANs erscheint eine DAUERHAFTE Warn-Card „Globus-Struktur evtl. geändert“ (kein flüchtiger Toast)." },
     ]
   },
   {
-    tag: "G8", name: "Snapshot→Artikel, Markt, On-demand-Katalog & Quick-Wins", desc: "Katalog-Daten in Artikel übernehmen, Markt merken, Update-Diagnose, Katalog-Suche beim Anlegen, Quick-Wins.",
+    tag: "G8", name: "Snapshot→Artikel, Markt, On-demand-Katalog & Quick-Wins", desc: "Katalog-Daten in Artikel übernehmen, Markt merken, Update-Diagnose, Quick-Wins.",
     items: [
-      { id: "G8-1", title: "Katalog-Snapshot in Artikel übernehmen (Bild)", steps: ["Einstellungen → Katalog-Sicherung → offener Vorschlag mit Bild.", "Feld „Bild“ ankreuzen (vorausgewählt), dann „Übernehmen“."],
-        expect: "Der zugeordnete Artikel zeigt danach das Bild (Detailseite). Name/Kategorie werden nur übernommen, wenn angehakt (bzw. Artikelfeld leer). Ohne Artikel-Match ist „Übernehmen“ gesperrt." },
+      { id: "G8-1", title: "Katalog-Snapshot in Artikel übernehmen (Bild)", steps: ["Einstellungen → Katalog-Sicherung → abweichenden Artikel aufklappen.", "Feld „Bild“ angekreuzt lassen, „Übernehmen“ klicken."],
+        expect: "Der Artikel zeigt danach das Katalog-Bild (Detailseite). Angekreuzte Felder überschreiben, nicht angekreuzte füllen nur leere Artikelfelder. Die Zuordnung läuft über die EAN — es gibt KEINE „kein Match / gesperrt“-Situation mehr (Snapshot ohne productId wird per EAN aufgelöst)." },
       { id: "G8-2", title: "Markt wird am Artikel gemerkt", steps: ["Bestand hinzufügen (easy-add) mit Markt „Globus“ → speichern.", "Artikel-Detailseite öffnen → Bezugsquellen-Chips prüfen. Danach erneut einen Bestand desselben Artikels anlegen."],
         expect: "„Globus“ ist auf der Detailseite als Bezugsquelle markiert; beim erneuten Anlegen ist der Markt vorbelegt." },
       { id: "G8-3", title: "Update-Check nennt die Ursache", steps: ["Versionsanzeige unten → Update prüfen."],
         expect: "Statt pauschal „Prüfung nicht möglich“ die konkrete Ursache (z.B. „kein Internetzugang zu GitHub“, „GitHub-Rate-Limit“)." },
-      { id: "G8-4", title: "On-demand-Katalog-Suche beim Anlegen", steps: ["Online-Preis-Abruf aktiv + Globus-Markt mit Suggest-URL.", "Bestand hinzufügen → im Suchfeld einen Begriff tippen (z.B. „mineralwasser“)."],
-        expect: "Neben lokalen Treffern erscheint ein Block „Aus Globus-Katalog“ mit Bild; „Anlegen“ erzeugt den Artikel (Name/EAN/Bild) und wählt ihn aus. Kein Massen-Crawl." },
       { id: "G8-5a", title: "Einkauf umbenennen", steps: ["Einkauf-Run öffnen → „Umbenennen“ → Name eingeben → Speichern."],
         expect: "Der Name bleibt nach Reload erhalten (Titel + Breadcrumb)." },
       { id: "G8-5b", title: "EAN auf der Inventar-Übersicht", steps: ["/inventar öffnen (Artikel mit EAN)."],
         expect: "Die EAN wird je Karte angezeigt." },
       { id: "G8-5c", title: "„Nur verfügbare“-Toggle wirkt", steps: ["/inventar: einen Bestand als verbraucht markieren.", "Toggle „Nur verfügbare“ aus- und wieder einschalten."],
         expect: "Ausgeschaltet erscheinen verbrauchte/gespendete/entsorgte Bestände; eingeschaltet werden sie ausgeblendet." },
+    ]
+  },
+  {
+    tag: "G10", name: "Katalog-Spiegel & Konsolidierung", desc: "Katalog-Sicherung als EAN-Spiegel des Bestands (kein Katalog-Crawl beim Anlegen), {EAN}-Pflicht bei Abruf-URLs, Einstellungs-Reihenfolge; Regressionen aus G8/G9.",
+    items: [
+      { id: "G10-1", title: "Katalog-Spiegel zeigt alle Bestands-Artikel mit EAN + Diff", steps: ["Online-Preis-Abruf aktiv + Globus-Markt mit {EAN}-URL, mind. 1 Artikel mit EAN.", "Einstellungen → „Katalog-Sicherung (Globus)“ → „Katalog jetzt sichern“."],
+        expect: "Liste „Bestands-Artikel im Katalog (n)“ erscheint dauerhaft (nicht nur bei offenen Vorschlägen). Artikel MIT Abweichung stehen oben und sind aufgeklappt, mit Feld-Diff (Name/Bild/Kategorie, alt → neu) und Buttons „Übernehmen“ / „Alles übernehmen“ / „Ignorieren“. Artikel ohne Abweichung: „Katalogdaten stimmen überein“; ohne Snapshot: „Noch kein Katalog-Eintrag“." },
+      { id: "G10-2", title: "easy-add: nur existierende Artikel (kein Katalog-Anlegen)", steps: ["Bestand hinzufügen → im Suchfeld einen Begriff tippen (z.B. „milch“).", "EAN eines bekannten Artikels ins Suchfeld eingeben."],
+        expect: "Es erscheinen NUR vorhandene Artikel (Name/Marke/EAN) aus dem eigenen Bestand — KEIN Block „Aus Globus-Katalog“, kein „Anlegen aus Katalog“. Ohne lokalen Treffer: Hinweis mit Link zum normalen Artikel-Anlegen. Eine bekannte EAN findet den passenden Artikel direkt." },
+      { id: "G10-3", title: "Abruf-URL ohne {EAN}-Platzhalter wird abgelehnt", steps: ["Einstellungen → Märkte → Markt bearbeiten.", "Gültige http/https-URL OHNE {EAN} eintragen (z.B. https://produkte.globus.de/suggest?search=wasser) → Speichern."],
+        expect: "Fehlermeldung „Abruf-URL muss den Platzhalter {EAN} enthalten“; die URL wird NICHT gespeichert. (Verschärft F2-2: früher wurde eine gültige URL ohne {EAN} akzeptiert.)" },
+      { id: "G10-4", title: "Einstellungs-Reihenfolge: Einheiten + Aktivität unter Märkte", steps: ["/einstellungen öffnen und Abschnitte von oben durchgehen."],
+        expect: "Reihenfolge: Haushaltsmitglieder → Artikel → Märkte → Einheiten → Aktivität. Einheiten und Aktivität stehen direkt unterhalb von Märkte." },
+      { id: "G9-1", title: "Spiegel bleibt nach „Katalog sichern“ sichtbar (Regression)", steps: ["„Katalog jetzt sichern“ ausführen und die Liste danach betrachten (ohne manuellen Reload)."],
+        expect: "Die Katalog-Liste zeigt die aktuellen Daten (reaktiv), nicht leer/stale. (Regression aus G8 behoben.)" },
     ]
   },
   {
@@ -361,7 +375,7 @@ const BLOCKS = [
       { id: "F2-1", title: "Schalter AUS: keine Abruf-UI", steps: ["Schalter wieder ausschalten.", "Artikel-Detailseite + Einstellungen→Märkte öffnen."],
         expect: "Kein „Online abrufen“-Button (Detailseite) und kein „Preise abrufen“-Button (Märkte). Preise/Vorschläge funktionieren unverändert. Danach für die weiteren Tests wieder einschalten." },
       { id: "F2-2", title: "Abruf-URL am Markt hinterlegen (Suggest + {EAN})", steps: ["Einstellungen → Märkte → Markt „Globus“ bearbeiten.", "Abruf-URL mit {EAN}-Platzhalter eintragen: https://produkte.globus.de/hockenheim/suggest?search={EAN} (Anleitung unter dem Feld beachten — SUGGEST, nicht search).", "Speichern. Auch eine ungültige URL (z.B. „abc“) testen — auch nach vorherigem gültigen Wert."],
-        expect: "Gültige http/https-URL wird gespeichert; „Online-Abruf aktiv“-Badge erscheint. Ungültige URL → Fehlermeldung und wird NICHT übernommen (auch nach Wechsel gültig→ungültig)." },
+        expect: "Gültige http/https-URL wird gespeichert; „Online-Abruf aktiv“-Badge erscheint. Ungültige URL → Fehlermeldung und wird NICHT übernommen (auch nach Wechsel gültig→ungültig). Hinweis: Eine gültige URL OHNE {EAN}-Platzhalter wird ebenfalls abgelehnt — Detailtest siehe G10-3." },
       { id: "F2-3", title: "Online-Preis abrufen → Vorschlag", steps: ["Schalter AN + Markt hat die Suggest-URL. Artikel mit einer bei Globus GEFÜHRTEN EAN öffnen (z.B. Mineralwasser Classic 4306188415978), Markt zugeordnet.", "„Preise“-Card → beim Markt „Online abrufen“."],
         expect: "Bei Treffer: Toast + neuer Block „Vorschlag: Online-Preis X € / Einheit“ mit Buttons Übernehmen/Korrigieren/Verwerfen. Der Vorschlag zählt NICHT zum aktuellen Preis / Estimate." },
       { id: "F2-4", title: "Übernehmen macht maßgeblich", steps: ["Beim Vorschlag „Übernehmen“ klicken."],
@@ -486,31 +500,45 @@ function updateProgress() {
 updateProgress();
 
 // ── Export (Markdown → Zwischenablage) ──────────────────────────────────────
-function buildMarkdown() {
+function buildMarkdown(onlyOpen = false) {
   const done = allIds.filter(id => state[id] && state[id].done).length;
   const lines = [];
   lines.push("# stoqr — Test-Ergebnis A–E");
   lines.push("");
   lines.push(`Stand: ${done} / ${allIds.length} erledigt`);
+  if (onlyOpen) lines.push("_Gefiltert: nur offene Punkte und Punkte mit Notiz_");
   lines.push("");
+  let bodyCount = 0;
   for (const block of BLOCKS) {
-    lines.push(`## [${block.tag}] ${block.name}`);
+    const blockLines = [];
     for (const it of block.items) {
       const st = state[it.id] || {};
-      const box = st.done ? "[x]" : "[ ]";
-      lines.push(`- ${box} **${it.id}** — ${it.title}`);
       const note = (st.note || "").trim();
+      // Im Filter-Modus: erledigte Punkte OHNE Notiz überspringen.
+      if (onlyOpen && st.done && !note) continue;
+      const box = st.done ? "[x]" : "[ ]";
+      blockLines.push(`- ${box} **${it.id}** — ${it.title}`);
       if (note) {
-        for (const nl of note.split("\n")) lines.push(`    - 📝 ${nl}`);
+        for (const nl of note.split("\n")) blockLines.push(`    - 📝 ${nl}`);
       }
     }
+    // Leere Blöcke (im Filter-Modus komplett weggefiltert) ganz überspringen.
+    if (blockLines.length === 0) continue;
+    lines.push(`## [${block.tag}] ${block.name}`);
+    lines.push(...blockLines);
+    lines.push("");
+    bodyCount += blockLines.length;
+  }
+  // Edge-Case: alles erledigt, keine Notizen → kein Body.
+  if (bodyCount === 0) {
+    lines.push("Alle Punkte erledigt, keine offenen Hinweise.");
     lines.push("");
   }
   return lines.join("\n");
 }
 
-function copyExport() {
-  const md = buildMarkdown();
+function copyExport(onlyOpen = false) {
+  const md = buildMarkdown(onlyOpen);
   const fallback = () => {
     const ta = document.createElement("textarea");
     ta.value = md; document.body.appendChild(ta); ta.select();
