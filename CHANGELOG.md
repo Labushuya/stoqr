@@ -5,6 +5,33 @@ Neueste Einträge oben. Jeder Eintrag nennt den Commit-Kontext, damit andere LLM
 
 ---
 
+## [Unreleased] — G14: Vier Regressionen aus G12/G13 behoben (implementiert, Test auf Pi ausstehend)
+
+Nach dem G13-Deploy vier Symptome gemeldet — drei davon direkte Folgen meiner G12/G13-Änderungen. Diagnose (Workflow), am Code verifiziert:
+
+- **G14-1 (Nährwerte „übernommen", aber nichts sichtbar):** Der Server-Cache-Bypass (G13-1) war korrekt — aber
+  `fetchNutrientsFromOff` reseedete `nutrientRows` nach `invalidateAll()` aus dem **$derived `product`** (hält noch
+  den alten Wert) statt aus `data.product` (frisch). Dieselbe stale-state-Lehre wie G6-3/G9-1. Fix: aus
+  `data.product.nutrients` reseeden. Zusätzlich ehrliche Meldung, wenn OFF für die EAN gar keine Nährwerte hat.
+- **G14-2 (Artikel bekam plötzlich ein schlechteres Bild):** Der Barcode-/easy-add-Pfad überschrieb `imageUrl`
+  **immer** mit dem OFF-`image_url` (oft ein Community-Foto) — auch wenn der Artikel schon ein professionelles
+  Globus-`/media`-Bild hatte. Fix: OFF-Bild nur setzen, wenn der Artikel **kein** Bild hat (`cached.imageUrl ?? …`
+  bzw. `coalesce` im onConflict). Vorhandene Bilder bleiben.
+- **G14-3 (Artikel dauerhaft „abweichend", Panel aber leer):** Folge von G14-2 (OFF-http-Bild ≠ `/media`-Snapshot
+  → `image.differs` dauerhaft) PLUS ein UI-Race: das „abweichend"-Badge prüfte nur `diff.any`, das Aufklapp-Panel
+  zusätzlich `snapFields[id]`, das per `$effect` erst nach dem ersten Render gefüllt wurde → Badge und Panel
+  widersprachen sich. Fix: `snapFields` als `$derived.by` (sofort vorhanden, kein Race) mit untracked
+  User-Toggle-Overlay; Gate ohne `snapFields`-Guard. Mit G14-2 verschwindet auch die Dauer-Abweichung.
+- **G14-4 (unterschiedlich große Inventar-Karten):** Kein neuer Bug, aber durch das G13-3-`no-store`-404 sichtbarer.
+  Fix: `.item-name` reserviert 2 Zeilen (`min-height`); `<img>` bekommt `onerror`-Fallback (versteckt Broken-Image).
+
+Gates: typecheck 0, lint 0/33, build ✓, vitest 105/105.
+
+### Commits
+(folgt)
+
+---
+
 ## [Unreleased] — G13: OFF-Nährwert-Refresh-Bug + Katalog-Preis-Vorschlag + Bilder-404 (implementiert, Test auf Pi ausstehend)
 
 G12-Test 97/98 + drei Beobachtungen. Diagnose (Workflow):

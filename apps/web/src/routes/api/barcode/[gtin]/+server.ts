@@ -2,7 +2,7 @@ import { json } from '@sveltejs/kit'
 import type { RequestHandler } from './$types'
 import { db } from '$lib/server/db'
 import { products, categories, productNutrients } from '@stoqr/db'
-import { eq } from 'drizzle-orm'
+import { eq, sql } from 'drizzle-orm'
 import { extractOffNutrients, type OffNutrient } from '$lib/utils/off-nutrients'
 
 // ---------------------------------------------------------------------------
@@ -294,7 +294,10 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
           : {
               name,
               brand,
-              imageUrl,
+              // Bild NICHT ueberschreiben, wenn der Artikel schon eines hat
+              // (z.B. ein professionelles Globus-/media-Bild). OFF-image_url ist
+              // oft ein schlechteres Community-Foto → nur leeres Feld fuellen (G14-2).
+              imageUrl:        cached.imageUrl ?? imageUrl,
               categoryId,
               defaultUnit:     unit,
               defaultWeightG:  defaultWeightG?.toString() ?? null,
@@ -329,7 +332,8 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
         set: {
           name,
           brand,
-          imageUrl,
+          // Vorhandenes Bild behalten (COALESCE) — kein Overwrite mit OFF-Bild (G14-2).
+          imageUrl:        sql`coalesce(${products.imageUrl}, ${imageUrl})`,
           categoryId,
           defaultUnit:     unit,
           defaultWeightG:  defaultWeightG?.toString() ?? null,

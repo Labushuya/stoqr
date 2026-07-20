@@ -429,6 +429,7 @@ Das Produkt bleibt im Katalog.`,
                 alt={item.product.name}
                 class="item-image"
                 loading="lazy"
+                onerror={(e) => ((e.currentTarget as HTMLImageElement).style.display = 'none')}
               />
             {:else}
               <span class="item-cat-icon" aria-hidden="true">{icon}</span>
@@ -971,6 +972,9 @@ Das Produkt bleibt im Katalog.`,
     color: var(--color-text-primary);
     flex: 1;
     line-height: 1.35;
+    /* Immer Platz fuer 2 Zeilen reservieren, damit 1- vs. 2-zeilige Namen die
+       Kartenhoehe nicht springen lassen (G14-4). */
+    min-height: 2.7em;
     overflow: hidden;
     display: -webkit-box;
     -webkit-line-clamp: 2;

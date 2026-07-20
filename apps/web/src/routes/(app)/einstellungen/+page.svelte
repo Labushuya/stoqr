@@ -89,25 +89,36 @@
     }
   }
 
-  // Angekreuzte Uebernahme-Felder je Snapshot — abweichende Felder vorausgewaehlt.
-  let snapFields = $state<Record<string, { image: boolean; name: boolean; category: boolean; price: boolean }>>({})
   // Preis nur uebernehmbar, wenn der Snapshot einen Preis UND einen Markt-Bezug
   // hat (product_prices ist markt-gebunden) — G13-2.
   const canTakePrice = (r: MirrorRow) => r.snapshot?.priceCt != null && r.snapshot?.storeId != null
-  // Fuer jeden Snapshot mit Abweichung/Preis einen Feld-Zustand vorhalten (bind:
-  // braucht MemberExpression). Default: abweichende Felder + verfuegbarer Preis angekreuzt.
-  $effect(() => {
+  // Angekreuzte Uebernahme-Felder je Snapshot. Als $derived DIREKT aus dem Spiegel
+  // aufgebaut — dadurch ist der Eintrag bereits beim ERSTEN Render vorhanden (kein
+  // $effect-Race, der frueher Badge und Panel auseinanderlaufen liess, G14-3).
+  // Nutzer-Toggles bleiben ueber ein untracked Overlay erhalten.
+  const snapFieldOverrides: Record<string, { image: boolean; name: boolean; category: boolean; price: boolean }> = {}
+  let catalogMirrorTick = $state(0)
+  const snapFields = $derived.by(() => {
+    void catalogMirrorTick // Abhaengigkeit: Neuberechnung nach einem Toggle erzwingen.
+    const out: Record<string, { image: boolean; name: boolean; category: boolean; price: boolean }> = {}
     for (const r of catalogMirror) {
-      if (r.snapshot && !snapFields[r.snapshot.id]) {
-        snapFields[r.snapshot.id] = {
-          image: r.diff.image.differs,
-          name: r.diff.name.differs,
-          category: r.diff.category.differs,
-          price: canTakePrice(r),
-        }
+      if (!r.snapshot) continue
+      out[r.snapshot.id] = snapFieldOverrides[r.snapshot.id] ?? {
+        image: r.diff.image.differs,
+        name: r.diff.name.differs,
+        category: r.diff.category.differs,
+        price: canTakePrice(r),
       }
     }
+    return out
   })
+  // Checkbox-Toggle: schreibt ins Overlay (bleibt erhalten) + triggert Neuberechnung.
+  function toggleSnapField(id: string, field: 'image' | 'name' | 'category' | 'price') {
+    const cur = snapFields[id]
+    if (!cur) return
+    snapFieldOverrides[id] = { ...cur, [field]: !cur[field] }
+    catalogMirrorTick++
+  }
 
   async function reviewSnapshot(id: string, action: 'confirm' | 'reject', allFields = false) {
     snapshotBusy = id
@@ -520,11 +531,11 @@
               {/if}
             </summary>
 
-            {#if r.snapshot && (r.diff.any || canTakePrice(r)) && snapFields[r.snapshot.id]}
+            {#if r.snapshot && (r.diff.any || canTakePrice(r))}
               <div class="snap-diff">
                 {#if r.diff.name.differs}
                   <label class="snap-diff-row">
-                    <input type="checkbox" bind:checked={snapFields[r.snapshot.id].name} />
+                    <input type="checkbox" checked={snapFields[r.snapshot.id]?.name} onchange={() => toggleSnapField(r.snapshot!.id, 'name')} />
                     <span class="snap-diff-field">Name</span>
                     <span class="snap-diff-old">{r.product.name || '(leer)'}</span>
                     <span class="snap-diff-arrow" aria-hidden="true">→</span>
@@ -533,7 +544,7 @@
                 {/if}
                 {#if r.diff.image.differs}
                   <label class="snap-diff-row">
-                    <input type="checkbox" bind:checked={snapFields[r.snapshot.id].image} />
+                    <input type="checkbox" checked={snapFields[r.snapshot.id]?.image} onchange={() => toggleSnapField(r.snapshot!.id, 'image')} />
                     <span class="snap-diff-field">Bild</span>
                     <span class="snap-diff-old">{r.product.imageUrl ? 'vorhanden' : '(leer)'}</span>
                     <span class="snap-diff-arrow" aria-hidden="true">→</span>
@@ -542,7 +553,7 @@
                 {/if}
                 {#if r.diff.category.differs}
                   <label class="snap-diff-row">
-                    <input type="checkbox" bind:checked={snapFields[r.snapshot.id].category} />
+                    <input type="checkbox" checked={snapFields[r.snapshot.id]?.category} onchange={() => toggleSnapField(r.snapshot!.id, 'category')} />
                     <span class="snap-diff-field">Kategorie</span>
                     <span class="snap-diff-old">{r.product.categoryName || '(leer)'}</span>
                     <span class="snap-diff-arrow" aria-hidden="true">→</span>
@@ -551,7 +562,7 @@
                 {/if}
                 {#if canTakePrice(r)}
                   <label class="snap-diff-row">
-                    <input type="checkbox" bind:checked={snapFields[r.snapshot.id].price} />
+                    <input type="checkbox" checked={snapFields[r.snapshot.id]?.price} onchange={() => toggleSnapField(r.snapshot!.id, 'price')} />
                     <span class="snap-diff-field">Preis</span>
                     <span class="snap-diff-new">{fmtSnapPrice(r.snapshot.priceCt)} (Katalog)</span>
                     <span class="snap-diff-hint">→ als Preis-Vorschlag am Markt</span>

@@ -623,15 +623,23 @@
         showToast('Keine Nährwerte bei OpenFoodFacts gefunden', 'error')
         return
       }
-      showToast('Nährwerte von OpenFoodFacts übernommen')
+      // OFF lieferte zwar den Artikel, aber evtl. KEINE Naehrwerte → ehrliche Meldung.
+      const gotNutrients = Array.isArray(b?.nutrients) && b.nutrients.length > 0
       await invalidateAll()
-      // nutrientRows ist lokaler $state → nach dem Reload aus frischen Daten neu seeden.
-      nutrientRows = (product.nutrients ?? []).map(
+      // nutrientRows ist lokaler $state → nach dem Reload aus den FRISCHEN Loader-
+      // Daten (data.product) neu seeden, NICHT aus dem $derived product (das nach
+      // dem await noch den alten Wert haelt — G6-3/G9-1-Lehre).
+      nutrientRows = (data.product.nutrients ?? []).map(
         (n: { nutrientTypeId: string; valuePer100: string; source?: string }) => ({
           nutrientTypeId: n.nutrientTypeId,
           valuePer100: String(n.valuePer100),
           source: n.source ?? 'off',
         })
+      )
+      showToast(
+        gotNutrients
+          ? 'Nährwerte von OpenFoodFacts übernommen'
+          : 'OpenFoodFacts hat für diese EAN keine Nährwerte hinterlegt'
       )
     } catch {
       showToast('Netzwerkfehler beim Abruf', 'error')
