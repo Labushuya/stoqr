@@ -22,7 +22,7 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
 
   const body = (await request.json().catch(() => ({}))) as {
     action?: 'confirm' | 'reject' | 'materialize'
-    fields?: { image?: boolean; name?: boolean; category?: boolean }
+    fields?: { image?: boolean; name?: boolean; category?: boolean; price?: boolean }
   }
 
   if (body.action === 'materialize') {

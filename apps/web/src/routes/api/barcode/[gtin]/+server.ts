@@ -156,12 +156,17 @@ async function buildResponse(
 // GET /api/barcode/[gtin]
 // ---------------------------------------------------------------------------
 
-export const GET: RequestHandler = async ({ params, locals }) => {
+export const GET: RequestHandler = async ({ params, locals, url }) => {
   if (!locals.user) {
     return json({ error: 'Unauthorized' }, { status: 401 })
   }
 
   const { gtin } = params
+  // ?refresh=nutrients erzwingt einen frischen OFF-Abruf (Cache-Bypass) und
+  // frischt NUR die Naehrwerte auf — die Artikel-Stammdaten (Name/Bild/Kategorie
+  // etc.) bleiben unangetastet (der „Naehrwerte abrufen"-Button, G13-1).
+  const refresh = url.searchParams.get('refresh')
+  const nutrientsOnly = refresh === 'nutrients'
 
   if (!gtin || !/^\d{8,14}$/.test(gtin)) {
     return json({ error: 'Invalid GTIN' }, { status: 400 })
@@ -183,7 +188,7 @@ export const GET: RequestHandler = async ({ params, locals }) => {
     },
   })
 
-  if (cached && cached.offFetchedAt && cached.offFetchedAt > staleThreshold) {
+  if (!refresh && cached && cached.offFetchedAt && cached.offFetchedAt > staleThreshold) {
     const nutrientRows = cached.nutrients.map((n) => ({
       offKey:      n.nutrientType.offKey ?? n.nutrientType.slug,
       valuePer100: Number(n.valuePer100),
@@ -273,21 +278,32 @@ export const GET: RequestHandler = async ({ params, locals }) => {
   let productId: string
 
   if (cached) {
-    // Row exists but is stale — update it
+    // Row exists but is stale (oder refresh erzwungen) — update it.
+    // Bei nutrientsOnly (Naehrwerte-Refresh) NUR Cache-Timestamp + offData
+    // auffrischen; Stammdaten (Name/Bild/Kategorie/Einheit) NICHT ueberschreiben,
+    // damit manuelle Artikel-Korrekturen erhalten bleiben (G13-1).
     const [updated] = await db
       .update(products)
-      .set({
-        name,
-        brand,
-        imageUrl,
-        categoryId,
-        defaultUnit:     unit,
-        defaultWeightG:  defaultWeightG?.toString() ?? null,
-        defaultVolumeMl: defaultVolumeML?.toString() ?? null,
-        offData:         p as Record<string, unknown>,
-        offFetchedAt:    now,
-        updatedAt:       now,
-      })
+      .set(
+        nutrientsOnly
+          ? {
+              offData:      p as Record<string, unknown>,
+              offFetchedAt: now,
+              updatedAt:    now,
+            }
+          : {
+              name,
+              brand,
+              imageUrl,
+              categoryId,
+              defaultUnit:     unit,
+              defaultWeightG:  defaultWeightG?.toString() ?? null,
+              defaultVolumeMl: defaultVolumeML?.toString() ?? null,
+              offData:         p as Record<string, unknown>,
+              offFetchedAt:    now,
+              updatedAt:       now,
+            }
+      )
       .where(eq(products.gtin, gtin))
       .returning({ id: products.id })
 

@@ -108,7 +108,7 @@
 <div class="wrap">
   <header class="top">
     <h1>stoqr — Test-Manifest</h1>
-    <p class="subtitle">Blöcke A–E + F/F2 + G/G6/G7/G8/G10/G11/G12 · logisch aufbauender Durchlauf · Stand nach G12 (Nährwert-Abruf)</p>
+    <p class="subtitle">Blöcke A–E + F/F2 + G/G6/G7/G8/G10/G11/G12/G13 · logisch aufbauender Durchlauf · Stand nach G13 (OFF-Refresh + Katalog-Preis)</p>
 
     <div class="pre">
       <h2>Voraussetzung (kein Testschritt)</h2>
@@ -357,6 +357,8 @@ const BLOCKS = [
     items: [
       { id: "G10-1", title: "Katalog-Spiegel zeigt alle Bestands-Artikel mit EAN + Diff", steps: ["Online-Preis-Abruf aktiv + Globus-Markt mit {EAN}-URL, mind. 1 Artikel mit EAN.", "Einstellungen → „Katalog-Sicherung (Globus)“ → „Katalog jetzt sichern“."],
         expect: "Liste „Bestands-Artikel im Katalog (n)“ erscheint dauerhaft (nicht nur bei offenen Vorschlägen). Artikel MIT Abweichung stehen oben und sind aufgeklappt, mit Feld-Diff (Name/Bild/Kategorie, alt → neu) und Buttons „Übernehmen“ / „Alles übernehmen“ / „Ignorieren“. Artikel ohne Abweichung: „Katalogdaten stimmen überein“; ohne Snapshot: „Noch kein Katalog-Eintrag“." },
+      { id: "G13-2", title: "Katalog-Preis als Preis-Vorschlag übernehmbar", steps: ["Katalog sichern (Sync, nicht easy-add) für einen Artikel mit Markt-Bezug + Katalog-Preis.", "Im Katalog-Spiegel die Zeile aufklappen → „Preis“-Checkbox anhaken → Übernehmen.", "Artikel-Detailseite → Preise-Card ansehen."],
+        expect: "Es erscheint eine „Preis“-Zeile (nur wenn Katalog-Preis UND Markt-Bezug vorhanden — bei easy-add-Snapshots ohne Markt fehlt sie). Nach Übernehmen liegt auf der Detailseite ein Preis-VORSCHLAG (wie beim Online-Abruf), den man bestätigt/verwirft; erst nach Bestätigung fließt er ins Estimate. NICHT in den Bestand (Charge-Preis bleibt getrennt)." },
       { id: "G10-2", title: "easy-add: nur existierende Artikel (kein Katalog-Anlegen)", steps: ["Bestand hinzufügen → im Suchfeld einen Begriff tippen (z.B. „milch“).", "EAN eines bekannten Artikels ins Suchfeld eingeben."],
         expect: "Es erscheinen NUR vorhandene Artikel (Name/Marke/EAN) aus dem eigenen Bestand — KEIN Block „Aus Globus-Katalog“, kein „Anlegen aus Katalog“. Ohne lokalen Treffer: Hinweis mit Link zum normalen Artikel-Anlegen. Eine bekannte EAN findet den passenden Artikel direkt." },
       { id: "G10-3", title: "Abruf-URL ohne {EAN}-Platzhalter wird abgelehnt", steps: ["Einstellungen → Märkte → Markt bearbeiten.", "Gültige http/https-URL OHNE {EAN} eintragen (z.B. https://produkte.globus.de/suggest?search=wasser) → Speichern."],
@@ -391,6 +393,8 @@ const BLOCKS = [
         expect: "Dort gibt es einen Button „Von OpenFoodFacts abrufen“ (nur bei vorhandener EAN). Abruf ohne Treffer → Toast „Keine Nährwerte gefunden“, kein Absturz." },
       { id: "G12-3", title: "Herkunft je Nährwert sichtbar", steps: ["Nach OFF-Abruf + einer manuellen Änderung die Nährwert-Zeilen betrachten."],
         expect: "Je Zeile ein Badge „OFF“ (von OpenFoodFacts) bzw. „manuell“ (selbst gepflegt/geändert). Manuelles Überschreiben setzt die Zeile auf „manuell“." },
+      { id: "G13-1", title: "Erneuter OFF-Abruf überschreibt manuelle Änderungen", steps: ["Nährwerte abrufen.", "Einen Wert manuell ändern ODER eine Zeile löschen.", "Erneut „Von OpenFoodFacts abrufen“."],
+        expect: "Die manuellen Änderungen werden mit den frischen OFF-Werten ÜBERSCHRIEBEN; gelöschte Nährwerte kommen zurück (vorher: erneuter Abruf tat nichts, weil 7-Tage-Cache). Die Artikel-Stammdaten (Name/Bild/Kategorie) bleiben dabei UNVERÄNDERT." },
     ]
   },
   {

@@ -5,7 +5,34 @@ Neueste Einträge oben. Jeder Eintrag nennt den Commit-Kontext, damit andere LLM
 
 ---
 
-## [Unreleased] — G12: Nährwert-Abruf repariert (Slug-Bug) + Herkunft + Abruf auf Artikelebene (implementiert, Test auf Pi ausstehend)
+## [Unreleased] — G13: OFF-Nährwert-Refresh-Bug + Katalog-Preis-Vorschlag + Bilder-404 (implementiert, Test auf Pi ausstehend)
+
+G12-Test 97/98 + drei Beobachtungen. Diagnose (Workflow):
+
+- **G13-1 (der gemeldete Bug):** „Von OpenFoodFacts abrufen" tat nach manueller Änderung/Löschung **nichts** mehr.
+  Ursache: `/api/barcode/[gtin]` hat einen 7-Tage-Cache (`offFetchedAt`) — nach dem ersten Abruf lieferte der
+  Handler den DB-Stand (inkl. der manuellen Werte) zurück, ohne OFF-Fetch/Upsert. Fix: neuer `?refresh=nutrients`
+  umgeht den Cache und frischt **nur die Nährwerte** auf (Stammdaten Name/Bild/Kategorie bleiben unangetastet).
+  Der Detailseiten-Button sendet den Parameter. Erneuter Abruf überschreibt jetzt manuelle Werte; gelöschte kommen zurück.
+- **G13-2 (Katalog-Preis übernehmbar):** Der Katalog-Spiegel übernahm den Globus-Preis nicht. Neu: `fields.price`
+  in `applySnapshotToProduct` → legt den Snapshot-Preis als **Preis-Vorschlag** an (`recordProposedPrice`, F2-Flow,
+  Staging bleibt) — nur wenn `priceCt != null && storeId != null` (Markt-Bezug; bei Sync-Snapshots gegeben,
+  easy-add-Snapshots ohne Markt ausgeschlossen). UI: Preis-Diff-Zeile mit Checkbox im Spiegel. Der übernommene
+  Preis erscheint als Vorschlag auf der Detailseite, wird nach Bestätigung estimate-wirksam. NICHT in `inventory_items`
+  (Charge-Preis bleibt getrennt). `listCatalogMirror` liefert dafür `snapshot.storeId` mit.
+- **G13-3 (Bilder-404):** Bilder werden lazy geladen (Sync/Suche); nach Pull mit leerem Volume → 404 bis Nachladen
+  (kein Bug, kein Service-Worker). Milderung: 404 des `/media`-Endpunkts trägt jetzt `Cache-Control: no-store`,
+  damit ein Retry nach dem Nachladen nicht durch einen Zwischencache blockiert wird.
+- **Nährwerte im Katalog:** bewusst getrennt gelassen (Globus liefert keine; nur OFF via Detailseiten-Button).
+  Allergene weiterhin ungebaut. (Nutzer-Entscheidungen.)
+
+Gates: typecheck 0, lint 0/33, build ✓, vitest 105/105. Manifest: G13-1 + G13-2, G12-3 unverändert.
+
+### Commits
+(folgt)
+
+---
+
 
 Wunsch: Nährwerte „abruf- und pflegbar wie beim Preis". Bestandsaufnahme ergab: Nährwerte waren bereits
 abrufbar (OFF via `/api/barcode/[gtin]`) + manuell pflegbar. Entscheidungen: kein Vorschlag-Staging (OFF liefert

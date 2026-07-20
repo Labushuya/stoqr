@@ -37,6 +37,12 @@ export const GET: RequestHandler = async ({ locals, params }) => {
       headers: { 'Content-Type': type, 'Cache-Control': 'private, max-age=86400' },
     })
   } catch {
-    throw error(404, 'Not found')
+    // Bild (noch) nicht vorhanden — lazy Download laeuft evtl. erst spaeter.
+    // 404 NICHT cachen, damit ein Retry nach dem Nachladen nicht durch einen
+    // Zwischencache blockiert wird (G13-3).
+    return new Response('Not found', {
+      status: 404,
+      headers: { 'Cache-Control': 'no-store' },
+    })
   }
 }

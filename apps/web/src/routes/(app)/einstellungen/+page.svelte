@@ -40,6 +40,7 @@
       category: string[] | null
       priceCt: number | null
       currency: string | null
+      storeId: string | null
       localImagePath: string | null
       catalogCategoryId: string | null
       fetchedAt: string
@@ -89,9 +90,12 @@
   }
 
   // Angekreuzte Uebernahme-Felder je Snapshot — abweichende Felder vorausgewaehlt.
-  let snapFields = $state<Record<string, { image: boolean; name: boolean; category: boolean }>>({})
-  // Fuer jeden Snapshot mit Abweichung einen Feld-Zustand vorhalten (bind: braucht
-  // MemberExpression). Default: genau die abweichenden Felder angekreuzt.
+  let snapFields = $state<Record<string, { image: boolean; name: boolean; category: boolean; price: boolean }>>({})
+  // Preis nur uebernehmbar, wenn der Snapshot einen Preis UND einen Markt-Bezug
+  // hat (product_prices ist markt-gebunden) — G13-2.
+  const canTakePrice = (r: MirrorRow) => r.snapshot?.priceCt != null && r.snapshot?.storeId != null
+  // Fuer jeden Snapshot mit Abweichung/Preis einen Feld-Zustand vorhalten (bind:
+  // braucht MemberExpression). Default: abweichende Felder + verfuegbarer Preis angekreuzt.
   $effect(() => {
     for (const r of catalogMirror) {
       if (r.snapshot && !snapFields[r.snapshot.id]) {
@@ -99,6 +103,7 @@
           image: r.diff.image.differs,
           name: r.diff.name.differs,
           category: r.diff.category.differs,
+          price: canTakePrice(r),
         }
       }
     }
@@ -108,8 +113,8 @@
     snapshotBusy = id
     try {
       const fields = allFields
-        ? { image: true, name: true, category: true }
-        : (snapFields[id] ?? { image: true, name: false, category: false })
+        ? { image: true, name: true, category: true, price: true }
+        : (snapFields[id] ?? { image: true, name: false, category: false, price: false })
       const payload = action === 'confirm' ? { action, fields } : { action }
       const res = await fetch(`/api/catalog/snapshots/${id}`, {
         method: 'POST',
@@ -515,7 +520,7 @@
               {/if}
             </summary>
 
-            {#if r.snapshot && r.diff.any && snapFields[r.snapshot.id]}
+            {#if r.snapshot && (r.diff.any || canTakePrice(r)) && snapFields[r.snapshot.id]}
               <div class="snap-diff">
                 {#if r.diff.name.differs}
                   <label class="snap-diff-row">
@@ -542,6 +547,14 @@
                     <span class="snap-diff-old">{r.product.categoryName || '(leer)'}</span>
                     <span class="snap-diff-arrow" aria-hidden="true">→</span>
                     <span class="snap-diff-new">{r.snapshot.category?.join(' › ') ?? '—'}</span>
+                  </label>
+                {/if}
+                {#if canTakePrice(r)}
+                  <label class="snap-diff-row">
+                    <input type="checkbox" bind:checked={snapFields[r.snapshot.id].price} />
+                    <span class="snap-diff-field">Preis</span>
+                    <span class="snap-diff-new">{fmtSnapPrice(r.snapshot.priceCt)} (Katalog)</span>
+                    <span class="snap-diff-hint">→ als Preis-Vorschlag am Markt</span>
                   </label>
                 {/if}
                 <div class="snap-actions">
@@ -859,6 +872,7 @@
   .snap-diff-old { color: var(--color-text-muted); text-decoration: line-through; }
   .snap-diff-arrow { color: var(--color-text-muted); }
   .snap-diff-new { color: var(--color-text-primary); font-weight: 500; }
+  .snap-diff-hint { color: var(--color-text-muted); font-size: var(--text-xs); }
   .sync-warning { margin-top: var(--space-4); display: flex; align-items: flex-start; gap: var(--space-2); padding: var(--space-3); border-radius: var(--radius-md); background: color-mix(in srgb, var(--color-warning, #d97706) 12%, transparent); border: 1px solid color-mix(in srgb, var(--color-warning, #d97706) 40%, transparent); color: var(--color-text-primary); font-size: var(--text-sm); }
   .sync-warning-icon { font-size: 1.1em; line-height: 1; flex-shrink: 0; }
 

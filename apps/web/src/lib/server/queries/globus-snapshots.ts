@@ -3,7 +3,8 @@ import { globusSnapshots, products, categories, inventoryItems, productStores } 
 import { and, eq, desc } from 'drizzle-orm'
 import { snapshotDiffers, type SnapshotComparable } from '$lib/utils/snapshot-diff'
 import { computeMirrorDiff, type MirrorDiff } from '$lib/utils/mirror-diff'
-import { updateProduct, createProduct } from '$lib/server/queries/products'
+import { updateProduct, createProduct, suggestStockUnitForProduct } from '$lib/server/queries/products'
+import { recordProposedPrice } from '$lib/server/queries/prices'
 
 export { snapshotDiffers }
 
@@ -143,6 +144,7 @@ export type CatalogMirrorRow = {
     category: string[] | null
     priceCt: number | null
     currency: string | null
+    storeId: string | null
     localImagePath: string | null
     catalogCategoryId: string | null
     fetchedAt: Date
@@ -217,6 +219,7 @@ export async function listCatalogMirror(householdId: string): Promise<CatalogMir
             category: snap.category,
             priceCt: snap.priceCt,
             currency: snap.currency,
+            storeId: snap.storeId,
             localImagePath: snap.localImagePath,
             catalogCategoryId,
             fetchedAt: snap.fetchedAt,
@@ -282,7 +285,7 @@ export async function getSnapshotCounts(householdId: string) {
 export async function applySnapshotToProduct(
   id: string,
   householdId: string,
-  fields: { image?: boolean; name?: boolean; category?: boolean },
+  fields: { image?: boolean; name?: boolean; category?: boolean; price?: boolean },
   reviewedBy?: string | null
 ): Promise<{ ok: boolean; reason?: string }> {
   const snap = await db.query.globusSnapshots.findFirst({
@@ -296,13 +299,13 @@ export async function applySnapshotToProduct(
   let product = snap.productId
     ? await db.query.products.findFirst({
         where: eq(products.id, snap.productId),
-        columns: { id: true, name: true, imageUrl: true, categoryId: true },
+        columns: { id: true, name: true, imageUrl: true, categoryId: true, defaultUnit: true },
       })
     : undefined
   if (!product && snap.gtin) {
     product = await db.query.products.findFirst({
       where: eq(products.gtin, snap.gtin),
-      columns: { id: true, name: true, imageUrl: true, categoryId: true },
+      columns: { id: true, name: true, imageUrl: true, categoryId: true, defaultUnit: true },
     })
   }
   if (!product) return { ok: false, reason: 'no-product' }
@@ -326,6 +329,23 @@ export async function applySnapshotToProduct(
 
   if (Object.keys(patch).length > 0) {
     await updateProduct(product.id, patch)
+  }
+
+  // Preis: angekreuzt + Katalog hat Preis + Markt-Bezug → als Preis-VORSCHLAG
+  // anlegen (product_prices, proposed), analog zum Online-Preis-Abruf (F2).
+  // Kein Direkt-Confirm (Staging bleibt). Ohne storeId nicht moeglich (der
+  // Preis ist markt-gebunden) → dann still uebersprungen.
+  if (fields.price && snap.priceCt != null && snap.storeId) {
+    const unit = (await suggestStockUnitForProduct(product.id, householdId)) ?? product.defaultUnit ?? 'piece'
+    await recordProposedPrice({
+      householdId,
+      productId: product.id,
+      storeId: snap.storeId,
+      priceCt: snap.priceCt,
+      unit,
+      note: 'aus Katalog-Spiegel',
+      createdBy: reviewedBy ?? null,
+    })
   }
 
   // Snapshot mit dem Artikel verknuepfen (falls noch nicht) + auf confirmed setzen.

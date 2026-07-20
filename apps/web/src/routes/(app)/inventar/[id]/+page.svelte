@@ -617,7 +617,7 @@
     if (!product.gtin) { showToast('Artikel hat keine EAN', 'error'); return }
     fetchingOff = true
     try {
-      const res = await fetch(`/api/barcode/${encodeURIComponent(product.gtin)}`)
+      const res = await fetch(`/api/barcode/${encodeURIComponent(product.gtin)}?refresh=nutrients`)
       const b = await res.json().catch(() => ({}))
       if (!res.ok || b?.found === false) {
         showToast('Keine Nährwerte bei OpenFoodFacts gefunden', 'error')
