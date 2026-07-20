@@ -28,7 +28,7 @@ Preis-Staging und Allergene bewusst nicht gebaut (Nutzer-Entscheidung). Gates: t
 Manifest: neuer G12-Block.
 
 ### Commits
-(folgt)
+003d277 (G12 — OFF-offKey-Lookup, Herkunft-Badge, Artikel-Abruf)
 
 ---
 
