@@ -28,7 +28,7 @@ Nach dem G13-Deploy vier Symptome gemeldet — drei davon direkte Folgen meiner 
 Gates: typecheck 0, lint 0/33, build ✓, vitest 105/105.
 
 ### Commits
-(folgt)
+2eaa713 (G14 — Naehrwert-Reseed, Bild-Overwrite, Badge-Panel-Race, Kartenhoehe)
 
 ---
 
