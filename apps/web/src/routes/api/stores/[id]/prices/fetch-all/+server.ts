@@ -45,7 +45,7 @@ export const POST: RequestHandler = async ({ locals, params }) => {
   const productIds = await listProductIdsForStore(store.id, householdId)
   const prodRows = productIds.length
     ? await db
-        .select({ id: products.id, defaultUnit: products.defaultUnit, gtin: products.gtin })
+        .select({ id: products.id, name: products.name, defaultUnit: products.defaultUnit, gtin: products.gtin })
         .from(products)
         .where(inArray(products.id, productIds))
     : []
@@ -53,6 +53,10 @@ export const POST: RequestHandler = async ({ locals, params }) => {
   let proposedCreated = 0
   let skipped = 0
   let failed = 0
+  // Transparenz (G11-3): welche Artikel warum uebersprungen/fehlgeschlagen sind.
+  type SkipReason = 'no_url' | 'no_gtin' | 'no_match' | 'error'
+  const skippedItems: { id: string; name: string; gtin: string | null; reason: SkipReason }[] = []
+  const failedItems: { id: string; name: string; gtin: string | null; reason: SkipReason }[] = []
 
   for (let i = 0; i < prodRows.length; i++) {
     const p = prodRows[i]
@@ -60,6 +64,7 @@ export const POST: RequestHandler = async ({ locals, params }) => {
     if (!url || !p.gtin) {
       // Keine aufloesbare URL oder keine EAN am Artikel.
       skipped++
+      skippedItems.push({ id: p.id, name: p.name, gtin: p.gtin, reason: !p.gtin ? 'no_gtin' : 'no_url' })
       continue
     }
     try {
@@ -67,6 +72,7 @@ export const POST: RequestHandler = async ({ locals, params }) => {
       const parsed = await scrapeGlobusPrice(url, p.gtin)
       if (!parsed) {
         skipped++
+        skippedItems.push({ id: p.id, name: p.name, gtin: p.gtin, reason: 'no_match' })
         continue
       }
       // Einheit: haeufigste Bestands-Einheit → defaultUnit → 'piece'.
@@ -97,8 +103,9 @@ export const POST: RequestHandler = async ({ locals, params }) => {
     } catch (err) {
       console.error('[prices/fetch-all] Artikel fehlgeschlagen', p.id, err)
       failed++
+      failedItems.push({ id: p.id, name: p.name, gtin: p.gtin, reason: 'error' })
     }
   }
 
-  return json({ requested: prodRows.length, proposedCreated, skipped, failed })
+  return json({ requested: prodRows.length, proposedCreated, skipped, failed, skippedItems, failedItems })
 }

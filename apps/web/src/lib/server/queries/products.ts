@@ -459,6 +459,7 @@ export async function updateProduct(
 	id: string,
 	data: Partial<{
 		name: string;
+		brand: string | null;
 		description: string | null;
 		notes: string | null;
 		categoryId: string | null;
@@ -472,6 +473,7 @@ export async function updateProduct(
 ) {
 	const patch: Record<string, unknown> = { updatedAt: new Date() };
 	if (data.name !== undefined) patch.name = data.name;
+	if (data.brand !== undefined) patch.brand = data.brand;
 	if (data.description !== undefined) patch.description = data.description;
 	if (data.notes !== undefined) patch.notes = data.notes;
 	if (data.categoryId !== undefined) patch.categoryId = data.categoryId;

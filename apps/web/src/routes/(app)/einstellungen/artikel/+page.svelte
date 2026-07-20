@@ -2,6 +2,7 @@
   import type { PageData } from './$types'
   import { toast } from '$lib/stores/toast'
   import ConfirmModal from '$lib/components/ConfirmModal.svelte'
+  import ProductForm from '$lib/components/ProductForm.svelte'
 
   // ── Props ──────────────────────────────────────────────────────────────────
 
@@ -10,6 +11,7 @@
   // ── Types ────────────────────────────────────────────────────────────────
 
   type Category = { id: string; name: string }
+  type UnitOption = { symbol: string; name: string }
   type Product = {
     id: string
     name: string
@@ -31,21 +33,11 @@
   let pageLoadError = $state<string | null>(data.loadError ?? null)
 
   const categories = $derived(data.categories as Category[])
+  const units = $derived((data.units as UnitOption[]) ?? [])
 
-  // Add form (nur Stammdaten: Name + Kategorie + EAN)
-  let newName = $state('')
-  let newCategoryId = $state('')
-  let newGtin = $state('')
-  let adding = $state(false)
-  let addError = $state<string | null>(null)
-
-  // Inline edit
-  let editingId = $state<string | null>(null)
-  let editingName = $state('')
-  let editingCategoryId = $state('')
-  let editingGtin = $state('')
-  let editSaving = $state(false)
-  let editError = $state<string | null>(null)
+  // Gemeinsame Artikel-Bearbeitung (G11): null-product = Anlegen.
+  let formOpen = $state(false)
+  let formProduct = $state<Product | null>(null)
 
   // Delete
   let deleting = $state<string | null>(null)
@@ -63,59 +55,27 @@
     return categories.find((c) => c.id === id)?.name ?? null
   }
 
-  // ── Edit ────────────────────────────────────────────────────────────────
+  // ── Bearbeiten / Anlegen (gemeinsame ProductForm) ──────────────────────────
 
-  function startEdit(p: Product) {
-    editingId = p.id
-    editingName = p.name
-    editingCategoryId = p.categoryId ?? ''
-    editingGtin = p.gtin ?? ''
-    editError = null
+  function openEdit(p: Product) {
+    formProduct = p
+    formOpen = true
   }
-
-  function cancelEdit() {
-    editingId = null
-    editError = null
+  function openAdd() {
+    formProduct = null
+    formOpen = true
   }
-
-  async function saveEdit(id: string) {
-    const name = editingName.trim()
-    if (!name) {
-      editError = 'Name ist erforderlich.'
-      return
-    }
-
-    editSaving = true
-    editError = null
-
-    try {
-      const res = await fetch(`/api/products/${id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name,
-          categoryId: editingCategoryId || null,
-          gtin: editingGtin.trim() || null,
-        }),
-      })
-      const body = await res.json().catch(() => ({}))
-
-      if (!res.ok) {
-        editError = String(body?.error ?? `Fehler ${res.status}`)
-        return
-      }
-
-      const updated = body as Product
-      productRows = productRows
-        .map((p) => (p.id === id ? { ...p, ...updated } : p))
-        .sort((a, b) => a.name.localeCompare(b.name))
-      editingId = null
-      toast.success('Artikel gespeichert')
-    } catch {
-      editError = 'Netzwerkfehler.'
-    } finally {
-      editSaving = false
-    }
+  function closeForm() {
+    formOpen = false
+  }
+  function onFormSaved(raw: Record<string, unknown>) {
+    const saved = raw as Product
+    const exists = productRows.some((p) => p.id === saved.id)
+    productRows = (exists
+      ? productRows.map((p) => (p.id === saved.id ? { ...p, ...saved } : p))
+      : [...productRows, saved]
+    ).sort((a, b) => a.name.localeCompare(b.name))
+    formOpen = false
   }
 
   // ── Delete ────────────────────────────────────────────────────────────────
@@ -157,47 +117,6 @@
         performDelete(p.id)
       }
     )
-  }
-
-  // ── Add ────────────────────────────────────────────────────────────────
-
-  async function addProduct() {
-    const name = newName.trim()
-    if (!name) {
-      addError = 'Name ist erforderlich.'
-      return
-    }
-
-    adding = true
-    addError = null
-
-    try {
-      const res = await fetch('/api/products', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name,
-          categoryId: newCategoryId || undefined,
-          gtin: newGtin.trim() || undefined,
-        }),
-      })
-      const body = await res.json().catch(() => ({}))
-
-      if (!res.ok) {
-        addError = String(body?.error ?? `Fehler ${res.status}`)
-        return
-      }
-
-      productRows = [...productRows, body as Product].sort((a, b) => a.name.localeCompare(b.name))
-      newName = ''
-      newCategoryId = ''
-      newGtin = ''
-      toast.success('Artikel angelegt')
-    } catch {
-      addError = 'Netzwerkfehler.'
-    } finally {
-      adding = false
-    }
   }
 </script>
 
@@ -258,109 +177,52 @@
       <div class="store-list" role="list">
         {#each productRows as product (product.id)}
           <div class="store-row" role="listitem">
-            {#if editingId === product.id}
-              <!-- Inline edit -->
-              <div class="store-edit-form">
-                <div class="edit-fields">
-                  <input
-                    class="input"
-                    type="text"
-                    bind:value={editingName}
-                    placeholder="Artikelname"
-                    maxlength="255"
-                    aria-label="Artikelname"
-                    onkeydown={(e) => { if (e.key === 'Escape') cancelEdit() }}
-                  />
-                  <select class="input input--cat" bind:value={editingCategoryId} aria-label="Kategorie">
-                    <option value="">Kategorie (optional)</option>
-                    {#each categories as cat (cat.id)}
-                      <option value={cat.id}>{cat.name}</option>
-                    {/each}
-                  </select>
-                  <input
-                    class="input input--ean"
-                    type="text"
-                    inputmode="numeric"
-                    bind:value={editingGtin}
-                    placeholder="EAN / Barcode (optional)"
-                    maxlength="14"
-                    aria-label="EAN / Barcode"
-                    onkeydown={(e) => { if (e.key === 'Escape') cancelEdit() }}
-                  />
-                </div>
-                {#if editError}
-                  <p class="field-error">{editError}</p>
-                {/if}
-                <div class="edit-actions">
-                  <button
-                    class="btn-save-inline"
-                    type="button"
-                    disabled={editSaving}
-                    aria-label="Speichern"
-                    onclick={() => saveEdit(product.id)}
-                  >
-                    {#if editSaving}
-                      <span class="spinner spinner--sm" aria-hidden="true"></span>
-                    {:else}
-                      <svg width="13" height="13" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-                        <path d="M2 7l3.5 3.5L12 3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
-                      </svg>
-                    {/if}
-                    Speichern
-                  </button>
-                  <button class="btn-cancel-inline" type="button" onclick={cancelEdit} aria-label="Abbrechen">
-                    Abbrechen
-                  </button>
-                </div>
-              </div>
-            {:else}
-              <!-- Display row -->
-              <div class="store-info">
-                <div class="store-info-main">
-                  <span class="store-name">{product.name}</span>
-                  {#if categoryName(product.categoryId)}
-                    <span class="chain-badge">{categoryName(product.categoryId)}</span>
-                  {/if}
-                </div>
-                {#if product.gtin}
-                  <span class="ean-line" title="EAN / Barcode">
-                    <svg width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-                      <path d="M2 3v10M4.5 3v10M6 3v10M9 3v10M11 3v10M13.5 3v10" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
-                    </svg>
-                    {product.gtin}
-                  </span>
+            <!-- Display row -->
+            <div class="store-info">
+              <div class="store-info-main">
+                <span class="store-name">{product.name}</span>
+                {#if categoryName(product.categoryId)}
+                  <span class="chain-badge">{categoryName(product.categoryId)}</span>
                 {/if}
               </div>
-              <div class="store-actions">
-                <button
-                  class="btn-edit-inline"
-                  type="button"
-                  onclick={() => startEdit(product)}
-                  aria-label="{product.name} bearbeiten"
-                >
-                  <svg width="13" height="13" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-                    <path d="M9.5 2.5L11.5 4.5L5 11H3V9L9.5 2.5Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>
+              {#if product.gtin}
+                <span class="ean-line" title="EAN / Barcode">
+                  <svg width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                    <path d="M2 3v10M4.5 3v10M6 3v10M9 3v10M11 3v10M13.5 3v10" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
                   </svg>
-                  Bearbeiten
-                </button>
-                <button
-                  class="btn-delete-inline"
-                  type="button"
-                  disabled={deleting === product.id}
-                  onclick={() => requestDelete(product)}
-                  aria-label="{product.name} löschen"
-                >
-                  {#if deleting === product.id}
-                    <span class="spinner spinner--sm spinner--danger" aria-hidden="true"></span>
-                  {:else}
-                    <svg width="13" height="13" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-                      <path d="M2 3.5h10M5 3.5V2.5h4v1M5.5 6v4M8.5 6v4M3 3.5l.7 8h6.6l.7-8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
-                    </svg>
-                  {/if}
-                  Löschen
-                </button>
-              </div>
-            {/if}
+                  {product.gtin}
+                </span>
+              {/if}
+            </div>
+            <div class="store-actions">
+              <button
+                class="btn-edit-inline"
+                type="button"
+                onclick={() => openEdit(product)}
+                aria-label="{product.name} bearbeiten"
+              >
+                <svg width="13" height="13" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                  <path d="M9.5 2.5L11.5 4.5L5 11H3V9L9.5 2.5Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>
+                </svg>
+                Bearbeiten
+              </button>
+              <button
+                class="btn-delete-inline"
+                type="button"
+                disabled={deleting === product.id}
+                onclick={() => requestDelete(product)}
+                aria-label="{product.name} löschen"
+              >
+                {#if deleting === product.id}
+                  <span class="spinner spinner--sm spinner--danger" aria-hidden="true"></span>
+                {:else}
+                  <svg width="13" height="13" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                    <path d="M2 3.5h10M5 3.5V2.5h4v1M5.5 6v4M8.5 6v4M3 3.5l.7 8h6.6l.7-8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                {/if}
+                Löschen
+              </button>
+            </div>
           </div>
         {/each}
       </div>
@@ -381,58 +243,20 @@
         Neuen Artikel anlegen
       </h2>
     </div>
-
-    {#if addError}
-      <div class="alert alert--error" role="alert">
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-          <circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.5"/>
-          <path d="M8 5v3.5M8 11v.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-        </svg>
-        {addError}
-      </div>
-    {/if}
-
-    <div class="add-form">
-      <div class="add-fields">
-        <input
-          class="input"
-          type="text"
-          bind:value={newName}
-          placeholder="Artikelname — z.B. Vollmilch"
-          maxlength="255"
-          aria-label="Name des neuen Artikels"
-          onkeydown={(e) => { if (e.key === 'Enter') addProduct() }}
-        />
-        <select class="input input--cat" bind:value={newCategoryId} aria-label="Kategorie">
-          <option value="">Kategorie (optional)</option>
-          {#each categories as cat (cat.id)}
-            <option value={cat.id}>{cat.name}</option>
-          {/each}
-        </select>
-        <input
-          class="input input--ean"
-          type="text"
-          inputmode="numeric"
-          bind:value={newGtin}
-          placeholder="EAN / Barcode (optional)"
-          maxlength="14"
-          aria-label="EAN / Barcode des neuen Artikels"
-          onkeydown={(e) => { if (e.key === 'Enter') addProduct() }}
-        />
-      </div>
-      <div class="add-footer">
-        <button class="btn-primary" type="button" disabled={adding} onclick={addProduct}>
-          {#if adding}
-            <span class="spinner" aria-hidden="true"></span>
-            Anlegen…
-          {:else}
-            Anlegen
-          {/if}
-        </button>
-      </div>
+    <div class="add-footer">
+      <button class="btn-primary" type="button" onclick={openAdd}>Neuen Artikel anlegen</button>
     </div>
   </section>
 </div>
+
+<ProductForm
+  open={formOpen}
+  product={formProduct}
+  {categories}
+  {units}
+  onSaved={onFormSaved}
+  onClose={closeForm}
+/>
 
 {#if confirmModal}
   <ConfirmModal
@@ -644,86 +468,11 @@
     letter-spacing: 0.02em;
   }
 
-  /* ── Inline edit form ─────────────────────────────────────────────────── */
-
-  .store-edit-form {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-2);
-  }
-
-  .edit-fields {
-    display: flex;
-    gap: var(--space-2);
-    flex-wrap: wrap;
-  }
-
-  .edit-actions {
-    display: flex;
-    gap: var(--space-2);
-    flex-wrap: wrap;
-  }
-
-  .field-error {
-    font-size: var(--text-xs);
-    color: var(--color-danger, #dc2626);
-    margin: 0;
-  }
-
   /* ── Add form ─────────────────────────────────────────────────────────── */
-
-  .add-form {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-4);
-  }
-
-  .add-fields {
-    display: flex;
-    gap: var(--space-3);
-    flex-wrap: wrap;
-  }
 
   .add-footer {
     display: flex;
     justify-content: flex-start;
-  }
-
-  /* ── Inputs ───────────────────────────────────────────────────────────── */
-
-  .input {
-    flex: 1 1 160px;
-    min-width: 140px;
-    height: 40px;
-    padding: 0 var(--space-3);
-    border-radius: var(--radius-md);
-    border: 1px solid var(--color-border);
-    background-color: var(--color-surface);
-    color: var(--color-text-primary);
-    font-family: var(--font-body);
-    font-size: var(--text-base);
-    outline: none;
-    transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
-    box-sizing: border-box;
-    appearance: none;
-  }
-
-  .input::placeholder {
-    color: var(--color-text-muted);
-  }
-
-  .input:focus {
-    border-color: var(--color-border-focus);
-    box-shadow: 0 0 0 3px rgba(196, 103, 58, 0.15);
-  }
-
-  .input--cat {
-    flex: 1 1 180px;
-  }
-
-  .input--ean {
-    flex: 1 1 180px;
   }
 
   /* ── Alerts ───────────────────────────────────────────────────────────── */
@@ -830,55 +579,6 @@
     cursor: not-allowed;
   }
 
-  .btn-save-inline {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--space-1);
-    height: 30px;
-    padding: 0 var(--space-3);
-    border-radius: var(--radius-md);
-    border: none;
-    background-color: var(--color-primary);
-    color: var(--color-text-inverse);
-    font-family: var(--font-body);
-    font-size: var(--text-xs);
-    font-weight: 600;
-    cursor: pointer;
-    white-space: nowrap;
-    transition: background-color var(--transition-fast);
-  }
-
-  .btn-save-inline:hover:not(:disabled) {
-    background-color: var(--color-primary-hover);
-  }
-
-  .btn-save-inline:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-
-  .btn-cancel-inline {
-    display: inline-flex;
-    align-items: center;
-    height: 30px;
-    padding: 0 var(--space-3);
-    border-radius: var(--radius-md);
-    border: 1px solid var(--color-border);
-    background-color: transparent;
-    color: var(--color-text-muted);
-    font-family: var(--font-body);
-    font-size: var(--text-xs);
-    font-weight: 500;
-    cursor: pointer;
-    white-space: nowrap;
-    transition: border-color var(--transition-fast), color var(--transition-fast);
-  }
-
-  .btn-cancel-inline:hover {
-    border-color: var(--color-border-strong);
-    color: var(--color-text-primary);
-  }
-
   /* ── Spinner ──────────────────────────────────────────────────────────── */
 
   .spinner {
@@ -915,13 +615,6 @@
 
     .settings-section {
       padding: var(--space-4);
-    }
-
-    /* Jedes Feld eine eigene Zeile — verhindert unsauberen Umbruch bei 3 Controls */
-    .edit-fields .input,
-    .add-fields .input {
-      flex-basis: 100%;
-      min-width: 0;
     }
 
     .store-row {

@@ -7,6 +7,30 @@ Neueste Einträge oben. Jeder Eintrag nennt den Commit-Kontext, damit andere LLM
 
 ---
 
+## [Unreleased] — G11: Einheitliche Artikel-Bearbeitung + 2 echte Bugs (implementiert, Test auf Pi ausstehend)
+
+Aus dem G10-Test: 4 offene Punkte. Diagnose (2 Workflows) klärte:
+- **Preis-„Duplikat" — keine Änderung.** User vermutete redundante Preisfelder. Faktisch (ROADMAP:93): kein
+  Preisfeld auf `products`; `product_prices` = Marktpreis je Markt (trägt das Estimate), `purchasePriceCt` =
+  Charge-Ist-Beleg. Kein Duplikat. Preis-Modell bleibt bewusst unangetastet (User-Entscheidung).
+- **G11-1 — gemeinsame vollständige Artikel-Bearbeitung.** Bisher drei divergierende Editier-Orte, keiner
+  vollständig; Detailseite ohne EAN/Bild-Edit (nur Placeholder-SVG). Neu: `ProductForm.svelte` (Name, Marke, EAN,
+  Kategorie, Bild, Standard-Einheit, Beschreibung) — eingebunden in Einstellungen→Artikel (Edit + Anlegen) und
+  Detailseite („Bearbeiten", zeigt jetzt das echte `product.imageUrl`). API-Lücken geschlossen: `updateProduct`
+  um `brand`, PATCH-Handler liest `brand`+`imageUrl`. EAN-Duplikat → klare 409-Meldung.
+- **G11-2 — {EAN}-Client-Guard (Märkte).** `isValidHttpUrl` prüfte nur http/https; jetzt zusätzlich `{EAN}`-Pflicht
+  → sofortiges Formular-Feedback statt erst Server-Fehler nach dem Speichern.
+- **G11-3 — Sammel-Abruf-Transparenz.** `fetch-all` gab nur Zähler zurück; jetzt `skippedItems`/`failedItems`
+  ({id,name,gtin,reason}); die Märkte-Seite zeigt aufklappbar, welche Artikel warum übersprungen wurden.
+
+Preis-Modell (`product_prices`/`purchasePriceCt`) bewusst nicht angefasst. Gates: typecheck 0, lint 0/33, build ✓, vitest 98/98.
+Manifest: neue Items G11-1a/b/c, G11-2, G11-3; G10-3 geschärft (Client-Guard).
+
+### Commits
+(folgt)
+
+---
+
 ## [Unreleased] — G10: Katalog-Modell als EAN-Spiegel des Bestands + 4 kaputte Punkte (implementiert, Test auf Pi ausstehend)
 
 Die G9-Fixes griffen auf dem Pi nicht — die Diagnose war an der falschen Ebene angesetzt. Ehrliche

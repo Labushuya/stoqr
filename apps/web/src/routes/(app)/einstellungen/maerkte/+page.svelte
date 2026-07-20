@@ -60,6 +60,18 @@
   // ── Sammel-Abruf state ──────────────────────────────────────────────────────
 
   let fetchingAll = $state<string | null>(null)
+  // Ergebnis des letzten Sammel-Abrufs je Markt — welche Artikel warum
+  // uebersprungen/fehlgeschlagen sind (G11-3 Transparenz).
+  type SkipReason = 'no_url' | 'no_gtin' | 'no_match' | 'error'
+  type SkipItem = { id: string; name: string; gtin: string | null; reason: SkipReason }
+  let fetchResults = $state<Record<string, { skippedItems: SkipItem[]; failedItems: SkipItem[] }>>({})
+
+  const SKIP_REASON_TEXT: Record<SkipReason, string> = {
+    no_url: 'keine Abruf-URL auflösbar',
+    no_gtin: 'keine EAN am Artikel',
+    no_match: 'kein Preis/Treffer bei Globus',
+    error: 'Fehler beim Abruf',
+  }
 
   // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -72,6 +84,12 @@
     } catch {
       return false
     }
+  }
+
+  // Client-Spiegel der {EAN}-Pflicht (G10-3): eine Abruf-URL ohne Platzhalter ist
+  // nicht abrufbar und wird serverseitig abgelehnt — hier sofortiges Feedback.
+  function hasEanPlaceholder(value: string): boolean {
+    return value.includes('{EAN}')
   }
 
   // Adress-Vorschlag (OSM) übernehmen: Stadt + Koordinaten mitfüllen (Add-Form).
@@ -114,6 +132,7 @@
     if (!address) { editError = 'Adresse ist erforderlich.'; return }
     if (!city) { editError = 'Stadt ist erforderlich.'; return }
     if (scrapeUrl && !isValidHttpUrl(scrapeUrl)) { editError = 'Ungültige Abruf-URL (nur http/https).'; return }
+    if (scrapeUrl && !hasEanPlaceholder(scrapeUrl)) { editError = 'Abruf-URL muss den Platzhalter {EAN} enthalten.'; return }
 
     editSaving = true
     editError = null
@@ -212,6 +231,7 @@
     if (!address) { addError = 'Adresse ist erforderlich.'; return }
     if (!city) { addError = 'Stadt ist erforderlich.'; return }
     if (scrapeUrl && !isValidHttpUrl(scrapeUrl)) { addError = 'Ungültige Abruf-URL (nur http/https).'; return }
+    if (scrapeUrl && !hasEanPlaceholder(scrapeUrl)) { addError = 'Abruf-URL muss den Platzhalter {EAN} enthalten.'; return }
 
     adding = true
     addError = null
@@ -255,11 +275,14 @@
         toast.error(String(body?.error ?? `Fehler ${res.status}`))
         return
       }
-      const { proposedCreated = 0, skipped = 0, failed = 0 } = body as {
+      const { proposedCreated = 0, skipped = 0, failed = 0, skippedItems = [], failedItems = [] } = body as {
         proposedCreated?: number
         skipped?: number
         failed?: number
+        skippedItems?: SkipItem[]
+        failedItems?: SkipItem[]
       }
+      fetchResults[store.id] = { skippedItems, failedItems }
       const parts = [`${proposedCreated} Vorschläge`]
       if (skipped) parts.push(`${skipped} übersprungen`)
       if (failed) parts.push(`${failed} fehlgeschlagen`)
@@ -489,6 +512,22 @@
                 </button>
               </div>
             {/if}
+            {#if fetchResults[store.id] && (fetchResults[store.id].skippedItems.length > 0 || fetchResults[store.id].failedItems.length > 0)}
+              <details class="fetch-report">
+                <summary>
+                  {fetchResults[store.id].skippedItems.length + fetchResults[store.id].failedItems.length} Artikel nicht abgerufen — anzeigen
+                </summary>
+                <ul class="fetch-report-list">
+                  {#each [...fetchResults[store.id].skippedItems, ...fetchResults[store.id].failedItems] as it (it.id)}
+                    <li>
+                      <span class="fetch-report-name">{it.name}</span>
+                      {#if it.gtin}<span class="fetch-report-gtin">EAN {it.gtin}</span>{/if}
+                      <span class="fetch-report-reason">{SKIP_REASON_TEXT[it.reason]}</span>
+                    </li>
+                  {/each}
+                </ul>
+              </details>
+            {/if}
           </div>
         {/each}
       </div>
@@ -716,6 +755,7 @@
   .store-row {
     display: flex;
     align-items: center;
+    flex-wrap: wrap;
     justify-content: space-between;
     gap: var(--space-3);
     padding: var(--space-3) var(--space-4);
@@ -732,6 +772,34 @@
   .store-row:hover {
     background-color: var(--color-surface-sunken);
   }
+
+  .fetch-report {
+    flex-basis: 100%;
+    margin-top: var(--space-2);
+    font-size: var(--text-sm);
+  }
+  .fetch-report > summary {
+    cursor: pointer;
+    color: var(--color-warning, #c2410c);
+    font-weight: 600;
+  }
+  .fetch-report-list {
+    margin: var(--space-2) 0 0;
+    padding-left: var(--space-4);
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .fetch-report-list li {
+    display: flex;
+    gap: var(--space-2);
+    align-items: baseline;
+    flex-wrap: wrap;
+    font-size: var(--text-xs);
+  }
+  .fetch-report-name { font-weight: 600; color: var(--color-text-primary); }
+  .fetch-report-gtin { color: var(--color-text-muted); }
+  .fetch-report-reason { color: var(--color-warning, #c2410c); }
 
   .store-info {
     display: flex;

@@ -108,7 +108,7 @@
 <div class="wrap">
   <header class="top">
     <h1>stoqr — Test-Manifest</h1>
-    <p class="subtitle">Blöcke A–E + F/F2 + G/G6/G7/G8/G10 · logisch aufbauender Durchlauf · Stand nach G10 (Katalog-Spiegel)</p>
+    <p class="subtitle">Blöcke A–E + F/F2 + G/G6/G7/G8/G10/G11 · logisch aufbauender Durchlauf · Stand nach G11 (einheitliche Artikel-Bearbeitung)</p>
 
     <div class="pre">
       <h2>Voraussetzung (kein Testschritt)</h2>
@@ -360,11 +360,26 @@ const BLOCKS = [
       { id: "G10-2", title: "easy-add: nur existierende Artikel (kein Katalog-Anlegen)", steps: ["Bestand hinzufügen → im Suchfeld einen Begriff tippen (z.B. „milch“).", "EAN eines bekannten Artikels ins Suchfeld eingeben."],
         expect: "Es erscheinen NUR vorhandene Artikel (Name/Marke/EAN) aus dem eigenen Bestand — KEIN Block „Aus Globus-Katalog“, kein „Anlegen aus Katalog“. Ohne lokalen Treffer: Hinweis mit Link zum normalen Artikel-Anlegen. Eine bekannte EAN findet den passenden Artikel direkt." },
       { id: "G10-3", title: "Abruf-URL ohne {EAN}-Platzhalter wird abgelehnt", steps: ["Einstellungen → Märkte → Markt bearbeiten.", "Gültige http/https-URL OHNE {EAN} eintragen (z.B. https://produkte.globus.de/suggest?search=wasser) → Speichern."],
-        expect: "Fehlermeldung „Abruf-URL muss den Platzhalter {EAN} enthalten“; die URL wird NICHT gespeichert. (Verschärft F2-2: früher wurde eine gültige URL ohne {EAN} akzeptiert.)" },
+        expect: "SOFORTIGE Fehlermeldung im Formular „Abruf-URL muss den Platzhalter {EAN} enthalten“ (Client-Guard, kein Speicherversuch); die URL wird NICHT gespeichert. (Verschärft F2-2: früher wurde eine gültige URL ohne {EAN} akzeptiert.)" },
       { id: "G10-4", title: "Einstellungs-Reihenfolge: Einheiten + Aktivität unter Märkte", steps: ["/einstellungen öffnen und Abschnitte von oben durchgehen."],
         expect: "Reihenfolge: Haushaltsmitglieder → Artikel → Märkte → Einheiten → Aktivität. Einheiten und Aktivität stehen direkt unterhalb von Märkte." },
       { id: "G9-1", title: "Spiegel bleibt nach „Katalog sichern“ sichtbar (Regression)", steps: ["„Katalog jetzt sichern“ ausführen und die Liste danach betrachten (ohne manuellen Reload)."],
         expect: "Die Katalog-Liste zeigt die aktuellen Daten (reaktiv), nicht leer/stale. (Regression aus G8 behoben.)" },
+    ]
+  },
+  {
+    tag: "G11", name: "Einheitliche Artikel-Bearbeitung & Abruf-Transparenz", desc: "Eine gemeinsame vollständige Artikel-Bearbeitung an allen Stellen; sofortiges {EAN}-Feedback; Transparenz beim Sammel-Abruf (welche Artikel übersprungen).",
+    items: [
+      { id: "G11-1a", title: "Artikel-Detailseite: Stammdaten bearbeiten (inkl. EAN + Bild)", steps: ["Artikel-Detailseite öffnen → „Bearbeiten“ im Kopf.", "Name, Marke, EAN, Kategorie, Bild-URL, Beschreibung ändern → „Speichern“."],
+        expect: "Das Formular hat ALLE Felder (inkl. EAN und Bild-URL — vorher fehlend). Nach dem Speichern werden die Werte angezeigt; ist eine Bild-URL gesetzt, erscheint das echte Produktbild im Kopf statt des Platzhalters." },
+      { id: "G11-1b", title: "Gleiche Bearbeitung in Einstellungen → Artikel", steps: ["Einstellungen → Artikel → bei einem Artikel „Bearbeiten“; außerdem „Neuen Artikel anlegen“."],
+        expect: "Es öffnet sich DASSELBE Formular mit denselben Feldern wie auf der Detailseite (Name, Marke, EAN, Kategorie, Bild, Standard-Einheit, Beschreibung) — überall identisch." },
+      { id: "G11-1c", title: "EAN-Duplikat wird klar abgelehnt", steps: ["Beim Bearbeiten/Anlegen eine EAN eintragen, die bereits einem anderen Artikel gehört → Speichern."],
+        expect: "Klare Fehlermeldung „Diese EAN ist bereits einem anderen Artikel zugeordnet.“ im Formular; nicht gespeichert." },
+      { id: "G11-2", title: "Abruf-URL ohne {EAN}: sofortiges Feedback (Märkte)", steps: ["Einstellungen → Märkte → Markt anlegen/bearbeiten.", "Gültige URL OHNE {EAN} eintragen → Speichern."],
+        expect: "Das Formular lehnt sofort ab („muss {EAN} enthalten“), ohne Speicherversuch — konsistent zur Server-Prüfung (G10-3)." },
+      { id: "G11-3", title: "Sammel-Abruf: welche Artikel übersprungen", steps: ["Einstellungen → Märkte → beim Markt „Preise abrufen“.", "Nach dem Toast den Bereich „N Artikel nicht abgerufen — anzeigen“ aufklappen."],
+        expect: "Unter dem Markt lässt sich aufklappen, WELCHE Artikel übersprungen/fehlgeschlagen sind — je mit Name, EAN und Grund (keine EAN / keine Abruf-URL / kein Treffer / Fehler). Nicht nur die nackten Zähler." },
     ]
   },
   {

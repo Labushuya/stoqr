@@ -22,13 +22,15 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
     const householdId = await requireHouseholdId(locals.user.id)
 
     const body = await request.json()
-    const { name, description, notes, categoryId, defaultUnit, gtin, packDimension, packSize } = body as {
+    const { name, brand, description, notes, categoryId, defaultUnit, gtin, imageUrl, packDimension, packSize } = body as {
       name?: string
+      brand?: string | null
       description?: string | null
       notes?: string | null
       categoryId?: string | null
       defaultUnit?: string
       gtin?: string | null
+      imageUrl?: string | null
       // Gebinde-Größe (Einheiten v2): packDimension 'volume'|'mass'|'none', packSize = Wert (ml bzw. g).
       packDimension?: 'volume' | 'mass' | 'none'
       packSize?: number | string | null
@@ -36,12 +38,15 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 
     const patch: Parameters<typeof updateProduct>[1] = {}
     if (name !== undefined) patch.name = name
+    if (brand !== undefined) patch.brand = brand ? String(brand).trim() : null
     if (description !== undefined) patch.description = description
     if (notes !== undefined) patch.notes = notes
     if (categoryId !== undefined) patch.categoryId = categoryId || null
     if (defaultUnit !== undefined) patch.defaultUnit = defaultUnit
     // EAN/GTIN: leerer String → null (Feld leeren)
     if (gtin !== undefined) patch.gtin = gtin ? String(gtin).trim() : null
+    // Bild-URL: leerer String → null
+    if (imageUrl !== undefined) patch.imageUrl = imageUrl ? String(imageUrl).trim() : null
 
     // Gebinde-Größe: genau EINE Dimension. 'none' oder ungültig → beide null (kein Gebinde).
     if (packDimension !== undefined) {

@@ -13,7 +13,7 @@ import { eq, and, asc } from 'drizzle-orm'
 import { error, fail, redirect } from '@sveltejs/kit'
 import type { PageServerLoad, Actions } from './$types'
 import { requireHouseholdId, getUnits } from '$lib/server/queries/households'
-import { deleteProduct, listInventoryForProduct } from '$lib/server/queries/products'
+import { deleteProduct, listInventoryForProduct, getCategories } from '$lib/server/queries/products'
 import { getNutrientTypes } from '$lib/server/queries/nutrients'
 import { getStockTargetForProduct } from '$lib/server/queries/stock-targets'
 import { listStoresForProduct } from '$lib/server/queries/product-stores'
@@ -81,8 +81,8 @@ export const load: PageServerLoad = async ({ params, locals }) => {
     locationPath: buildLocationPath(s.place as PlaceTree),
   }));
 
-  // Nährstofftypen (für den Editor) + Einheiten (behebt data.units-Bug) + Märkte
-  const [nutrientTypes, units, availableStores] = await Promise.all([
+  // Nährstofftypen (für den Editor) + Einheiten (behebt data.units-Bug) + Märkte + Kategorien (ProductForm)
+  const [nutrientTypes, units, availableStores, categories] = await Promise.all([
     getNutrientTypes(),
     getUnits(householdId),
     db.query.stores.findMany({
@@ -90,6 +90,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
       orderBy: asc(stores.name),
       columns: { id: true, name: true, chain: true, scrapeUrl: true },
     }),
+    getCategories(),
   ]);
 
   // Haushalts-Ablaufkonfiguration (für Badge-Berechnung)
@@ -157,6 +158,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
     siblings,
     nutrientTypes,
     units,
+    categories,
     availableStores,
     productStoreIds,
     currentPrices,

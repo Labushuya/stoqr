@@ -2,6 +2,7 @@
   import { goto, invalidateAll } from '$app/navigation'
   import ConfirmModal from '$lib/components/ConfirmModal.svelte'
   import Modal from '$lib/components/Modal.svelte'
+  import ProductForm from '$lib/components/ProductForm.svelte'
   import type { PageData } from './$types'
   import { formatDate, formatStockTotal } from '$lib/utils/format'
   import { getExpiryStatus, getDaysRemaining, getExpiryLabel, EXPIRY_CLASS } from '$lib/utils/expiry'
@@ -48,6 +49,14 @@
   const availableStores = $derived(
     data.availableStores as { id: string; name: string; chain: string | null }[]
   )
+  const categories = $derived((data.categories as { id: string; name: string }[]) ?? [])
+
+  // Stammdaten-Bearbeitung (gemeinsame ProductForm, G11).
+  let editProductOpen = $state(false)
+  async function onProductSaved() {
+    editProductOpen = false
+    await invalidateAll()
+  }
 
   function unitLabel(symbol: string): string {
     return units.find((u) => u.symbol === symbol)?.name ?? symbol
@@ -841,18 +850,36 @@
   <!-- ── Product header card ────────────────────────────────────────────── -->
   <div class="card product-card">
     <div class="product-hero">
-      <div class="product-image-placeholder" aria-hidden="true">
-        <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
-          <rect width="40" height="40" rx="8" fill="var(--color-primary-subtle)"/>
-          <path d="M10 28l6-8 4 5 3-3 7 6" stroke="var(--color-primary)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-          <circle cx="14" cy="18" r="3" stroke="var(--color-primary)" stroke-width="1.5" fill="none"/>
-        </svg>
-      </div>
+      {#if product.imageUrl}
+        <img class="product-image" src={product.imageUrl} alt="" />
+      {:else}
+        <div class="product-image-placeholder" aria-hidden="true">
+          <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+            <rect width="40" height="40" rx="8" fill="var(--color-primary-subtle)"/>
+            <path d="M10 28l6-8 4 5 3-3 7 6" stroke="var(--color-primary)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+            <circle cx="14" cy="18" r="3" stroke="var(--color-primary)" stroke-width="1.5" fill="none"/>
+          </svg>
+        </div>
+      {/if}
       <div class="product-info">
         <h1 class="product-name">{product.name}</h1>
         {#if product.brand}<span class="product-brand">{product.brand}</span>{/if}
         {#if product.category}<span class="product-category">{product.category.name}</span>{/if}
+        {#if product.gtin}
+          <span class="product-ean" title="EAN / Barcode">
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+              <path d="M2 3v10M4.5 3v10M6 3v10M9 3v10M11 3v10M13.5 3v10" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+            </svg>
+            {product.gtin}
+          </span>
+        {/if}
       </div>
+      <button class="product-edit-btn" type="button" onclick={() => (editProductOpen = true)}>
+        <svg width="13" height="13" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+          <path d="M9.5 2.5L11.5 4.5L5 11H3V9L9.5 2.5Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>
+        </svg>
+        Bearbeiten
+      </button>
     </div>
     {#if product.description}
       <p class="product-desc">{product.description}</p>
@@ -1342,6 +1369,25 @@
   />
 {/if}
 
+<ProductForm
+  open={editProductOpen}
+  product={{
+    id: product.id,
+    name: product.name,
+    brand: product.brand,
+    gtin: product.gtin,
+    categoryId: product.categoryId,
+    imageUrl: product.imageUrl,
+    defaultUnit: product.defaultUnit,
+    description: product.description,
+  }}
+  {categories}
+  units={units}
+  showUnit={false}
+  onSaved={onProductSaved}
+  onClose={() => (editProductOpen = false)}
+/>
+
 <style>
   .page {
     max-width: 680px;
@@ -1417,7 +1463,46 @@
   /* ── Product header ─────────────────────────────────────────────────── */
   .product-hero { display: flex; gap: var(--space-4); align-items: flex-start; }
   .product-image-placeholder { flex-shrink: 0; }
-  .product-info { display: flex; flex-direction: column; gap: var(--space-1); min-width: 0; }
+  .product-image {
+    flex-shrink: 0;
+    width: 56px;
+    height: 56px;
+    object-fit: cover;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--color-border);
+    background: var(--color-surface-sunken);
+  }
+  .product-info { display: flex; flex-direction: column; gap: var(--space-1); min-width: 0; flex: 1; }
+  .product-ean {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    font-size: 11px;
+    font-family: var(--font-mono, monospace);
+    color: var(--color-text-muted);
+    letter-spacing: 0.02em;
+  }
+  .product-edit-btn {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    height: 30px;
+    padding: 0 var(--space-3);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--color-border);
+    background: transparent;
+    color: var(--color-text-secondary);
+    font-size: var(--text-xs);
+    font-weight: 500;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .product-edit-btn:hover {
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+    background: var(--color-primary-subtle);
+  }
   .product-name {
     font-family: var(--font-display);
     font-size: var(--text-xl);
