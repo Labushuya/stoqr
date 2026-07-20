@@ -3,21 +3,7 @@ import type { RequestHandler } from './$types'
 import { db } from '$lib/server/db'
 import { products, categories, productNutrients } from '@stoqr/db'
 import { eq } from 'drizzle-orm'
-
-// ---------------------------------------------------------------------------
-// Open Food Facts nutriment keys → internal slugs
-// ---------------------------------------------------------------------------
-
-const OFF_NUTRIENT_MAP: Array<{ offKey: string; slug: string; unit: string }> = [
-  { offKey: 'energy-kcal_100g',     slug: 'energy-kcal',     unit: 'kcal' },
-  { offKey: 'fat_100g',             slug: 'fat',             unit: 'g'    },
-  { offKey: 'saturated-fat_100g',   slug: 'saturated-fat',   unit: 'g'    },
-  { offKey: 'carbohydrates_100g',   slug: 'carbohydrates',   unit: 'g'    },
-  { offKey: 'sugars_100g',          slug: 'sugars',          unit: 'g'    },
-  { offKey: 'proteins_100g',        slug: 'proteins',        unit: 'g'    },
-  { offKey: 'fiber_100g',           slug: 'fiber',           unit: 'g'    },
-  { offKey: 'salt_100g',            slug: 'salt',            unit: 'g'    },
-]
+import { extractOffNutrients, type OffNutrient } from '$lib/utils/off-nutrients'
 
 // ---------------------------------------------------------------------------
 // OFF category tag → stoqr category slug mapping (best-effort, extensible)
@@ -104,35 +90,21 @@ async function resolveCategoryId(categoriesTags: string[] | undefined): Promise<
 }
 
 // ---------------------------------------------------------------------------
-// Extract normalised nutrients from OFF nutriments object
-// ---------------------------------------------------------------------------
-
-function extractNutrients(
-  nutriments: Record<string, number> | undefined
-): Array<{ slug: string; valuePer100: number; unit: string }> {
-  if (!nutriments) return []
-
-  return OFF_NUTRIENT_MAP.flatMap(({ offKey, slug, unit }) => {
-    const value = nutriments[offKey]
-    if (value == null || isNaN(Number(value))) return []
-    return [{ slug, valuePer100: Number(value), unit }]
-  })
-}
-
-// ---------------------------------------------------------------------------
-// Upsert nutrients for a product (resolve nutrient_type by slug / off_key)
+// Upsert nutrients for a product. Der Lookup laeuft ueber nutrient_types.off_key
+// (Seed-Wahrheit) — NICHT ueber einen internen Slug, da die Slug-Konventionen
+// zwischen Seed und diesem Endpunkt frueher divergierten (Werte fielen dann
+// stillschweigend weg). offKey ist der zuverlaessige Join.
 // ---------------------------------------------------------------------------
 
 async function upsertProductNutrients(
   productId: string,
-  nutrients: Array<{ slug: string; valuePer100: number; unit: string }>
+  nutrients: OffNutrient[]
 ) {
   if (!nutrients.length) return
 
   for (const nutrient of nutrients) {
     const nt = await db.query.nutrientTypes.findFirst({
-      where: (n, { or }) =>
-        or(eq(n.slug, nutrient.slug), eq(n.offKey, nutrient.slug)),
+      where: (n, { eq }) => eq(n.offKey, nutrient.offKey),
       columns: { id: true },
     })
 
@@ -162,7 +134,7 @@ async function upsertProductNutrients(
 
 async function buildResponse(
   product: typeof products.$inferSelect,
-  nutrientRows: Array<{ slug: string; valuePer100: number; unit: string }>
+  nutrientRows: OffNutrient[]
 ) {
   return {
     found:            true,
@@ -206,14 +178,14 @@ export const GET: RequestHandler = async ({ params, locals }) => {
     where: eq(products.gtin, gtin),
     with: {
       nutrients: {
-        with: { nutrientType: { columns: { slug: true, unit: true } } },
+        with: { nutrientType: { columns: { slug: true, offKey: true, unit: true } } },
       },
     },
   })
 
   if (cached && cached.offFetchedAt && cached.offFetchedAt > staleThreshold) {
     const nutrientRows = cached.nutrients.map((n) => ({
-      slug:        n.nutrientType.slug,
+      offKey:      n.nutrientType.offKey ?? n.nutrientType.slug,
       valuePer100: Number(n.valuePer100),
       unit:        n.nutrientType.unit,
     }))
@@ -290,7 +262,7 @@ export const GET: RequestHandler = async ({ params, locals }) => {
     p.quantity as string | undefined
   )
   const categoryId    = await resolveCategoryId(categoriesTags)
-  const nutrients     = extractNutrients(nutriments)
+  const nutrients     = extractOffNutrients(nutriments)
 
   // ------------------------------------------------------------------
   // 4. Upsert into products table

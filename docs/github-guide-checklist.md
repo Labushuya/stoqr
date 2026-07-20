@@ -302,7 +302,7 @@ Use issues to track known problems, regressions, or planned work so nothing gets
 | ✅ | `nutrient_types` table with hierarchy and `off_key` mapping |
 | ✅ | Seeded nutrient types (energy-kcal, fat, saturated-fat, carbohydrates, sugars, proteins, fibre, salt) |
 | ✅ | `product_nutrients` table — upsert from OFF data |
-| ✅ | Nutrient table component (`NutrientTable.svelte`) |
+| ✅ | Nutrient editor (inline auf der Artikel-Detailseite) |
 | ✅ | `isVerified` flag on products |
 | ✅ | `bringItemId` field for Bring! integration |
 | ✅ | REST API: `GET/POST /api/products`, `PATCH/DELETE /api/products/[id]` |

@@ -5,6 +5,31 @@ Neueste Einträge oben. Jeder Eintrag nennt den Commit-Kontext, damit andere LLM
 
 ---
 
+## [Unreleased] — G12: Nährwert-Abruf repariert (Slug-Bug) + Herkunft + Abruf auf Artikelebene (implementiert, Test auf Pi ausstehend)
+
+Wunsch: Nährwerte „abruf- und pflegbar wie beim Preis". Bestandsaufnahme ergab: Nährwerte waren bereits
+abrufbar (OFF via `/api/barcode/[gtin]`) + manuell pflegbar. Entscheidungen: kein Vorschlag-Staging (OFF liefert
+ganze Sets, direkt übernehmen), keine Allergene (keine normalisierte Quelle), Slug-Chaos bereinigen.
+
+- **G12-1 (Kern-Bug):** Der OFF-Abruf **verwarf Nährwerte stillschweigend.** `api/barcode/[gtin]` las die OFF-Werte
+  korrekt per `offKey`, gab sie aber mit einem eigenen, falschen Slug (`fat`, `energy-kcal`, …) weiter; der
+  Nutrient-Type-Lookup per `slug` fand die Seed-Typen (`fat_total`, offKey `fat_100g`) nie → `continue` → Wert weg.
+  Zusätzlich fehlten 4 der 12 Seed-Typen im Map. Fix: **Lookup läuft jetzt über `nutrient_types.off_key`** (die
+  Seed-Wahrheit) statt über divergierende Slugs; `OFF_NUTRIENT_MAP` auf alle 12 Typen erweitert. Extraktion +
+  Map in reine, getestete `off-nutrients.ts` ausgelagert (7 neue Vitest, inkl. Map↔Seed-Vertrag). **Keine
+  Datenmigration nötig** (Werte wurden gedroppt, nicht falsch gespeichert).
+- **G12-2:** Tote `NutrientTable.svelte` (dritte, deutsche Slug-Konvention, nirgends importiert) gelöscht → nur
+  noch EINE Slug-Konvention im Repo.
+- **G12-3:** Artikel-Detailseite: Button „Von OpenFoodFacts abrufen" (Nährwert-Abruf jetzt auch auf Artikelebene,
+  nicht nur beim Scannen); je Nährwert ein Herkunft-Badge „OFF"/„manuell" (aus `product_nutrients.source`);
+  manuelles Überschreiben setzt die Zeile auf „manuell".
+
+Preis-Staging und Allergene bewusst nicht gebaut (Nutzer-Entscheidung). Gates: typecheck 0, lint 0/33, build ✓, vitest 105/105.
+Manifest: neuer G12-Block.
+
+### Commits
+(folgt)
+
 ---
 
 ## [Unreleased] — G11: Einheitliche Artikel-Bearbeitung + 2 echte Bugs (implementiert, Test auf Pi ausstehend)

@@ -30,7 +30,7 @@
     store: { id: string; name: string; chain: string | null } | null
     locationPath: LocSegment[]
   }
-  type NutrientEditRow = { nutrientTypeId: string; valuePer100: string }
+  type NutrientEditRow = { nutrientTypeId: string; valuePer100: string; source: string }
 
   // ── Static data ─────────────────────────────────────────────────────────
 
@@ -588,9 +588,10 @@
 
   // svelte-ignore state_referenced_locally
   let nutrientRows = $state<NutrientEditRow[]>(
-    (product.nutrients ?? []).map((n: { nutrientTypeId: string; valuePer100: string }) => ({
+    (product.nutrients ?? []).map((n: { nutrientTypeId: string; valuePer100: string; source?: string }) => ({
       nutrientTypeId: n.nutrientTypeId,
       valuePer100: String(n.valuePer100),
+      source: n.source ?? 'manual',
     }))
   )
 
@@ -607,13 +608,44 @@
   let customName = $state('')
   let customUnit = $state('g')
   let customSaving = $state(false)
+  let fetchingOff = $state(false)
+
+  // Nährwerte für die Artikel-EAN von OpenFoodFacts abrufen (on-demand, G12).
+  // Nutzt den bestehenden /api/barcode/[gtin]-Pfad (schreibt product_nutrients
+  // source='off'); danach Reload. Failsafe: kein Treffer → Toast, kein Crash.
+  async function fetchNutrientsFromOff() {
+    if (!product.gtin) { showToast('Artikel hat keine EAN', 'error'); return }
+    fetchingOff = true
+    try {
+      const res = await fetch(`/api/barcode/${encodeURIComponent(product.gtin)}`)
+      const b = await res.json().catch(() => ({}))
+      if (!res.ok || b?.found === false) {
+        showToast('Keine Nährwerte bei OpenFoodFacts gefunden', 'error')
+        return
+      }
+      showToast('Nährwerte von OpenFoodFacts übernommen')
+      await invalidateAll()
+      // nutrientRows ist lokaler $state → nach dem Reload aus frischen Daten neu seeden.
+      nutrientRows = (product.nutrients ?? []).map(
+        (n: { nutrientTypeId: string; valuePer100: string; source?: string }) => ({
+          nutrientTypeId: n.nutrientTypeId,
+          valuePer100: String(n.valuePer100),
+          source: n.source ?? 'off',
+        })
+      )
+    } catch {
+      showToast('Netzwerkfehler beim Abruf', 'error')
+    } finally {
+      fetchingOff = false
+    }
+  }
 
   async function addNutrientRow() {
     if (!selectedNewType) return
     // Add row with value 0, persist immediately so it exists product-wide
     const typeId = selectedNewType
     selectedNewType = ''
-    nutrientRows = [...nutrientRows, { nutrientTypeId: typeId, valuePer100: '0' }]
+    nutrientRows = [...nutrientRows, { nutrientTypeId: typeId, valuePer100: '0', source: 'manual' }]
     await saveNutrient(typeId, '0')
   }
 
@@ -633,7 +665,7 @@
       return
     }
     nutrientRows = nutrientRows.map((r) =>
-      r.nutrientTypeId === nutrientTypeId ? { ...r, valuePer100: String(value) } : r
+      r.nutrientTypeId === nutrientTypeId ? { ...r, valuePer100: String(value), source: 'manual' } : r
     )
     showToast('Nährwert gespeichert')
   }
@@ -674,7 +706,7 @@
       customName = ''
       customUnit = 'g'
       // Add a row for it right away
-      nutrientRows = [...nutrientRows, { nutrientTypeId: type.id, valuePer100: '0' }]
+      nutrientRows = [...nutrientRows, { nutrientTypeId: type.id, valuePer100: '0', source: 'manual' }]
       await saveNutrient(type.id, '0')
     } finally {
       customSaving = false
@@ -954,8 +986,14 @@
 
   <!-- ── Nutrients editor (product-wide) ────────────────────────────────── -->
   <div class="card">
-    <div class="section-header">
+    <div class="section-header nutrient-header">
       <h2 class="section-title">Nährwerte <span class="section-subtitle">pro 100 g / 100 ml</span></h2>
+      {#if product.gtin}
+        <button class="btn-secondary btn-off" type="button" disabled={fetchingOff} onclick={fetchNutrientsFromOff}>
+          {#if fetchingOff}<span class="spinner spinner--sm" aria-hidden="true"></span>{/if}
+          Von OpenFoodFacts abrufen
+        </button>
+      {/if}
     </div>
     <p class="scope-hint">Diese Nährwerte gelten für alle Bestände dieses Artikels.</p>
 
@@ -965,7 +1003,12 @@
       <div class="nutrient-list">
         {#each nutrientRows as row (row.nutrientTypeId)}
           <div class="nutrient-row">
-            <span class="nutrient-name">{nutrientName(row.nutrientTypeId)}</span>
+            <span class="nutrient-name">
+              {nutrientName(row.nutrientTypeId)}
+              <span class="nutrient-source" class:nutrient-source--off={row.source === 'off'} title={row.source === 'off' ? 'Von OpenFoodFacts' : 'Manuell gepflegt'}>
+                {row.source === 'off' ? 'OFF' : 'manuell'}
+              </span>
+            </span>
             <input
               class="input nutrient-value"
               type="number"
@@ -1665,6 +1708,20 @@
     gap: var(--space-2);
   }
   .nutrient-name { flex: 1; font-size: var(--text-sm); color: var(--color-text-primary); min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  .nutrient-source {
+    display: inline-block;
+    margin-left: var(--space-2);
+    font-size: 10px;
+    font-weight: 600;
+    padding: 1px 6px;
+    border-radius: 999px;
+    background: var(--color-surface-sunken);
+    color: var(--color-text-muted);
+    vertical-align: middle;
+  }
+  .nutrient-source--off { background: var(--color-primary-subtle); color: var(--color-primary); }
+  .nutrient-header { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); flex-wrap: wrap; }
+  .btn-off { flex-shrink: 0; }
   .nutrient-value { width: 96px; flex-shrink: 0; }
   .nutrient-unit { width: 36px; flex-shrink: 0; font-size: var(--text-xs); color: var(--color-text-muted); }
 

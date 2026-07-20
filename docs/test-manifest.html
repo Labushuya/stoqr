@@ -108,7 +108,7 @@
 <div class="wrap">
   <header class="top">
     <h1>stoqr — Test-Manifest</h1>
-    <p class="subtitle">Blöcke A–E + F/F2 + G/G6/G7/G8/G10/G11 · logisch aufbauender Durchlauf · Stand nach G11 (einheitliche Artikel-Bearbeitung)</p>
+    <p class="subtitle">Blöcke A–E + F/F2 + G/G6/G7/G8/G10/G11/G12 · logisch aufbauender Durchlauf · Stand nach G12 (Nährwert-Abruf)</p>
 
     <div class="pre">
       <h2>Voraussetzung (kein Testschritt)</h2>
@@ -380,6 +380,17 @@ const BLOCKS = [
         expect: "Das Formular lehnt sofort ab („muss {EAN} enthalten“), ohne Speicherversuch — konsistent zur Server-Prüfung (G10-3)." },
       { id: "G11-3", title: "Sammel-Abruf: welche Artikel übersprungen", steps: ["Einstellungen → Märkte → beim Markt „Preise abrufen“.", "Nach dem Toast den Bereich „N Artikel nicht abgerufen — anzeigen“ aufklappen."],
         expect: "Unter dem Markt lässt sich aufklappen, WELCHE Artikel übersprungen/fehlgeschlagen sind — je mit Name, EAN und Grund (keine EAN / keine Abruf-URL / kein Treffer / Fehler). Nicht nur die nackten Zähler." },
+    ]
+  },
+  {
+    tag: "G12", name: "Nährwerte: Abruf & Herkunft", desc: "OpenFoodFacts-Nährwerte werden korrekt übernommen (Slug-Bug behoben); Abruf auf Artikelebene; Herkunft (OFF/manuell) sichtbar.",
+    items: [
+      { id: "G12-1", title: "Nährwerte-Abruf füllt die richtigen Werte", steps: ["Artikel mit echter EAN (z.B. 4306188415978) anlegen/öffnen.", "Auf der Detailseite „Von OpenFoodFacts abrufen“ klicken (oder beim Scannen in easy-add)."],
+        expect: "Die Nährwerte (Energie, Fett, ges. Fettsäuren, Kohlenhydrate, Zucker, Eiweiß, Salz, Ballaststoffe …) erscheinen TATSÄCHLICH unter den korrekten Standard-Typen (vorher: leer/nichts). Wiederholter Abruf überschreibt sauber, keine Dubletten/Falschtypen." },
+      { id: "G12-2", title: "Abruf auf Artikelebene", steps: ["Artikel-Detailseite mit EAN öffnen → Abschnitt Nährwerte."],
+        expect: "Dort gibt es einen Button „Von OpenFoodFacts abrufen“ (nur bei vorhandener EAN). Abruf ohne Treffer → Toast „Keine Nährwerte gefunden“, kein Absturz." },
+      { id: "G12-3", title: "Herkunft je Nährwert sichtbar", steps: ["Nach OFF-Abruf + einer manuellen Änderung die Nährwert-Zeilen betrachten."],
+        expect: "Je Zeile ein Badge „OFF“ (von OpenFoodFacts) bzw. „manuell“ (selbst gepflegt/geändert). Manuelles Überschreiben setzt die Zeile auf „manuell“." },
     ]
   },
   {
