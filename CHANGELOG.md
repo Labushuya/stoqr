@@ -29,7 +29,7 @@ G12-Test 97/98 + drei Beobachtungen. Diagnose (Workflow):
 Gates: typecheck 0, lint 0/33, build ✓, vitest 105/105. Manifest: G13-1 + G13-2, G12-3 unverändert.
 
 ### Commits
-(folgt)
+6d369a6 (G13 — OFF-Refresh-Bypass, Katalog-Preis-Vorschlag, Bilder-404)
 
 ---
 
