@@ -23,7 +23,7 @@ Behebt drei in G8 eingebaute Katalog-Fehler.
   POST. Zusätzlich zeigt der „Ausgewählt"-Pill jetzt das Produktbild statt nur ein Emoji.
 
 ### Commits
-(folgt beim Commit)
+6124363 (G9 — Vorschläge-Anzeige-Regression, Struktur-Check, Katalog-Anlegen mit Bild/Name/Kategorie)
 
 ---
 
