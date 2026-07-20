@@ -60,6 +60,7 @@ Gates: typecheck 0, lint 0/33, build ✓, vitest 105/105. Manifest: G13-1 + G13-
 
 ---
 
+## [Unreleased] — G12: Nährwert-Abruf repariert (Slug-Bug) + Herkunft + Abruf auf Artikelebene (implementiert, Test auf Pi ausstehend)
 
 Wunsch: Nährwerte „abruf- und pflegbar wie beim Preis". Bestandsaufnahme ergab: Nährwerte waren bereits
 abrufbar (OFF via `/api/barcode/[gtin]`) + manuell pflegbar. Entscheidungen: kein Vorschlag-Staging (OFF liefert
