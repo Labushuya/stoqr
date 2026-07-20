@@ -279,15 +279,15 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
 
   if (cached) {
     // Row exists but is stale (oder refresh erzwungen) — update it.
-    // Bei nutrientsOnly (Naehrwerte-Refresh) NUR Cache-Timestamp + offData
-    // auffrischen; Stammdaten (Name/Bild/Kategorie/Einheit) NICHT ueberschreiben,
-    // damit manuelle Artikel-Korrekturen erhalten bleiben (G13-1).
+    // Bei nutrientsOnly (der „Nährwerte abrufen"-Button, G14-5) wird AUSSCHLIESSLICH
+    // der Cache-Marker gesetzt — WEDER Stammdaten (Name/Bild/Kategorie/Einheit) NOCH
+    // das offData-Blob werden angefasst. OFF darf hier NUR die Nährwerte liefern
+    // (upsertProductNutrients weiter unten), sonst nichts.
     const [updated] = await db
       .update(products)
       .set(
         nutrientsOnly
           ? {
-              offData:      p as Record<string, unknown>,
               offFetchedAt: now,
               updatedAt:    now,
             }
