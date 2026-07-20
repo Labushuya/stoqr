@@ -56,18 +56,24 @@ export const POST: RequestHandler = async ({ locals }) => {
   let proposedCreated = 0
   let unchanged = 0
   let skipped = 0
+  let skippedNoUrl = 0
   let failed = 0
   let totalHits = 0
+  let attempted = 0 // Artikel, die tatsaechlich abgefragt wurden (fuer den Struktur-Check)
 
   for (let i = 0; i < rows.length; i++) {
     const r = rows[i]
     const url = resolveScrapeUrl({ scrapeUrl: r.scrapeUrl }, r.gtin)
     if (!url || !r.gtin) {
+      // Keine aufloesbare Abruf-URL (fehlt, ohne {EAN}-Platzhalter, keine EAN) —
+      // NICHT als „Struktur geaendert" werten, sondern separat zaehlen.
       skipped++
+      skippedNoUrl++
       continue
     }
     try {
       if (i > 0) await sleep(RATE_LIMIT_MS)
+      attempted++
       const { product: hit, totalHits: hits } = await scrapeGlobusSnapshot(url, r.gtin)
       totalHits += hits
       if (!hit) {
@@ -108,8 +114,21 @@ export const POST: RequestHandler = async ({ locals }) => {
     }
   }
 
-  // Struktur-Check: Kandidaten vorhanden, aber Globus lieferte NIRGENDS Treffer.
-  const structureWarning = rows.length > 0 && totalHits === 0
+  // Struktur-Check: es wurde WIRKLICH abgefragt, aber Globus lieferte NIRGENDS
+  // Treffer → Format evtl. geaendert. (Nicht ausgeloest, wenn alles mangels
+  // gueltiger URL uebersprungen wurde.)
+  const structureWarning = attempted > 0 && totalHits === 0
+  // Keine gueltige Abruf-URL fuer irgendeinen Artikel → eigene Ursache.
+  const noValidUrl = rows.length > 0 && attempted === 0
 
-  return json({ requested: rows.length, proposedCreated, unchanged, skipped, failed, structureWarning })
+  return json({
+    requested: rows.length,
+    proposedCreated,
+    unchanged,
+    skipped,
+    skippedNoUrl,
+    failed,
+    structureWarning,
+    noValidUrl,
+  })
 }

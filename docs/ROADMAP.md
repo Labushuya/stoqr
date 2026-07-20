@@ -3,7 +3,7 @@
 > Kanonisches Datenmodell und Entwicklungsplan. Diese Datei ist führend für Absicht,
 > Logik und Ziel von stoqr. Bei Widersprüchen zwischen Code und dieser Datei gilt diese Datei.
 
-Letzte Aktualisierung: 2026-07-20 (G8: Snapshot→Artikel-Übernahme, Markt-Merken, Update-Diagnose, On-demand-Katalog, Quick-Wins; Test auf Pi ausstehend)
+Letzte Aktualisierung: 2026-07-20 (G9: Katalog-Regressionen behoben — Vorschläge-Anzeige, Struktur-Check, Anlegen mit Bild/Name/Kategorie; Test auf Pi ausstehend)
 
 ---
 
@@ -222,6 +222,11 @@ Inventur (Ist erfassen) → Soll-Ist-Bedarf → Einkaufsliste (virtuelle Bestän
 ---
 
 ## Offene Punkte / noch zu testen (nicht bestätigt)
+
+**G9 — Katalog-Regressionsfixes — Test auf Pi ausstehend:**
+- **G9-1:** „Katalog jetzt sichern" → die Vorschläge werden wieder angezeigt (Regression behoben); Übernehmen/Verwerfen aktualisiert die Liste.
+- **G9-2:** Malformed/fehlende Markt-URL → Hinweis „Kein Markt mit gültiger Abruf-URL"; echte 0-Treffer-Fälle (gültige URL, nichts gefunden) → „Struktur evtl. geändert".
+- **G9-3:** Artikel aus Globus-Katalog anlegen → Name, Bild UND Kategorie werden übernommen; das Bild erscheint auch im „Ausgewählt"-Pill.
 
 **G8 (Migration 0016) — Test auf Pi ausstehend:**
 - **G8-1:** Katalog sichern → Snapshot mit Bild → „Übernehmen" (Bild angehakt) → Artikel-Detailseite zeigt das Bild; Name/Kategorie nur wenn angehakt/leer. Ohne Artikel-Match: „Übernehmen" gesperrt.

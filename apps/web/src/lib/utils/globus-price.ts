@@ -22,13 +22,17 @@ const SUGGEST_ATTR = 'data-etracker-search-suggest-product'
  * {EAN}-Platzhalter, muss eine GTIN vorhanden sein (sonst null). Ohne Platzhalter
  * wird die URL unveraendert zurueckgegeben. Defensiv: leere Vorlage → null.
  */
+/**
+ * Setzt die GTIN in eine Markt-Abruf-URL ein. Die Vorlage MUSS den {EAN}-Platzhalter
+ * enthalten (sonst kann sie keinen konkreten Artikel adressieren) und die GTIN muss
+ * gesetzt sein — andernfalls null (Aufrufer ueberspringt sauber).
+ */
 export function applyEanToUrl(
   template: string | null | undefined,
   gtin: string | null | undefined,
 ): string | null {
   const tpl = typeof template === 'string' ? template.trim() : ''
-  if (tpl === '') return null
-  if (!tpl.includes(EAN_PLACEHOLDER)) return tpl
+  if (tpl === '' || !tpl.includes(EAN_PLACEHOLDER)) return null
   const g = typeof gtin === 'string' ? gtin.trim() : ''
   if (g === '') return null
   return tpl.split(EAN_PLACEHOLDER).join(encodeURIComponent(g))
@@ -36,16 +40,14 @@ export function applyEanToUrl(
 
 /**
  * Setzt einen freien Suchbegriff in die Markt-Abruf-URL ein (On-demand-Katalog,
- * G8-4). Nutzt denselben {EAN}-Platzhalter wie die EAN-Suche (der Globus-Suggest
- * akzeptiert sowohl EAN als auch Klartext). Defensiv: leere Vorlage/Query → null.
+ * G8-4). Vorlage MUSS den {EAN}-Platzhalter enthalten. Defensiv: sonst null.
  */
 export function applyQueryToUrl(
   template: string | null | undefined,
   query: string | null | undefined,
 ): string | null {
   const tpl = typeof template === 'string' ? template.trim() : ''
-  if (tpl === '') return null
-  if (!tpl.includes(EAN_PLACEHOLDER)) return tpl
+  if (tpl === '' || !tpl.includes(EAN_PLACEHOLDER)) return null
   const q = typeof query === 'string' ? query.trim() : ''
   if (q === '') return null
   return tpl.split(EAN_PLACEHOLDER).join(encodeURIComponent(q))

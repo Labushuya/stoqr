@@ -5,6 +5,28 @@ Neueste Einträge oben. Jeder Eintrag nennt den Commit-Kontext, damit andere LLM
 
 ---
 
+## [Unreleased] — G9: Katalog-Regressionen behoben (Vorschläge-Anzeige, Struktur-Check, Anlegen-Felder) (implementiert, Test auf Pi ausstehend)
+
+Behebt drei in G8 eingebaute Katalog-Fehler.
+
+- **G9-1 (Regression, kritisch):** Nach „Katalog jetzt sichern" wurden gar keine Vorschläge mehr angezeigt.
+  `runCatalogSync`/`reviewSnapshot` überschrieben den lokalen State nach `invalidateAll()` mit **stale** `data`
+  (Closure-Race — dieselbe G6-3-Lehre). Fix: `proposedSnapshots` ist jetzt `$derived(data.proposedSnapshots)` und
+  aktualisiert sich reaktiv; keine manuelle Überschreibung mehr.
+- **G9-2 Struktur-Check:** `structureWarning` konnte „0 Treffer wegen kaputter URL" nicht von „0 trotz gültiger Abfrage"
+  trennen. Neuer `attempted`-Zähler → `structureWarning = attempted>0 && totalHits===0`; separater `noValidUrl`-Hinweis.
+  `applyEanToUrl`/`applyQueryToUrl` liefern jetzt `null`, wenn die Vorlage keinen `{EAN}`-Platzhalter hat (malformed URL
+  wird konsistent als „keine gültige URL" behandelt, nicht mehr blind gescraped).
+- **G9-3 Katalog-Anlegen:** Ein aus dem Globus-Katalog angelegter Artikel bekam nur die EAN. Neu:
+  `materializeSnapshotToProduct` legt den Artikel mit **Name + Bild + Kategorie** an (Kategorie best-effort per
+  Namensabgleich) und verknüpft den Snapshot; easy-add ruft diesen Pfad (`action: 'materialize'`) statt eines nackten
+  POST. Zusätzlich zeigt der „Ausgewählt"-Pill jetzt das Produktbild statt nur ein Emoji.
+
+### Commits
+(folgt beim Commit)
+
+---
+
 ## [Unreleased] — G8: Snapshot→Artikel + Markt-Merken + Update-Diagnose + On-demand-Katalog + Quick-Wins (implementiert, Test auf Pi ausstehend)
 
 Folge-Rückmeldungen nach G7.

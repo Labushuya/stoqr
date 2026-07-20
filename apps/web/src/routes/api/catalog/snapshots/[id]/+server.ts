@@ -2,13 +2,18 @@ import { json } from '@sveltejs/kit'
 import type { RequestHandler } from './$types'
 import { requireHouseholdId } from '$lib/server/queries/households'
 import { writeAudit } from '$lib/server/queries/audit'
-import { applySnapshotToProduct, rejectSnapshot } from '$lib/server/queries/globus-snapshots'
+import {
+  applySnapshotToProduct,
+  rejectSnapshot,
+  materializeSnapshotToProduct,
+} from '$lib/server/queries/globus-snapshots'
 
 // ---------------------------------------------------------------------------
 // POST /api/catalog/snapshots/[id]
-//   { action: 'confirm', fields?: { image?, name?, category? } } | { action: 'reject' }
-// Bestaetigt einen Snapshot und uebernimmt die angekreuzten Katalog-Felder in den
-// zugeordneten Artikel (G8-1), oder verwirft ihn.
+//   { action: 'confirm', fields?: {...} } | { action: 'reject' } | { action: 'materialize' }
+// confirm: uebernimmt angekreuzte Katalog-Felder in den zugeordneten Artikel (G8-1).
+// materialize: legt aus dem Snapshot einen neuen Artikel an (Name/EAN/Bild/Kategorie) (G9-3).
+// reject: verwirft den Vorschlag.
 // ---------------------------------------------------------------------------
 
 export const POST: RequestHandler = async ({ locals, params, request }) => {
@@ -16,8 +21,22 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
   const householdId = await requireHouseholdId(locals.user.id)
 
   const body = (await request.json().catch(() => ({}))) as {
-    action?: 'confirm' | 'reject'
+    action?: 'confirm' | 'reject' | 'materialize'
     fields?: { image?: boolean; name?: boolean; category?: boolean }
+  }
+
+  if (body.action === 'materialize') {
+    const product = await materializeSnapshotToProduct(params.id, householdId, locals.user.id)
+    if (!product) return json({ error: 'Snapshot nicht gefunden' }, { status: 404 })
+    await writeAudit({
+      householdId,
+      userId: locals.user.id,
+      action: 'INSERT',
+      tableName: 'products',
+      recordId: product.id,
+      newValues: { name: product.name, fromSnapshot: params.id },
+    })
+    return json({ ok: true, product })
   }
 
   if (body.action === 'confirm') {

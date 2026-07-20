@@ -2,7 +2,7 @@ import { db } from '$lib/server/db'
 import { globusSnapshots, products, categories } from '@stoqr/db'
 import { and, eq, desc } from 'drizzle-orm'
 import { snapshotDiffers, type SnapshotComparable } from '$lib/utils/snapshot-diff'
-import { updateProduct } from '$lib/server/queries/products'
+import { updateProduct, createProduct } from '$lib/server/queries/products'
 
 export { snapshotDiffers }
 
@@ -195,10 +195,8 @@ export async function applySnapshotToProduct(
   }
   // Kategorie best-effort: letzte (spezifischste) Kategorie per Name matchen.
   if (fields.category && Array.isArray(snap.category) && snap.category.length > 0) {
-    const wanted = snap.category[snap.category.length - 1].trim().toLowerCase()
-    const cats = await db.select({ id: categories.id, name: categories.name }).from(categories)
-    const match = cats.find((c) => c.name.trim().toLowerCase() === wanted)
-    if (match && (fields.category || !product.categoryId)) patch.categoryId = match.id
+    const catId = await matchCategoryId(snap.category)
+    if (catId && (fields.category || !product.categoryId)) patch.categoryId = catId
   }
 
   if (Object.keys(patch).length > 0) {
@@ -211,6 +209,56 @@ export async function applySnapshotToProduct(
     .where(eq(globusSnapshots.id, id))
 
   return { ok: true }
+}
+
+/** Globus-Kategorie-Namen (spezifischste zuletzt) best-effort auf categories.id mappen. */
+async function matchCategoryId(category: string[] | null | undefined): Promise<string | null> {
+  if (!Array.isArray(category) || category.length === 0) return null
+  const wanted = category[category.length - 1].trim().toLowerCase()
+  if (wanted === '') return null
+  const cats = await db.select({ id: categories.id, name: categories.name }).from(categories)
+  return cats.find((c) => c.name.trim().toLowerCase() === wanted)?.id ?? null
+}
+
+/**
+ * Legt aus einem Katalog-Snapshot einen Artikel an (Name/EAN/Bild/Kategorie) und
+ * verknuepft den Snapshot damit (productId). Fuer die On-demand-Katalog-Suche
+ * beim Anlegen (G9-3). Kein status-Wechsel (Snapshot bleibt Katalog-Eintrag).
+ * Liefert das angelegte Produkt (id + Anzeige-Felder) oder null.
+ */
+export async function materializeSnapshotToProduct(
+  snapshotId: string,
+  householdId: string,
+  createdBy?: string | null
+): Promise<{ id: string; name: string; imageUrl: string | null; categoryId: string | null } | null> {
+  const snap = await db.query.globusSnapshots.findFirst({
+    where: (s, { and, eq }) => and(eq(s.id, snapshotId), eq(s.householdId, householdId)),
+  })
+  if (!snap) return null
+
+  const categoryId = await matchCategoryId(snap.category)
+  const imageUrl = snap.localImagePath ? `/media/${snap.localImagePath}` : undefined
+
+  const productId = await createProduct({
+    name: snap.name?.trim() || snap.gtin,
+    gtin: snap.gtin,
+    imageUrl,
+    categoryId: categoryId ?? undefined,
+    createdBy: createdBy ?? undefined,
+  })
+
+  // Snapshot mit dem neuen Artikel verknuepfen (best-effort).
+  await db
+    .update(globusSnapshots)
+    .set({ productId })
+    .where(eq(globusSnapshots.id, snapshotId))
+
+  return {
+    id: productId,
+    name: snap.name?.trim() || snap.gtin,
+    imageUrl: imageUrl ?? null,
+    categoryId: categoryId ?? null,
+  }
 }
 
 /** Snapshot bestaetigen (status='confirmed'). Nur offene Vorschlaege. */

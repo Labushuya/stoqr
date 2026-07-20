@@ -34,8 +34,9 @@
     localImagePath: string | null
     product: { id: string; name: string } | null
   }
-  // svelte-ignore state_referenced_locally
-  let proposedSnapshots = $state<Snapshot[]>((data.proposedSnapshots as Snapshot[]) ?? [])
+  // Vorschlagsliste direkt aus den (reaktiven) Load-Daten ableiten — nach jedem
+  // invalidateAll() automatisch aktuell (kein manuelles, stale-anfaelliges Setzen).
+  const proposedSnapshots = $derived((data.proposedSnapshots as Snapshot[]) ?? [])
   let syncing = $state(false)
   let snapshotBusy = $state<string | null>(null)
 
@@ -57,8 +58,11 @@
       if (b.structureWarning) {
         toast.error('Achtung: keine Treffer trotz EANs — Globus-Struktur evtl. geändert.')
       }
+      if (b.noValidUrl) {
+        toast.error('Kein Markt mit gültiger Abruf-URL ({EAN}-Platzhalter) — nichts abgefragt.')
+      }
+      // Liste aktualisiert sich reaktiv ueber data (proposedSnapshots ist $derived).
       await invalidateAll()
-      proposedSnapshots = (data.proposedSnapshots as Snapshot[]) ?? []
     } catch {
       toast.error('Netzwerkfehler beim Katalog-Abruf.')
     } finally {
@@ -90,7 +94,8 @@
       const b = await res.json().catch(() => ({}))
       if (!res.ok) { toast.error(String(b?.error ?? `Fehler ${res.status}`)); return }
       toast.success(action === 'confirm' ? 'In Artikel übernommen' : 'Vorschlag verworfen')
-      proposedSnapshots = proposedSnapshots.filter((s) => s.id !== id)
+      // Liste ist $derived(data) → per Reload aktualisieren.
+      await invalidateAll()
     } catch {
       toast.error('Netzwerkfehler.')
     } finally {

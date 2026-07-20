@@ -197,27 +197,24 @@
     }, 400)
   }
 
-  // Katalog-Treffer -> Artikel anlegen (name/gtin/category/imageUrl) und auswaehlen.
+  // Katalog-Treffer -> Artikel aus dem Snapshot materialisieren (Name/EAN/Bild/
+  // Kategorie werden serverseitig uebernommen) und auswaehlen.
   async function selectCatalog(c: CatalogResult) {
     catalogAdding = c.id
     try {
-      const res = await fetch('/api/products', {
+      const res = await fetch(`/api/catalog/snapshots/${c.id}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: c.name ?? c.gtin,
-          gtin: c.gtin,
-          imageUrl: c.localImagePath ? `/media/${c.localImagePath}` : undefined,
-        }),
+        body: JSON.stringify({ action: 'materialize' }),
       })
-      const created = await res.json().catch(() => ({}))
-      if (!res.ok) {
-        // 409 = EAN existiert bereits: dann per Suche den vorhandenen Artikel nehmen.
+      const b = await res.json().catch(() => ({}))
+      if (!res.ok || !b?.product) {
+        // Fallback: evtl. existiert die EAN schon → vorhandenen Artikel per Suche nehmen.
         const found = await fetch(`/api/products?q=${encodeURIComponent(c.gtin)}`).then((r) => r.ok ? r.json() : [])
         if (Array.isArray(found) && found[0]) { selectProduct(found[0]); return }
         return
       }
-      selectProduct(created as ProductResult)
+      selectProduct(b.product as ProductResult)
     } catch {
       // silent
     } finally {
@@ -611,7 +608,11 @@
     {#if selectedProduct !== null}
       <!-- Selected product pill -->
       <div class="selected-product">
-        <span class="selected-icon" aria-hidden="true">{productIcon(selectedProduct)}</span>
+        {#if selectedProduct.imageUrl}
+          <img class="selected-image" src={selectedProduct.imageUrl} alt="" loading="lazy" />
+        {:else}
+          <span class="selected-icon" aria-hidden="true">{productIcon(selectedProduct)}</span>
+        {/if}
         <div class="selected-info">
           <span class="selected-name">{selectedProduct.name}</span>
           {#if selectedProduct.brand}
@@ -1579,6 +1580,14 @@
     font-size: 1.6rem;
     line-height: 1;
     flex-shrink: 0;
+  }
+  .selected-image {
+    width: 40px;
+    height: 40px;
+    object-fit: cover;
+    border-radius: var(--radius-sm);
+    flex-shrink: 0;
+    background: var(--color-surface-sunken);
   }
 
   .selected-info {

@@ -31,8 +31,8 @@ describe('applyEanToUrl', () => {
       'https://produkte.globus.de/hockenheim/suggest?search=4306188415978',
     )
   })
-  it('gibt statische URL ohne Platzhalter unveraendert zurueck', () => {
-    expect(applyEanToUrl('https://x.de/p/abc', '123')).toBe('https://x.de/p/abc')
+  it('liefert null bei Vorlage ohne {EAN}-Platzhalter (kann keinen Artikel adressieren)', () => {
+    expect(applyEanToUrl('https://x.de/p/abc', '123')).toBeNull()
   })
   it('liefert null bei {EAN} ohne GTIN oder leerer Vorlage', () => {
     expect(applyEanToUrl('https://x.de/{EAN}', '')).toBeNull()
