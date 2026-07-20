@@ -3,7 +3,7 @@ import { db } from '$lib/server/db'
 import { expiryConfig, categories } from '@stoqr/db'
 import { eq, asc } from 'drizzle-orm'
 import { requireHouseholdId, getUnits } from '$lib/server/queries/households'
-import { listProposedSnapshots } from '$lib/server/queries/globus-snapshots'
+import { listCatalogMirror } from '$lib/server/queries/globus-snapshots'
 import type { PageServerLoad, Actions } from './$types'
 
 export const load: PageServerLoad = async ({ locals }) => {
@@ -11,7 +11,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 
   const householdId = await requireHouseholdId(locals.user.id)
 
-  const [configRows, categoryRows, unitRows, proposedSnapshots] = await Promise.all([
+  const [configRows, categoryRows, unitRows, catalogMirror] = await Promise.all([
     db
       .select()
       .from(expiryConfig)
@@ -30,7 +30,7 @@ export const load: PageServerLoad = async ({ locals }) => {
     }),
 
     getUnits(householdId),
-    listProposedSnapshots(householdId),
+    listCatalogMirror(householdId),
   ])
 
   const config = configRows[0] ?? {
@@ -47,7 +47,7 @@ export const load: PageServerLoad = async ({ locals }) => {
       graceDaysAfter: config.graceDaysAfter,
     },
     priceScrapeEnabled: config.priceScrapeEnabled ?? false,
-    proposedSnapshots,
+    catalogMirror,
     categories: categoryRows,
     units: unitRows,
   }

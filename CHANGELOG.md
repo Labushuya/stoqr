@@ -5,6 +5,39 @@ Neueste Einträge oben. Jeder Eintrag nennt den Commit-Kontext, damit andere LLM
 
 ---
 
+---
+
+## [Unreleased] — G10: Katalog-Modell als EAN-Spiegel des Bestands + 4 kaputte Punkte (implementiert, Test auf Pi ausstehend)
+
+Die G9-Fixes griffen auf dem Pi nicht — die Diagnose war an der falschen Ebene angesetzt. Ehrliche
+Ursachenanalyse (Workflow) + zwei Konzept-Rückfragen ergaben, dass das **Katalog-Datenmodell** falsch war,
+nicht das Frontend. Umbau nach dem tatsächlich gewollten Konzept.
+
+- **G10-1 (Kern, behebt G7-5 + G8-1):** Die Katalog-Sicherung zeigte Vorschläge nur bei einer *Änderung* der
+  Globus-Daten und blieb deshalb dauerhaft leer (ein einmal `confirmed`/`rejected`-Snapshot kam nie wieder in
+  `proposed`). Neu: **EAN-Spiegel des Bestands** — `listCatalogMirror` listet je Bestands-Artikel-mit-EAN den
+  neuesten Katalog-Snapshot (Status egal) + einen berechneten Feld-Diff (`computeMirrorDiff`, Name/Bild/Kategorie;
+  Preis bleibt beim F2-Flow). Immer sichtbar, ausklappbar, abweichende zuoberst; „Übernehmen" (angekreuzt) /
+  „Alles übernehmen" / „Ignorieren". `applySnapshotToProduct` ist jetzt status-agnostisch und löst den Artikel per
+  EAN auf (kein blinder 409 mehr).
+- **G10-2 (behebt G8-4):** easy-add zeigt beim Bestand-Anlegen **nur existierende Artikel** (Name/Marke/EAN via
+  `searchProducts` + neuem `eq(gtin, q)`). Der Globus-Katalog-Block, `selectCatalog` (materialize) und die
+  On-demand-`catalog/search`-Anbindung sind entfernt — kein Anlegen-durch-Katalog, kein generisches Rauschen,
+  kein toter Klick.
+- **G10-3 (behebt G7-6):** Abruf-URL **ohne `{EAN}`-Platzhalter** wird jetzt schon beim Speichern abgelehnt (neuer
+  Sentinel `MISSING_EAN_PLACEHOLDER` in `normalizeScrapeUrl`, in beiden Store-Endpunkten + der Märkte-Formaction).
+  Die Struktur-/URL-Warnung nach dem Sync erscheint als dauerhafte, auffällige Warn-Card statt als flüchtiger Toast.
+- **G10-4:** Einstellungs-Reihenfolge — „Einheiten" und „Aktivität" jetzt direkt unter „Märkte".
+- **Folgeblock G11 (offen):** Vollkatalog-Suche in „Neuer Artikel" (alle gesehenen Snapshots + EAN-Lookup) +
+  vereinheitlichte, vollständige Artikel-Bearbeitung.
+
+Gates: typecheck 0, lint 0/33, build ✓, vitest 98/98 (+7 `mirror-diff`).
+
+### Commits
+(folgt)
+
+---
+
 ## [Unreleased] — G9: Katalog-Regressionen behoben (Vorschläge-Anzeige, Struktur-Check, Anlegen-Felder) (implementiert, Test auf Pi ausstehend)
 
 Behebt drei in G8 eingebaute Katalog-Fehler.

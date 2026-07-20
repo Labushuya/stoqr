@@ -536,7 +536,8 @@ export async function getProductById(id: string) {
 
 export async function searchProducts(query: string) {
 	return db.query.products.findMany({
-		where: (p, { or }) => or(ilike(p.name, `%${query}%`), ilike(p.brand, `%${query}%`)),
+		where: (p, { or, eq }) =>
+			or(ilike(p.name, `%${query}%`), ilike(p.brand, `%${query}%`), eq(p.gtin, query)),
 		orderBy: [asc(products.name)],
 		limit: 25,
 		columns: {

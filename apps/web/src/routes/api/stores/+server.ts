@@ -5,7 +5,7 @@ import { stores } from '@stoqr/db'
 import { eq, asc } from 'drizzle-orm'
 import { requireHouseholdId } from '$lib/server/queries/households'
 import { writeAudit } from '$lib/server/queries/audit'
-import { normalizeScrapeUrl, INVALID_URL } from '$lib/server/scrape/globus'
+import { normalizeScrapeUrl, INVALID_URL, MISSING_EAN_PLACEHOLDER } from '$lib/server/scrape/globus'
 
 // Koordinate defensiv fuer die numeric-Spalte aufbereiten: leer/ungueltig -> null.
 function coordToDb(v: string | number | null | undefined): string | null {
@@ -66,6 +66,9 @@ export const POST: RequestHandler = async ({ locals, request }) => {
   const normalizedUrl = normalizeScrapeUrl(scrapeUrl)
   if (normalizedUrl === INVALID_URL) {
     return json({ error: 'Ungültige Abruf-URL (nur http/https)' }, { status: 400 })
+  }
+  if (normalizedUrl === MISSING_EAN_PLACEHOLDER) {
+    return json({ error: 'Abruf-URL muss den Platzhalter {EAN} enthalten' }, { status: 400 })
   }
 
   const [store] = await db

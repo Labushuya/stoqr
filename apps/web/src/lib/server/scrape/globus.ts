@@ -13,7 +13,7 @@ import { env } from '$env/dynamic/private'
 import { eq } from 'drizzle-orm'
 import { db } from '$lib/server/db'
 import { expiryConfig } from '@stoqr/db'
-import { applyEanToUrl, parseGlobusSuggestJson, matchSuggestByEan, type GlobusSuggestProduct } from '$lib/utils/globus-price'
+import { applyEanToUrl, parseGlobusSuggestJson, matchSuggestByEan, EAN_PLACEHOLDER, type GlobusSuggestProduct } from '$lib/utils/globus-price'
 
 const TIMEOUT_MS = 8000
 const DEFAULT_USER_AGENT =
@@ -53,17 +53,25 @@ export function resolveScrapeUrl(
 /** Sentinel: Eingabe war eine nicht-leere, aber ungueltige URL. */
 export const INVALID_URL = Symbol('invalid-url')
 
+/** Sentinel: gueltige URL, aber ohne den {EAN}-Platzhalter (nicht abrufbar). */
+export const MISSING_EAN_PLACEHOLDER = Symbol('missing-ean-placeholder')
+
 /**
  * Normalisiert eine optionale Abruf-URL: leer/undefined → null, gueltige
- * http/https-URL → getrimmter String, sonst INVALID_URL.
+ * http/https-URL MIT {EAN}-Platzhalter → getrimmter String. Ungueltige URL →
+ * INVALID_URL; gueltige URL ohne {EAN} → MISSING_EAN_PLACEHOLDER (waere sonst
+ * nie abrufbar und wuerde den Sync stumm ueberspringen, G10-3).
  */
-export function normalizeScrapeUrl(value: string | null | undefined): string | null | typeof INVALID_URL {
+export function normalizeScrapeUrl(
+  value: string | null | undefined,
+): string | null | typeof INVALID_URL | typeof MISSING_EAN_PLACEHOLDER {
   if (value === undefined || value === null) return null
   const trimmed = value.trim()
   if (trimmed === '') return null
   try {
     const u = new URL(trimmed)
     if (u.protocol !== 'http:' && u.protocol !== 'https:') return INVALID_URL
+    if (!trimmed.includes(EAN_PLACEHOLDER)) return MISSING_EAN_PLACEHOLDER
     return trimmed
   } catch {
     return INVALID_URL

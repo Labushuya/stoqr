@@ -3,7 +3,7 @@ import { db } from '$lib/server/db'
 import { stores } from '@stoqr/db'
 import { eq, asc } from 'drizzle-orm'
 import { requireHouseholdId } from '$lib/server/queries/households'
-import { normalizeScrapeUrl, INVALID_URL, isPriceScrapeEnabled } from '$lib/server/scrape/globus'
+import { normalizeScrapeUrl, INVALID_URL, MISSING_EAN_PLACEHOLDER, isPriceScrapeEnabled } from '$lib/server/scrape/globus'
 import type { PageServerLoad, Actions } from './$types'
 
 // Koordinate defensiv parsen: leer/ungueltig -> null, sonst als String (Drizzle numeric).
@@ -79,6 +79,9 @@ export const actions: Actions = {
     if (scrapeUrl === INVALID_URL) {
       return fail(400, { action: 'addStore', error: 'Ungültige Abruf-URL (nur http/https).' })
     }
+    if (scrapeUrl === MISSING_EAN_PLACEHOLDER) {
+      return fail(400, { action: 'addStore', error: 'Abruf-URL muss den Platzhalter {EAN} enthalten.' })
+    }
 
     const [created] = await db
       .insert(stores)
@@ -112,6 +115,9 @@ export const actions: Actions = {
     }
     if (scrapeUrl === INVALID_URL) {
       return fail(400, { action: 'editStore', error: 'Ungültige Abruf-URL (nur http/https).' })
+    }
+    if (scrapeUrl === MISSING_EAN_PLACEHOLDER) {
+      return fail(400, { action: 'editStore', error: 'Abruf-URL muss den Platzhalter {EAN} enthalten.' })
     }
 
     const [updated] = await db

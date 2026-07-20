@@ -44,7 +44,7 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
     const res = await applySnapshotToProduct(params.id, householdId, fields, locals.user.id)
     if (!res.ok) {
       if (res.reason === 'no-product') {
-        return json({ error: 'Diesem Vorschlag ist kein Artikel zugeordnet.' }, { status: 409 })
+        return json({ error: 'Kein Artikel mit dieser EAN gefunden.' }, { status: 409 })
       }
       return json({ error: 'Snapshot nicht gefunden' }, { status: 404 })
     }

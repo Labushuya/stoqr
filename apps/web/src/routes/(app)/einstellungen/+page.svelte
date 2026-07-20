@@ -23,22 +23,37 @@
   let priceScrapeEnabled = $state(data.priceScrapeEnabled ?? false)
   let priceScrapeSaving = $state(false)
 
-  // ── Katalog-Sicherung (Globus-Snapshots, G7) ─────────────────────────────────
-  type Snapshot = {
-    id: string
-    gtin: string
-    name: string | null
-    category: string[] | null
-    priceCt: number | null
-    currency: string | null
-    localImagePath: string | null
-    product: { id: string; name: string } | null
+  // ── Katalog-Sicherung: EAN-Spiegel des Bestands (G10) ────────────────────────
+  type FieldDiff = { differs: boolean; fillsGap: boolean }
+  type MirrorRow = {
+    product: {
+      id: string
+      name: string
+      gtin: string
+      imageUrl: string | null
+      categoryId: string | null
+      categoryName: string | null
+    }
+    snapshot: {
+      id: string
+      name: string | null
+      category: string[] | null
+      priceCt: number | null
+      currency: string | null
+      localImagePath: string | null
+      catalogCategoryId: string | null
+      fetchedAt: string
+    } | null
+    diff: { name: FieldDiff; image: FieldDiff; category: FieldDiff; any: boolean }
   }
-  // Vorschlagsliste direkt aus den (reaktiven) Load-Daten ableiten — nach jedem
+  // Spiegel direkt aus den (reaktiven) Load-Daten ableiten — nach jedem
   // invalidateAll() automatisch aktuell (kein manuelles, stale-anfaelliges Setzen).
-  const proposedSnapshots = $derived((data.proposedSnapshots as Snapshot[]) ?? [])
+  const catalogMirror = $derived((data.catalogMirror as MirrorRow[]) ?? [])
+  const mirrorDeviations = $derived(catalogMirror.filter((r) => r.diff.any).length)
   let syncing = $state(false)
   let snapshotBusy = $state<string | null>(null)
+  // Dauerhafte Warnung nach dem letzten Sync (nicht nur fluechtiger Toast, G10-3).
+  let syncWarning = $state<string | null>(null)
 
   function fmtSnapPrice(ct: number | null): string {
     if (ct == null) return '—'
@@ -47,6 +62,7 @@
 
   async function runCatalogSync() {
     syncing = true
+    syncWarning = null
     try {
       const res = await fetch('/api/catalog/sync', { method: 'POST' })
       const b = await res.json().catch(() => ({}))
@@ -55,13 +71,15 @@
       if (b.skipped) parts.push(`${b.skipped} übersprungen`)
       if (b.failed) parts.push(`${b.failed} fehlgeschlagen`)
       toast.success(parts.join(', '))
+      // Dauerhafte Warn-Card statt fluechtigem Toast (G10-3).
       if (b.structureWarning) {
-        toast.error('Achtung: keine Treffer trotz EANs — Globus-Struktur evtl. geändert.')
+        syncWarning =
+          'Globus lieferte für vorhandene EANs keine Treffer — die Katalog-Struktur hat sich möglicherweise geändert.'
+      } else if (b.noValidUrl) {
+        syncWarning =
+          'Kein Markt mit gültiger Abruf-URL. Hinterlege beim Markt eine URL mit dem Platzhalter {EAN}.'
       }
-      if (b.noValidUrl) {
-        toast.error('Kein Markt mit gültiger Abruf-URL ({EAN}-Platzhalter) — nichts abgefragt.')
-      }
-      // Liste aktualisiert sich reaktiv ueber data (proposedSnapshots ist $derived).
+      // Liste aktualisiert sich reaktiv ueber data (catalogMirror ist $derived).
       await invalidateAll()
     } catch {
       toast.error('Netzwerkfehler beim Katalog-Abruf.')
@@ -70,22 +88,29 @@
     }
   }
 
-  // Angekreuzte Uebernahme-Felder je Snapshot (Bild vorausgewaehlt).
+  // Angekreuzte Uebernahme-Felder je Snapshot — abweichende Felder vorausgewaehlt.
   let snapFields = $state<Record<string, { image: boolean; name: boolean; category: boolean }>>({})
-  // Fuer jeden offenen Snapshot einen Feld-Zustand vorhalten (bind: braucht MemberExpression).
+  // Fuer jeden Snapshot mit Abweichung einen Feld-Zustand vorhalten (bind: braucht
+  // MemberExpression). Default: genau die abweichenden Felder angekreuzt.
   $effect(() => {
-    for (const s of proposedSnapshots) {
-      if (!snapFields[s.id]) snapFields[s.id] = { image: true, name: false, category: false }
+    for (const r of catalogMirror) {
+      if (r.snapshot && !snapFields[r.snapshot.id]) {
+        snapFields[r.snapshot.id] = {
+          image: r.diff.image.differs,
+          name: r.diff.name.differs,
+          category: r.diff.category.differs,
+        }
+      }
     }
   })
 
-  async function reviewSnapshot(id: string, action: 'confirm' | 'reject') {
+  async function reviewSnapshot(id: string, action: 'confirm' | 'reject', allFields = false) {
     snapshotBusy = id
     try {
-      const payload =
-        action === 'confirm'
-          ? { action, fields: snapFields[id] ?? { image: true, name: false, category: false } }
-          : { action }
+      const fields = allFields
+        ? { image: true, name: true, category: true }
+        : (snapFields[id] ?? { image: true, name: false, category: false })
+      const payload = action === 'confirm' ? { action, fields } : { action }
       const res = await fetch(`/api/catalog/snapshots/${id}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -93,8 +118,8 @@
       })
       const b = await res.json().catch(() => ({}))
       if (!res.ok) { toast.error(String(b?.error ?? `Fehler ${res.status}`)); return }
-      toast.success(action === 'confirm' ? 'In Artikel übernommen' : 'Vorschlag verworfen')
-      // Liste ist $derived(data) → per Reload aktualisieren.
+      toast.success(action === 'confirm' ? 'In Artikel übernommen' : 'Ignoriert')
+      // Spiegel ist $derived(data) → per Reload aktualisieren.
       await invalidateAll()
     } catch {
       toast.error('Netzwerkfehler.')
@@ -199,6 +224,40 @@
     <div class="section-body">
       <a href="/einstellungen/maerkte" class="members-link">
         <span>Märkte verwalten</span>
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+          <path d="M6 3l5 5-5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </a>
+    </div>
+  </section>
+
+  <!-- ── Einheiten ─────────────────────────────────────────────────────── -->
+
+  <section class="settings-section">
+    <div class="section-header">
+      <h2 class="section-title">Einheiten</h2>
+      <span class="section-desc">Mengeneinheiten und Umrechnung verwalten</span>
+    </div>
+    <div class="section-body">
+      <a href="/einstellungen/einheiten" class="members-link">
+        <span>Einheiten verwalten</span>
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+          <path d="M6 3l5 5-5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </a>
+    </div>
+  </section>
+
+  <!-- ── Aktivität ─────────────────────────────────────────────────────── -->
+
+  <section class="settings-section">
+    <div class="section-header">
+      <h2 class="section-title">Aktivität</h2>
+      <span class="section-desc">Änderungsprotokoll — wer hat wann was geändert</span>
+    </div>
+    <div class="section-body">
+      <a href="/aktivitaet" class="members-link">
+        <span>Aktivität ansehen</span>
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
           <path d="M6 3l5 5-5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
@@ -389,7 +448,7 @@
     </form>
   </section>
 
-  <!-- ── Section: Katalog-Sicherung (Globus-Snapshots, G7) ──────────────── -->
+  <!-- ── Section: Katalog-Sicherung — EAN-Spiegel des Bestands (G10) ─────── -->
 
   <section class="settings-section">
     <div class="section-header">
@@ -402,9 +461,9 @@
         Katalog-Sicherung (Globus)
       </h2>
       <p class="section-desc">
-        Sichert je Artikel mit EAN die aktuellen Globus-Katalogdaten (Name, Kategorie, Preis, Bild)
-        als lokalen Snapshot. Änderungen werden als Vorschlag angezeigt und müssen bestätigt werden.
-        Voraussetzung: Online-Preis-Abruf aktiv + Markt mit Abruf-URL.
+        Gleicht jeden Artikel mit EAN gegen die Globus-Katalogdaten ab (Name, Kategorie, Bild).
+        Abweichungen werden markiert und lassen sich einzeln oder komplett in den Artikel übernehmen.
+        Voraussetzung: Online-Preis-Abruf aktiv + Markt mit Abruf-URL (mit {'{EAN}'}-Platzhalter).
       </p>
     </div>
 
@@ -414,38 +473,89 @@
       </button>
     </div>
 
-    {#if proposedSnapshots.length > 0}
+    {#if syncWarning}
+      <div class="sync-warning" role="alert">
+        <span class="sync-warning-icon" aria-hidden="true">⚠</span>
+        <span>{syncWarning}</span>
+      </div>
+    {/if}
+
+    {#if catalogMirror.length > 0}
       <div class="snap-list">
-        <h3 class="snap-heading">Offene Vorschläge ({proposedSnapshots.length})</h3>
-        {#each proposedSnapshots as s (s.id)}
-          <div class="snap-item">
-            {#if s.localImagePath}
-              <img class="snap-thumb" src={`/media/${s.localImagePath}`} alt="" loading="lazy" />
-            {:else}
-              <div class="snap-thumb snap-thumb--empty" aria-hidden="true"></div>
-            {/if}
-            <div class="snap-info">
-              <span class="snap-name">{s.name ?? '(ohne Name)'}</span>
-              <span class="snap-meta">
-                EAN {s.gtin}
-                {#if s.priceCt != null} · {fmtSnapPrice(s.priceCt)}{/if}
-                {#if s.category?.length} · {s.category.join(' › ')}{/if}
-                {#if s.product} · Artikel: {s.product.name}{:else} · (kein Artikel-Match){/if}
-              </span>
-              {#if s.product && snapFields[s.id]}
-                <div class="snap-fields">
-                  <span class="snap-fields-label">Übernehmen:</span>
-                  <label><input type="checkbox" bind:checked={snapFields[s.id].image} /> Bild</label>
-                  <label><input type="checkbox" bind:checked={snapFields[s.id].name} /> Name</label>
-                  <label><input type="checkbox" bind:checked={snapFields[s.id].category} /> Kategorie</label>
-                </div>
+        <h3 class="snap-heading">
+          Bestands-Artikel im Katalog ({catalogMirror.length})
+          {#if mirrorDeviations > 0}
+            <span class="snap-badge snap-badge--warn">{mirrorDeviations} abweichend</span>
+          {:else}
+            <span class="snap-badge">alle aktuell</span>
+          {/if}
+        </h3>
+        {#each catalogMirror as r (r.product.id)}
+          <details class="snap-item" open={r.diff.any}>
+            <summary class="snap-summary">
+              {#if r.snapshot?.localImagePath}
+                <img class="snap-thumb" src={`/media/${r.snapshot.localImagePath}`} alt="" loading="lazy" />
+              {:else if r.product.imageUrl}
+                <img class="snap-thumb" src={r.product.imageUrl} alt="" loading="lazy" />
+              {:else}
+                <div class="snap-thumb snap-thumb--empty" aria-hidden="true"></div>
               {/if}
-            </div>
-            <div class="snap-actions">
-              <button class="btn-save-inline" type="button" disabled={snapshotBusy === s.id || !s.product} title={s.product ? '' : 'Kein Artikel zugeordnet'} onclick={() => reviewSnapshot(s.id, 'confirm')}>Übernehmen</button>
-              <button class="btn-cancel-inline" type="button" disabled={snapshotBusy === s.id} onclick={() => reviewSnapshot(s.id, 'reject')}>Verwerfen</button>
-            </div>
-          </div>
+              <div class="snap-info">
+                <span class="snap-name">{r.product.name}</span>
+                <span class="snap-meta">
+                  EAN {r.product.gtin}
+                  {#if !r.snapshot} · (kein Katalog-Eintrag){/if}
+                  {#if r.snapshot?.priceCt != null} · {fmtSnapPrice(r.snapshot.priceCt)}{/if}
+                </span>
+              </div>
+              {#if r.diff.any}
+                <span class="snap-badge snap-badge--warn">abweichend</span>
+              {:else if r.snapshot}
+                <span class="snap-badge">aktuell</span>
+              {/if}
+            </summary>
+
+            {#if r.snapshot && r.diff.any && snapFields[r.snapshot.id]}
+              <div class="snap-diff">
+                {#if r.diff.name.differs}
+                  <label class="snap-diff-row">
+                    <input type="checkbox" bind:checked={snapFields[r.snapshot.id].name} />
+                    <span class="snap-diff-field">Name</span>
+                    <span class="snap-diff-old">{r.product.name || '(leer)'}</span>
+                    <span class="snap-diff-arrow" aria-hidden="true">→</span>
+                    <span class="snap-diff-new">{r.snapshot.name}</span>
+                  </label>
+                {/if}
+                {#if r.diff.image.differs}
+                  <label class="snap-diff-row">
+                    <input type="checkbox" bind:checked={snapFields[r.snapshot.id].image} />
+                    <span class="snap-diff-field">Bild</span>
+                    <span class="snap-diff-old">{r.product.imageUrl ? 'vorhanden' : '(leer)'}</span>
+                    <span class="snap-diff-arrow" aria-hidden="true">→</span>
+                    <span class="snap-diff-new">Katalog-Bild</span>
+                  </label>
+                {/if}
+                {#if r.diff.category.differs}
+                  <label class="snap-diff-row">
+                    <input type="checkbox" bind:checked={snapFields[r.snapshot.id].category} />
+                    <span class="snap-diff-field">Kategorie</span>
+                    <span class="snap-diff-old">{r.product.categoryName || '(leer)'}</span>
+                    <span class="snap-diff-arrow" aria-hidden="true">→</span>
+                    <span class="snap-diff-new">{r.snapshot.category?.join(' › ') ?? '—'}</span>
+                  </label>
+                {/if}
+                <div class="snap-actions">
+                  <button class="btn-save-inline" type="button" disabled={snapshotBusy === r.snapshot.id} onclick={() => reviewSnapshot(r.snapshot!.id, 'confirm')}>Übernehmen</button>
+                  <button class="btn-save-inline" type="button" disabled={snapshotBusy === r.snapshot.id} onclick={() => reviewSnapshot(r.snapshot!.id, 'confirm', true)}>Alles übernehmen</button>
+                  <button class="btn-cancel-inline" type="button" disabled={snapshotBusy === r.snapshot.id} onclick={() => reviewSnapshot(r.snapshot!.id, 'reject')}>Ignorieren</button>
+                </div>
+              </div>
+            {:else if r.snapshot}
+              <div class="snap-diff snap-diff--ok">Katalogdaten stimmen mit dem Artikel überein.</div>
+            {:else}
+              <div class="snap-diff snap-diff--ok">Noch kein Katalog-Eintrag — „Katalog jetzt sichern" ausführen.</div>
+            {/if}
+          </details>
         {/each}
       </div>
     {/if}
@@ -601,40 +711,6 @@
     {/if}
   </section>
 
-  <!-- ── Einheiten ─────────────────────────────────────────────────────── -->
-
-  <section class="settings-section">
-    <div class="section-header">
-      <h2 class="section-title">Einheiten</h2>
-      <span class="section-desc">Mengeneinheiten und Umrechnung verwalten</span>
-    </div>
-    <div class="section-body">
-      <a href="/einstellungen/einheiten" class="members-link">
-        <span>Einheiten verwalten</span>
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-          <path d="M6 3l5 5-5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-      </a>
-    </div>
-  </section>
-
-  <!-- ── Aktivität ─────────────────────────────────────────────────────── -->
-
-  <section class="settings-section">
-    <div class="section-header">
-      <h2 class="section-title">Aktivität</h2>
-      <span class="section-desc">Änderungsprotokoll — wer hat wann was geändert</span>
-    </div>
-    <div class="section-body">
-      <a href="/aktivitaet" class="members-link">
-        <span>Aktivität ansehen</span>
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-          <path d="M6 3l5 5-5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-      </a>
-    </div>
-  </section>
-
   <!-- ── Section 4: Bring! Integration (Placeholder) ───────────────────── -->
 
   <section class="settings-section settings-section--disabled">
@@ -763,18 +839,28 @@
 
   /* ── Katalog-Snapshots (G7) ───────────────────────────────────────────── */
   .snap-list { margin-top: var(--space-5); display: flex; flex-direction: column; gap: var(--space-2); }
-  .snap-heading { font-size: var(--text-sm); font-weight: 700; color: var(--color-text-primary); margin: 0 0 var(--space-1); }
-  .snap-item { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-2) var(--space-3); border: 1px solid var(--color-border); border-radius: var(--radius-md); }
+  .snap-heading { font-size: var(--text-sm); font-weight: 700; color: var(--color-text-primary); margin: 0 0 var(--space-1); display: flex; align-items: center; gap: var(--space-2); }
+  .snap-item { display: block; padding: 0; border: 1px solid var(--color-border); border-radius: var(--radius-md); overflow: hidden; }
+  .snap-summary { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-2) var(--space-3); cursor: pointer; list-style: none; }
+  .snap-summary::-webkit-details-marker { display: none; }
   .snap-thumb { width: 40px; height: 40px; object-fit: cover; border-radius: var(--radius-sm); flex-shrink: 0; background: var(--color-surface-sunken); }
   .snap-thumb--empty { border: 1px dashed var(--color-border); }
   .snap-info { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
   .snap-name { font-size: var(--text-sm); font-weight: 600; color: var(--color-text-primary); }
   .snap-meta { font-size: var(--text-xs); color: var(--color-text-muted); }
-  .snap-actions { display: flex; gap: var(--space-2); flex-shrink: 0; }
-  .snap-fields { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; margin-top: 4px; font-size: var(--text-xs); color: var(--color-text-secondary); }
-  .snap-fields-label { color: var(--color-text-muted); }
-  .snap-fields label { display: inline-flex; align-items: center; gap: 3px; cursor: pointer; }
-  .snap-fields input { accent-color: var(--color-primary); }
+  .snap-actions { display: flex; gap: var(--space-2); flex-shrink: 0; flex-wrap: wrap; margin-top: var(--space-2); }
+  .snap-badge { font-size: var(--text-xs); font-weight: 600; padding: 2px 8px; border-radius: 999px; background: var(--color-surface-sunken); color: var(--color-text-muted); flex-shrink: 0; }
+  .snap-badge--warn { background: color-mix(in srgb, var(--color-warning, #d97706) 18%, transparent); color: var(--color-warning, #d97706); }
+  .snap-diff { padding: var(--space-2) var(--space-3) var(--space-3); border-top: 1px solid var(--color-border); display: flex; flex-direction: column; gap: var(--space-2); }
+  .snap-diff--ok { font-size: var(--text-xs); color: var(--color-text-muted); }
+  .snap-diff-row { display: flex; align-items: center; gap: var(--space-2); font-size: var(--text-xs); cursor: pointer; flex-wrap: wrap; }
+  .snap-diff-row input { accent-color: var(--color-primary); }
+  .snap-diff-field { font-weight: 600; color: var(--color-text-primary); min-width: 68px; }
+  .snap-diff-old { color: var(--color-text-muted); text-decoration: line-through; }
+  .snap-diff-arrow { color: var(--color-text-muted); }
+  .snap-diff-new { color: var(--color-text-primary); font-weight: 500; }
+  .sync-warning { margin-top: var(--space-4); display: flex; align-items: flex-start; gap: var(--space-2); padding: var(--space-3); border-radius: var(--radius-md); background: color-mix(in srgb, var(--color-warning, #d97706) 12%, transparent); border: 1px solid color-mix(in srgb, var(--color-warning, #d97706) 40%, transparent); color: var(--color-text-primary); font-size: var(--text-sm); }
+  .sync-warning-icon { font-size: 1.1em; line-height: 1; flex-shrink: 0; }
 
   .toggle-row {
     display: flex;

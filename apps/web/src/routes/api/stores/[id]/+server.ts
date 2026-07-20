@@ -5,7 +5,7 @@ import { stores, inventoryItems } from '@stoqr/db'
 import { eq, and, count } from 'drizzle-orm'
 import { requireHouseholdId } from '$lib/server/queries/households'
 import { writeAudit } from '$lib/server/queries/audit'
-import { normalizeScrapeUrl, INVALID_URL } from '$lib/server/scrape/globus'
+import { normalizeScrapeUrl, INVALID_URL, MISSING_EAN_PLACEHOLDER } from '$lib/server/scrape/globus'
 
 // ---------------------------------------------------------------------------
 // GET /api/stores/[id]
@@ -68,6 +68,9 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
     const normalized = normalizeScrapeUrl(scrapeUrl)
     if (normalized === INVALID_URL) {
       return json({ error: 'Ungültige Abruf-URL (nur http/https)' }, { status: 400 })
+    }
+    if (normalized === MISSING_EAN_PLACEHOLDER) {
+      return json({ error: 'Abruf-URL muss den Platzhalter {EAN} enthalten' }, { status: 400 })
     }
     patch.scrapeUrl = normalized
   }

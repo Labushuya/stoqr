@@ -1,7 +1,8 @@
 import { db } from '$lib/server/db'
-import { globusSnapshots, products, categories } from '@stoqr/db'
+import { globusSnapshots, products, categories, inventoryItems, productStores } from '@stoqr/db'
 import { and, eq, desc } from 'drizzle-orm'
 import { snapshotDiffers, type SnapshotComparable } from '$lib/utils/snapshot-diff'
+import { computeMirrorDiff, type MirrorDiff } from '$lib/utils/mirror-diff'
 import { updateProduct, createProduct } from '$lib/server/queries/products'
 
 export { snapshotDiffers }
@@ -119,6 +120,120 @@ export async function listProposedSnapshotsForProduct(productId: string, househo
   })
 }
 
+// ---------------------------------------------------------------------------
+// Katalog-Spiegel (G10): je Bestands-Artikel-mit-EAN der neueste Globus-Snapshot
+// derselben EAN + Feld-Diff (Artikel vs. Katalog). IMMER sichtbar, unabhaengig
+// vom Snapshot-Status — der Abgleich bleibt so lange bestehen, bis die Felder
+// uebereinstimmen. Ersetzt die alte „nur offene Vorschlaege"-Liste, die leer
+// blieb, sobald ein Snapshot einmal confirmed/rejected war.
+// ---------------------------------------------------------------------------
+
+export type CatalogMirrorRow = {
+  product: {
+    id: string
+    name: string
+    gtin: string
+    imageUrl: string | null
+    categoryId: string | null
+    categoryName: string | null
+  }
+  snapshot: {
+    id: string
+    name: string | null
+    category: string[] | null
+    priceCt: number | null
+    currency: string | null
+    localImagePath: string | null
+    catalogCategoryId: string | null
+    fetchedAt: Date
+  } | null
+  diff: MirrorDiff
+}
+
+/**
+ * Liefert je im Haushalt verwendeten Artikel-mit-EAN (Bestand ODER Markt-
+ * Zuordnung) den neuesten Katalog-Snapshot derselben EAN + Feld-Diff. Sortiert:
+ * abweichende zuerst. Preis bleibt aussen vor (F2-Flow).
+ */
+export async function listCatalogMirror(householdId: string): Promise<CatalogMirrorRow[]> {
+  // Artikel-IDs, die im Haushalt verwendet werden (Bestand oder Markt-Zuordnung).
+  const invRows = await db
+    .selectDistinct({ productId: inventoryItems.productId })
+    .from(inventoryItems)
+    .where(eq(inventoryItems.householdId, householdId))
+  const psRows = await db
+    .selectDistinct({ productId: productStores.productId })
+    .from(productStores)
+    .where(eq(productStores.householdId, householdId))
+  const productIds = [...new Set([...invRows, ...psRows].map((r) => r.productId))]
+  if (productIds.length === 0) return []
+
+  // Nur Artikel mit EAN.
+  const prods = await db.query.products.findMany({
+    where: (p, { and, inArray, isNotNull }) =>
+      and(inArray(p.id, productIds), isNotNull(p.gtin)),
+    columns: { id: true, name: true, gtin: true, imageUrl: true, categoryId: true },
+    with: { category: { columns: { name: true } } },
+  })
+  if (prods.length === 0) return []
+
+  // Neuesten Snapshot je EAN dieses Haushalts holen (ein Query, dann in JS je EAN
+  // den neuesten behalten).
+  const gtins = prods.map((p) => p.gtin!).filter(Boolean)
+  const snaps = await db.query.globusSnapshots.findMany({
+    where: (s, { and, eq, inArray }) =>
+      and(eq(s.householdId, householdId), inArray(s.gtin, gtins)),
+    orderBy: [desc(globusSnapshots.fetchedAt)],
+  })
+  const latestByGtin = new Map<string, (typeof snaps)[number]>()
+  for (const s of snaps) {
+    if (!latestByGtin.has(s.gtin)) latestByGtin.set(s.gtin, s) // erster = neuester (orderBy)
+  }
+
+  const rows: CatalogMirrorRow[] = []
+  for (const p of prods) {
+    const snap = latestByGtin.get(p.gtin!) ?? null
+    // Katalog-Kategorie best-effort auf stoqr-categoryId mappen (fuer den Diff).
+    const catalogCategoryId = snap ? await matchCategoryId(snap.category) : null
+    const diff = computeMirrorDiff(
+      { name: p.name, imageUrl: p.imageUrl, categoryId: p.categoryId },
+      snap
+        ? { name: snap.name, localImagePath: snap.localImagePath, categoryId: catalogCategoryId }
+        : null
+    )
+    rows.push({
+      product: {
+        id: p.id,
+        name: p.name,
+        gtin: p.gtin!,
+        imageUrl: p.imageUrl,
+        categoryId: p.categoryId,
+        categoryName: p.category?.name ?? null,
+      },
+      snapshot: snap
+        ? {
+            id: snap.id,
+            name: snap.name,
+            category: snap.category,
+            priceCt: snap.priceCt,
+            currency: snap.currency,
+            localImagePath: snap.localImagePath,
+            catalogCategoryId,
+            fetchedAt: snap.fetchedAt,
+          }
+        : null,
+      diff,
+    })
+  }
+
+  // Abweichende zuerst, dann alphabetisch nach Artikelname.
+  rows.sort((a, b) => {
+    if (a.diff.any !== b.diff.any) return a.diff.any ? -1 : 1
+    return a.product.name.localeCompare(b.product.name, 'de')
+  })
+  return rows
+}
+
 /**
  * Durchsucht den lokalen Katalog (globus_snapshots) nach Name oder EAN. Liefert je
  * EAN den neuesten Eintrag (dedupe), unabhaengig vom Status (auch confirmed/rejected
@@ -155,13 +270,14 @@ export async function getSnapshotCounts(householdId: string) {
 }
 
 /**
- * Uebernimmt gewaehlte Katalog-Felder eines Snapshots in den zugeordneten Artikel
- * und setzt den Snapshot auf 'confirmed'. Nur wenn der Snapshot offen ist, dem
- * Haushalt gehoert UND einem Artikel zugeordnet ist (productId gesetzt).
- * fields: welche Felder uebernommen werden (angekreuzt). image nutzt den lokalen
- * /media-Pfad. „leere Felder fuellen" ist Default; angekreuzte Felder ueberschreiben.
- * Kategorie best-effort per Namensabgleich; ohne Treffer nicht gesetzt.
- * Return: { ok, reason? }.
+ * Uebernimmt gewaehlte Katalog-Felder eines Snapshots in den passenden Artikel
+ * (G10: EAN-Spiegel). Status-agnostisch — der Snapshot muss NICHT 'proposed'
+ * sein (der Spiegel zeigt auch confirmed/rejected). Der Artikel wird ueber
+ * snap.productId ODER — falls null (easy-add-Snapshots) — ueber die EAN im
+ * Haushalt aufgeloest. fields: welche Felder uebernommen werden (angekreuzt).
+ * image nutzt den lokalen /media-Pfad. Angekreuzte Felder ueberschreiben; nicht
+ * angekreuzte fuellen nur leere Artikelfelder. Kategorie best-effort per Name.
+ * Setzt den Snapshot danach auf 'confirmed'. Return: { ok, reason? }.
  */
 export async function applySnapshotToProduct(
   id: string,
@@ -170,16 +286,25 @@ export async function applySnapshotToProduct(
   reviewedBy?: string | null
 ): Promise<{ ok: boolean; reason?: string }> {
   const snap = await db.query.globusSnapshots.findFirst({
-    where: (s, { and, eq }) =>
-      and(eq(s.id, id), eq(s.householdId, householdId), eq(s.status, 'proposed')),
+    where: (s, { and, eq }) => and(eq(s.id, id), eq(s.householdId, householdId)),
   })
   if (!snap) return { ok: false, reason: 'not-found' }
-  if (!snap.productId) return { ok: false, reason: 'no-product' }
 
-  const product = await db.query.products.findFirst({
-    where: eq(products.id, snap.productId),
-    columns: { id: true, name: true, imageUrl: true, categoryId: true },
-  })
+  // Artikel aufloesen: bevorzugt ueber die Verknuepfung, sonst ueber die EAN
+  // (verwendet im Haushalt). So funktioniert die Uebernahme auch fuer Snapshots
+  // ohne productId.
+  let product = snap.productId
+    ? await db.query.products.findFirst({
+        where: eq(products.id, snap.productId),
+        columns: { id: true, name: true, imageUrl: true, categoryId: true },
+      })
+    : undefined
+  if (!product && snap.gtin) {
+    product = await db.query.products.findFirst({
+      where: eq(products.gtin, snap.gtin),
+      columns: { id: true, name: true, imageUrl: true, categoryId: true },
+    })
+  }
   if (!product) return { ok: false, reason: 'no-product' }
 
   const patch: { name?: string; imageUrl?: string | null; categoryId?: string | null } = {}
@@ -189,12 +314,12 @@ export async function applySnapshotToProduct(
     const localUrl = `/media/${snap.localImagePath}`
     if (fields.image || !product.imageUrl) patch.imageUrl = localUrl
   }
-  // Name: angekreuzt -> setzen; ohne Ankreuzen NICHT (Name ist Kern-Stammdatum).
-  if (fields.name && snap.name && snap.name.trim() !== '') {
+  // Name: angekreuzt -> setzen; ohne Ankreuzen nur wenn Artikelname leer.
+  if (snap.name && snap.name.trim() !== '' && (fields.name || !product.name?.trim())) {
     patch.name = snap.name.trim()
   }
   // Kategorie best-effort: letzte (spezifischste) Kategorie per Name matchen.
-  if (fields.category && Array.isArray(snap.category) && snap.category.length > 0) {
+  if (Array.isArray(snap.category) && snap.category.length > 0) {
     const catId = await matchCategoryId(snap.category)
     if (catId && (fields.category || !product.categoryId)) patch.categoryId = catId
   }
@@ -203,9 +328,15 @@ export async function applySnapshotToProduct(
     await updateProduct(product.id, patch)
   }
 
+  // Snapshot mit dem Artikel verknuepfen (falls noch nicht) + auf confirmed setzen.
   await db
     .update(globusSnapshots)
-    .set({ status: 'confirmed', reviewedAt: new Date(), reviewedBy: reviewedBy ?? null })
+    .set({
+      productId: snap.productId ?? product.id,
+      status: 'confirmed',
+      reviewedAt: new Date(),
+      reviewedBy: reviewedBy ?? null,
+    })
     .where(eq(globusSnapshots.id, id))
 
   return { ok: true }
