@@ -179,8 +179,8 @@ const BLOCKS = [
   {
     tag: "B", name: "Artikel & EAN", desc: "Artikel-Stammdaten inkl. EAN (Block B) — an beiden Anlege-Stellen, plus EAN-Duplikat-Meldung (B-a Fix).",
     items: [
-      { id: "A-EAN1", title: "Artikel mit EAN + Standard-Einheit über FAB anlegen", steps: ["Inventar öffnen.", "FAB „Neuer Artikel“ klicken.", "Produktname „Vollmilch“, Kategorie wählen, Standard-Einheit „Packung“, EAN z.B. „4001234567890“.", "„Hinzufügen“."],
-        expect: "Modal hat die Felder Produktname*, Kategorie, Standard-Einheit UND EAN / Barcode. Toast „Artikel angelegt — Bestand über ‚Bestand hinzufügen‘“." },
+      { id: "A-EAN1", title: "Artikel mit EAN + Standard-Einheit über FAB anlegen", steps: ["Inventar öffnen.", "FAB „Neuer Artikel“ klicken.", "Name „Vollmilch“, Kategorie wählen, Standard-Einheit „Packung“, EAN z.B. „4001234567890“.", "„Anlegen“."],
+        expect: "Es öffnet sich die gemeinsame Artikel-Bearbeitung (identisch zu Einstellungen→Artikel): Felder Name*, Marke, EAN/Barcode, Kategorie, Standard-Einheit, Bild-URL, Beschreibung. Toast „Artikel angelegt — Bestand über ‚Bestand hinzufügen‘“." },
       { id: "A-EAN2", title: "EAN in Artikelverwaltung sichtbar + editierbar", steps: ["Einstellungen → Artikel verwalten.", "„Vollmilch“ suchen: EAN sichtbar?", "„Bearbeiten“ → EAN ändern → „Speichern“."],
         expect: "EAN wird als Barcode-Zeile am Artikel angezeigt. Nach dem Bearbeiten ist die neue EAN SOFORT sichtbar (ohne Reload). (Fix B-b)" },
       { id: "A-EAN3", title: "EAN-Duplikat wird klar abgelehnt (B-a Fix)", steps: ["Neuen Artikel „Testdopplung“ mit der GLEICHEN EAN wie Vollmilch anlegen (FAB oder Artikelverwaltung)."],
@@ -372,8 +372,8 @@ const BLOCKS = [
     items: [
       { id: "G11-1a", title: "Artikel-Detailseite: Stammdaten bearbeiten (inkl. EAN + Bild)", steps: ["Artikel-Detailseite öffnen → „Bearbeiten“ im Kopf.", "Name, Marke, EAN, Kategorie, Bild-URL, Beschreibung ändern → „Speichern“."],
         expect: "Das Formular hat ALLE Felder (inkl. EAN und Bild-URL — vorher fehlend). Nach dem Speichern werden die Werte angezeigt; ist eine Bild-URL gesetzt, erscheint das echte Produktbild im Kopf statt des Platzhalters." },
-      { id: "G11-1b", title: "Gleiche Bearbeitung in Einstellungen → Artikel", steps: ["Einstellungen → Artikel → bei einem Artikel „Bearbeiten“; außerdem „Neuen Artikel anlegen“."],
-        expect: "Es öffnet sich DASSELBE Formular mit denselben Feldern wie auf der Detailseite (Name, Marke, EAN, Kategorie, Bild, Standard-Einheit, Beschreibung) — überall identisch." },
+      { id: "G11-1b", title: "Gleiche Bearbeitung an ALLEN Stellen", steps: ["Einstellungen → Artikel → „Bearbeiten“ + „Neuen Artikel anlegen“.", "Inventar → FAB „Neuer Artikel“.", "Artikel-Detailseite → „Bearbeiten“."],
+        expect: "Überall öffnet sich DASSELBE Formular mit denselben Feldern (Name*, Marke, EAN, Kategorie, Standard-Einheit, Bild-URL, Beschreibung) und identischer Beschriftung („Name“, nicht „Produktname“). Kein reduziertes Formular mehr." },
       { id: "G11-1c", title: "EAN-Duplikat wird klar abgelehnt", steps: ["Beim Bearbeiten/Anlegen eine EAN eintragen, die bereits einem anderen Artikel gehört → Speichern."],
         expect: "Klare Fehlermeldung „Diese EAN ist bereits einem anderen Artikel zugeordnet.“ im Formular; nicht gespeichert." },
       { id: "G11-2", title: "Abruf-URL ohne {EAN}: sofortiges Feedback (Märkte)", steps: ["Einstellungen → Märkte → Markt anlegen/bearbeiten.", "Gültige URL OHNE {EAN} eintragen → Speichern."],

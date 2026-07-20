@@ -1,6 +1,6 @@
 <script lang="ts">
   import ConfirmModal from '$lib/components/ConfirmModal.svelte'
-  import Modal from '$lib/components/Modal.svelte'
+  import ProductForm from '$lib/components/ProductForm.svelte'
   import type { PageData } from './$types'
   import {
     getExpiryStatus,
@@ -104,17 +104,9 @@
   let categories = $state<Category[]>(data.categories as Category[])
   let categoriesLoaded = $state(true)
 
-  // Add form fields (article master data only: name + category + EAN + default unit)
-  let formProductName = $state('')
-  let formCategoryId = $state('')
-  let formGtin = $state('')
-  // Einheiten-Optionen für die Standard-Einheit des Artikels.
+  // Einheiten-Optionen für die Standard-Einheit (ProductForm).
   // svelte-ignore state_referenced_locally
   const unitOptions = (data.units as { id: string; name: string; symbol: string }[]) ?? []
-  let formDefaultUnit = $state(
-    unitOptions.find((u) => u.symbol === 'piece')?.symbol || unitOptions[0]?.symbol || 'piece',
-  )
-  let formSaving = $state(false)
 
   // Expiry config defaults (fallback values — ideally server-loaded)
   const YELLOW_DAYS = 7
@@ -250,52 +242,20 @@
     categoriesLoaded = true
   }
 
-  // ── Add sheet (Neuer Artikel — nur Stammdaten) ──────────────────────────────
+  // ── Add sheet (Neuer Artikel — gemeinsame ProductForm, G11) ─────────────────
 
   async function openAddSheet() {
-    formProductName = ''
-    formCategoryId = ''
-    formGtin = ''
-    formDefaultUnit =
-      unitOptions.find((u) => u.symbol === 'piece')?.symbol || unitOptions[0]?.symbol || 'piece'
-    showSheet = true
     await loadCategories()
+    showSheet = true
   }
 
   function closeSheet() {
     showSheet = false
   }
 
-  // ── Save (Artikel anlegen = nur Stammdaten, kein Bestand) ────────────────────
-
-  async function saveItem() {
-    if (!formProductName.trim()) return
-    formSaving = true
-    try {
-      // Bestände werden separat über "Bestand hinzufügen" (easy-add) erfasst.
-      const res = await fetch('/api/products', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: formProductName.trim(),
-          categoryId: formCategoryId || undefined,
-          gtin: formGtin.trim() || undefined,
-          defaultUnit: formDefaultUnit || undefined,
-        }),
-      })
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}))
-        // Server-Meldung zeigen (z.B. EAN-Konflikt 409), nicht generisch verschlucken.
-        showToast(String(body?.error ?? `Fehler ${res.status}`), 'error')
-        return
-      }
-      showToast('Artikel angelegt — Bestand über „Bestand hinzufügen"')
-      closeSheet()
-    } catch {
-      showToast('Netzwerkfehler beim Speichern', 'error')
-    } finally {
-      formSaving = false
-    }
+  function onProductCreated() {
+    showSheet = false
+    showToast('Artikel angelegt — Bestand über „Bestand hinzufügen"')
   }
 
   // ── Consume item ───────────────────────────────────────────────────────────
@@ -718,80 +678,16 @@ Das Produkt bleibt im Katalog.`,
   </button>
 </div>
 
-<!-- ── Neuer Artikel (Modal) ──────────────────────────────────────────────── -->
+<!-- ── Neuer Artikel (gemeinsame ProductForm, G11) ────────────────────────── -->
 
-<Modal open={showSheet} title="Neuer Artikel" size="sm" onClose={closeSheet}>
-  <div class="form-section">
-    <!-- Product name -->
-    <div class="field">
-      <label class="label" for="f-name">Produktname <span class="required">*</span></label>
-      <input
-        id="f-name"
-        class="input"
-        type="text"
-        placeholder="z.B. Vollmilch"
-        bind:value={formProductName}
-        required
-      />
-    </div>
-
-    <!-- Category -->
-    <div class="field">
-      <label class="label" for="f-cat">Kategorie</label>
-      <select id="f-cat" class="input" bind:value={formCategoryId}>
-        <option value="">Keine Kategorie</option>
-        {#each categories as cat (cat.id)}
-          <option value={cat.id}>{cat.icon ? cat.icon + ' ' : ''}{cat.name}</option>
-        {/each}
-      </select>
-    </div>
-
-    <!-- Standard-Einheit (wird beim Bestand-Anlegen vorbelegt) -->
-    <div class="field">
-      <label class="label" for="f-unit">Standard-Einheit</label>
-      <select id="f-unit" class="input" bind:value={formDefaultUnit}>
-        {#each unitOptions as u (u.id)}
-          <option value={u.symbol}>{u.name}</option>
-        {/each}
-      </select>
-    </div>
-
-    <!-- EAN / Barcode (am Artikel, primär) -->
-    <div class="field">
-      <label class="label" for="f-gtin">EAN / Barcode</label>
-      <input
-        id="f-gtin"
-        class="input"
-        type="text"
-        inputmode="numeric"
-        bind:value={formGtin}
-        placeholder="optional — z.B. 4001234567890"
-        maxlength="14"
-      />
-    </div>
-
-    <p class="article-hint">
-      Ein Artikel beschreibt das Lebensmittel (inkl. EAN und Standard-Einheit). Konkrete
-      Bestände (Menge, MHD, Markt, Ort) fügst du danach über „Bestand hinzufügen" hinzu.
-    </p>
-  </div>
-
-  {#snippet footer()}
-    <button
-      class="btn-primary btn-save-sheet"
-      type="button"
-      disabled={formSaving || !formProductName.trim()}
-      onclick={saveItem}
-    >
-      {#if formSaving}
-        <span class="spinner" aria-hidden="true"></span>
-        Speichern…
-      {:else}
-        Hinzufügen
-      {/if}
-    </button>
-  {/snippet}
-</Modal>
+<ProductForm
+  open={showSheet}
+  product={null}
+  {categories}
+  units={unitOptions}
+  onSaved={onProductCreated}
+  onClose={closeSheet}
+/>
 
 <!-- ── Confirm Modal ────────────────────────────────────────────────────── -->
 {#if confirmModal}
