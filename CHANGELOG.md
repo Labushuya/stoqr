@@ -34,7 +34,7 @@ nicht das Frontend. Umbau nach dem tatsächlich gewollten Konzept.
 Gates: typecheck 0, lint 0/33, build ✓, vitest 98/98 (+7 `mirror-diff`).
 
 ### Commits
-(folgt)
+832dcd7 (G10 — EAN-Spiegel, easy-add nur existierende, {EAN}-Pflicht beim Speichern, Sektions-Reihenfolge)
 
 ---
 
