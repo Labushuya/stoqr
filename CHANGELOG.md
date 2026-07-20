@@ -27,7 +27,7 @@ Gates: typecheck 0, lint 0/33, build ✓, vitest 105/105. Manifest: neuer G15-Bl
 als Projekt-Notiz festgehalten.)
 
 ### Commits
-(folgt)
+f67fa2e (G15 — product_field_sources, SourceBadge, Schreibpfade, Katalog-Legende, easy-add-Hinweis)
 
 ---
 
