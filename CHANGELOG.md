@@ -32,7 +32,7 @@ Aus dem G18-Test: harte Regression beim Ändern der Standard-Einheit + fälschli
 Gates: typecheck 0, lint 0/33, build ✓, vitest 105/105. Manifest: G15-4/G17-2 geschärft, neue G19-Items.
 
 ### Commits
-_(folgt beim Commit)_
+ec7b405 (G19 — Standard-Einheit-Header-Fix, Kategorie-Mapping auf echte Seed-Slugs, „nicht zuordenbar", Backlog)
 
 ---
 
