@@ -218,7 +218,7 @@ const BLOCKS = [
     items: [
       { id: "D1", title: "Märkte dem Artikel zuordnen", steps: ["Vollmilch → Detailseite öffnen.", "Unter „Märkte wo einkaufbar“ BEIDE Märkte „Globus“ und „Penny“ antippen."],
         expect: "Beide Chips werden aktiv (✓ vorangestellt). (Wichtig fürs 2×2-Szenario in Block E.)" },
-      { id: "D2", title: "Soll-Bestand mit Mindestbestand speichern (A1 Bugfix)", steps: ["„+ Soll-Bestand festlegen“ klicken.", "Soll-Menge z.B. 4, Einheit „Packung“, Mindestbestand z.B. 1 eintragen.", "„Speichern“."],
+      { id: "D2", title: "Soll-Bestand mit Mindestbestand speichern (A1 Bugfix)", steps: ["„+ Soll-Bestand festlegen“ klicken.", "Soll-Menge z.B. 4 und Mindestbestand z.B. 1 eintragen (die Einheit kommt aus dem Artikel — kein separates Einheiten-Feld mehr, siehe G22-2).", "„Speichern“."],
         expect: "KEIN „Netzwerkfehler“. Toast „Soll-Bestand gespeichert“. Wert bleibt nach Reload erhalten. (Fix A1 — trat früher nur mit gesetztem Mindestbestand auf.)" },
       { id: "D3", title: "Bedarf-Indikator", steps: ["Nach dem Soll den Bedarf-Indikator betrachten."],
         expect: "Badge zeigt Status: „Bestand ausreichend“ / „Unter Soll — nachkaufen“ / „Unter Mindestbestand!“ passend zum Ist-Bestand." },
@@ -407,7 +407,7 @@ const BLOCKS = [
       { id: 'G15-3', title: 'Manuelles Bearbeiten setzt NUR geaenderte Felder auf manuell', steps: ['Artikel bearbeiten (Detailseite, Bearbeiten).', 'NUR den Namen aendern, speichern.'],
         expect: 'Nur das Name-Badge wechselt auf manuell. Bild/Kategorie/Marke behalten ihre bisherige Herkunft (OFF/Globus/?) - unveraenderte Felder werden nicht als manuell markiert.' },
       { id: 'G15-4', title: 'Bestand hinzufuegen zeigt Kategorie-Wert + Herkunft', steps: ['Bestand hinzufuegen. Einen Artikel per Suche ODER Scan auswaehlen.', 'Den ausgewaehlten Artikel (Pille oben) betrachten.'],
-        expect: 'Der Pill zeigt den KATEGORIE-WERT (Icon + Name) mit Herkunfts-Badge dahinter — oder Keine Kategorie, wenn keine gesetzt ist. Name traegt ebenfalls ein Badge. Herkunft erscheint bei JEDEM ausgewaehlten Artikel, nicht nur nach Scan; ohne erfasste Herkunft neutrales ?.' },
+        expect: 'Der Pill zeigt den KATEGORIE-WERT (Icon + Name) mit Herkunfts-Badge dahinter — oder Keine Kategorie, wenn keine gesetzt ist. Name traegt ebenfalls ein Badge. Herkunft erscheint bei JEDEM ausgewaehlten Artikel, nicht nur nach Scan; ohne erfasste Herkunft neutrales ?. (Kategorie manuell setzbar: siehe G20-2/G22-1.)' },
     ]
   },
   {
@@ -431,12 +431,10 @@ const BLOCKS = [
     ]
   },
   {
-    tag: 'G19', name: 'Standard-Einheit-Header & Kategorie-Mapping (Regressionen)', desc: 'Standard-Einheit-Aenderung greift ohne Reload und ohne falsches piece; Kategorie wird korrekt gemappt bzw. ehrlich als nicht zuordenbar markiert.',
+    tag: 'G19', name: 'Kategorie-Mapping (Regressionen)', desc: 'OFF-/Globus-Kategorie wird korrekt auf die echten Seed-Kategorien gemappt (alle Pfad-Segmente, Name UND Slug). (Der G19-Einheiten-Ansatz wurde in G20/G21 ersetzt — siehe dort.)',
     items: [
-      { id: 'G19-1', title: 'Standard-Einheit aendern greift sofort (kein piece, kein Reload)', steps: ['ERSETZT durch G20-1 (dieser G19-Fix verursachte die piece-Klemme).'],
-        expect: 'Siehe G20-1 — der G19-1-Ansatz (Fallback-Option) wurde in G20 zurueckgebaut und durch Migration + Server-Validierung ersetzt.' },
-      { id: 'G19-2', title: 'Kategorie: korrekt gemappt oder ehrlich nicht zuordenbar', steps: ['Teilweise ERSETZT durch G20-2 (manuelles Ueberschreiben statt Sackgasse).'],
-        expect: 'Auto-Mapping/Matching (alle Pfad-Segmente gegen Name UND Slug) bleibt gueltig. Der frueher gesperrte nicht-zuordenbar-Zustand ist seit G20-2 KEINE Sackgasse mehr — siehe G20-2.' },
+      { id: 'G19-2', title: 'Kategorie: Auto-Mapping matcht zuverlaessig', steps: ['Katalog sichern.', 'Einen Artikel im Katalog-Spiegel aufklappen und die Kategorie-Zeile betrachten.'],
+        expect: 'Mappt der Globus-Pfad auf eine der 9 stoqr-Kategorien, ist sie vorbelegt/uebernehmbar. Das Matching prueft alle Pfad-Segmente gegen Name UND Slug. Nicht automatisch mappbare Pfade sind seit G20-2 KEINE Sackgasse mehr — manuelles Zuordnen per Dropdown (siehe G20-2/G22-1).' },
       { id: 'G19-3', title: 'Uebernahme auf existierende Kategorie funktioniert', steps: ['Einen Artikel mit mappbarer Globus-Kategorie im Spiegel aufklappen.', 'Kategorie ankreuzen und Uebernehmen.', 'Artikel-Detailseite oeffnen.'],
         expect: 'Die uebernommene Kategorie steht am Artikel (eine der 9 echten Kategorien) mit Herkunft Globus. Das Matching prueft alle Pfad-Segmente gegen Name UND Slug, nicht nur das letzte Segment.' },
     ]
