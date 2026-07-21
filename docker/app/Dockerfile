@@ -35,8 +35,11 @@ RUN npm init -y && npm install drizzle-orm postgres @opentelemetry/api --save
 # ─── Stage 5: Runner ─────────────────────────────────────────────────────────
 FROM node:22-alpine AS runner
 WORKDIR /app
-RUN addgroup -S stoqr && adduser -S stoqr -G stoqr
-# Media-Verzeichnis (G7): Mountpoint fuer das stoqr_media-Volume, stoqr-owned,
+# Container-User mit FESTER uid/gid 1001 (nicht 'node'=1000 des Basis-Images).
+# Feste uid ist noetig, damit der Host das gemountete media-Volume korrekt
+# chownen kann (chown 1001:1001) und der non-root Prozess dort schreiben darf.
+RUN addgroup -S -g 1001 stoqr && adduser -S -u 1001 -G stoqr stoqr
+# Media-Verzeichnis (G7): Mountpoint fuer das media-Volume, stoqr-owned,
 # damit der non-root User dort Katalog-Bilder ablegen kann.
 RUN mkdir -p /data/media && chown -R stoqr:stoqr /data
 

@@ -531,52 +531,53 @@
               {/if}
             </summary>
 
-            {#if r.snapshot && (r.diff.any || canTakePrice(r))}
+            {#if r.snapshot}
+              {@const snap = r.snapshot}
               <div class="snap-diff">
-                <p class="snap-diff-legend">Aktueller Wert → <strong>Globus-Katalog</strong> (angekreuzte Felder werden übernommen)</p>
-                {#if r.diff.name.differs}
-                  <label class="snap-diff-row">
-                    <input type="checkbox" checked={snapFields[r.snapshot.id]?.name} onchange={() => toggleSnapField(r.snapshot!.id, 'name')} />
-                    <span class="snap-diff-field">Name</span>
-                    <span class="snap-diff-old">{r.product.name || '(leer)'}</span>
-                    <span class="snap-diff-arrow" aria-hidden="true">→</span>
-                    <span class="snap-diff-new">{r.snapshot.name}</span>
-                  </label>
-                {/if}
-                {#if r.diff.image.differs}
-                  <label class="snap-diff-row">
-                    <input type="checkbox" checked={snapFields[r.snapshot.id]?.image} onchange={() => toggleSnapField(r.snapshot!.id, 'image')} />
-                    <span class="snap-diff-field">Bild</span>
-                    <span class="snap-diff-old">{r.product.imageUrl ? 'vorhanden' : '(leer)'}</span>
-                    <span class="snap-diff-arrow" aria-hidden="true">→</span>
-                    <span class="snap-diff-new">Katalog-Bild</span>
-                  </label>
-                {/if}
-                {#if r.diff.category.differs}
-                  <label class="snap-diff-row">
-                    <input type="checkbox" checked={snapFields[r.snapshot.id]?.category} onchange={() => toggleSnapField(r.snapshot!.id, 'category')} />
-                    <span class="snap-diff-field">Kategorie</span>
-                    <span class="snap-diff-old">{r.product.categoryName || '(leer)'}</span>
-                    <span class="snap-diff-arrow" aria-hidden="true">→</span>
-                    <span class="snap-diff-new">{r.snapshot.category?.join(' › ') ?? '—'}</span>
-                  </label>
-                {/if}
-                {#if canTakePrice(r)}
-                  <label class="snap-diff-row">
-                    <input type="checkbox" checked={snapFields[r.snapshot.id]?.price} onchange={() => toggleSnapField(r.snapshot!.id, 'price')} />
-                    <span class="snap-diff-field">Preis</span>
-                    <span class="snap-diff-new">{fmtSnapPrice(r.snapshot.priceCt)} (Katalog)</span>
-                    <span class="snap-diff-hint">→ als Preis-Vorschlag am Markt</span>
-                  </label>
-                {/if}
+                <p class="snap-diff-legend">Artikel-Wert → <strong>Globus-Katalog</strong> · abweichende Felder sind markiert; ankreuzen zum Übernehmen.</p>
+
+                <!-- Name -->
+                <label class="snap-diff-row" class:snap-diff-row--diff={r.diff.name.differs}>
+                  <input type="checkbox" disabled={!snap.name} checked={snapFields[snap.id]?.name} onchange={() => toggleSnapField(snap.id, 'name')} />
+                  <span class="snap-diff-field">Name {#if r.diff.name.differs}<span class="snap-diff-tag">abweichend</span>{:else}<span class="snap-diff-tag snap-diff-tag--ok">gleich</span>{/if}</span>
+                  <span class="snap-diff-old">{r.product.name || '(leer)'}</span>
+                  <span class="snap-diff-arrow" aria-hidden="true">→</span>
+                  <span class="snap-diff-new">{snap.name || '(Katalog: kein Wert)'}</span>
+                </label>
+
+                <!-- Bild -->
+                <label class="snap-diff-row" class:snap-diff-row--diff={r.diff.image.differs}>
+                  <input type="checkbox" disabled={!snap.localImagePath} checked={snapFields[snap.id]?.image} onchange={() => toggleSnapField(snap.id, 'image')} />
+                  <span class="snap-diff-field">Bild {#if r.diff.image.differs}<span class="snap-diff-tag">abweichend</span>{:else}<span class="snap-diff-tag snap-diff-tag--ok">gleich</span>{/if}</span>
+                  <span class="snap-diff-old">{r.product.imageUrl ? 'vorhanden' : '(leer)'}</span>
+                  <span class="snap-diff-arrow" aria-hidden="true">→</span>
+                  <span class="snap-diff-new">{snap.localImagePath ? 'Katalog-Bild' : '(Katalog: kein Bild)'}</span>
+                </label>
+
+                <!-- Kategorie -->
+                <label class="snap-diff-row" class:snap-diff-row--diff={r.diff.category.differs}>
+                  <input type="checkbox" disabled={!snap.catalogCategoryId} checked={snapFields[snap.id]?.category} onchange={() => toggleSnapField(snap.id, 'category')} />
+                  <span class="snap-diff-field">Kategorie {#if r.diff.category.differs}<span class="snap-diff-tag">abweichend</span>{:else}<span class="snap-diff-tag snap-diff-tag--ok">gleich</span>{/if}</span>
+                  <span class="snap-diff-old">{r.product.categoryName || '(leer)'}</span>
+                  <span class="snap-diff-arrow" aria-hidden="true">→</span>
+                  <span class="snap-diff-new">{snap.category?.join(' › ') || '(Katalog: keine)'}</span>
+                </label>
+
+                <!-- Preis (nur bei Markt-Bezug; als Preis-Vorschlag) -->
+                <label class="snap-diff-row" class:snap-diff-row--diff={canTakePrice(r)}>
+                  <input type="checkbox" disabled={!canTakePrice(r)} checked={snapFields[snap.id]?.price} onchange={() => toggleSnapField(snap.id, 'price')} />
+                  <span class="snap-diff-field">Preis</span>
+                  <span class="snap-diff-old">Markt-Preis</span>
+                  <span class="snap-diff-arrow" aria-hidden="true">→</span>
+                  <span class="snap-diff-new">{snap.priceCt != null ? fmtSnapPrice(snap.priceCt) + ' (Vorschlag)' : '(Katalog: kein Preis)'}</span>
+                </label>
+
                 <div class="snap-actions">
-                  <button class="btn-save-inline" type="button" disabled={snapshotBusy === r.snapshot.id} onclick={() => reviewSnapshot(r.snapshot!.id, 'confirm')}>Übernehmen</button>
-                  <button class="btn-save-inline" type="button" disabled={snapshotBusy === r.snapshot.id} onclick={() => reviewSnapshot(r.snapshot!.id, 'confirm', true)}>Alles übernehmen</button>
-                  <button class="btn-cancel-inline" type="button" disabled={snapshotBusy === r.snapshot.id} onclick={() => reviewSnapshot(r.snapshot!.id, 'reject')}>Ignorieren</button>
+                  <button class="btn-save-inline" type="button" disabled={snapshotBusy === snap.id} onclick={() => reviewSnapshot(snap.id, 'confirm')}>Übernehmen</button>
+                  <button class="btn-save-inline" type="button" disabled={snapshotBusy === snap.id} onclick={() => reviewSnapshot(snap.id, 'confirm', true)}>Alles übernehmen</button>
+                  <button class="btn-cancel-inline" type="button" disabled={snapshotBusy === snap.id} onclick={() => reviewSnapshot(snap.id, 'reject')}>Ignorieren</button>
                 </div>
               </div>
-            {:else if r.snapshot}
-              <div class="snap-diff snap-diff--ok">Katalogdaten stimmen mit dem Artikel überein.</div>
             {:else}
               <div class="snap-diff snap-diff--ok">Noch kein Katalog-Eintrag — „Katalog jetzt sichern" ausführen.</div>
             {/if}
@@ -878,14 +879,18 @@
   .snap-badge--warn { background: color-mix(in srgb, var(--color-warning, #d97706) 18%, transparent); color: var(--color-warning, #d97706); }
   .snap-diff { padding: var(--space-2) var(--space-3) var(--space-3); border-top: 1px solid var(--color-border); display: flex; flex-direction: column; gap: var(--space-2); }
   .snap-diff--ok { font-size: var(--text-xs); color: var(--color-text-muted); }
-  .snap-diff-row { display: flex; align-items: center; gap: var(--space-2); font-size: var(--text-xs); cursor: pointer; flex-wrap: wrap; }
+  .snap-diff-row { display: flex; align-items: center; gap: var(--space-2); font-size: var(--text-xs); cursor: pointer; flex-wrap: wrap; opacity: 0.7; }
+  .snap-diff-row--diff { opacity: 1; }
   .snap-diff-row input { accent-color: var(--color-primary); }
-  .snap-diff-field { font-weight: 600; color: var(--color-text-primary); min-width: 68px; }
-  .snap-diff-old { color: var(--color-text-muted); text-decoration: line-through; }
+  .snap-diff-row input:disabled { cursor: not-allowed; }
+  .snap-diff-field { font-weight: 600; color: var(--color-text-primary); min-width: 68px; display: inline-flex; align-items: center; gap: 4px; }
+  .snap-diff-tag { font-size: 9px; font-weight: 700; padding: 0 5px; border-radius: 999px; background: color-mix(in srgb, var(--color-warning, #d97706) 18%, transparent); color: var(--color-warning, #d97706); text-transform: uppercase; letter-spacing: 0.03em; }
+  .snap-diff-tag--ok { background: var(--color-surface-sunken); color: var(--color-text-muted); }
+  .snap-diff-old { color: var(--color-text-muted); }
+  .snap-diff-row--diff .snap-diff-old { text-decoration: line-through; }
   .snap-diff-arrow { color: var(--color-text-muted); }
   .snap-diff-new { color: var(--color-text-primary); font-weight: 500; }
   .snap-diff-legend { font-size: var(--text-xs); color: var(--color-text-muted); margin: 0 0 var(--space-1); }
-  .snap-diff-hint { color: var(--color-text-muted); font-size: var(--text-xs); }
   .sync-warning { margin-top: var(--space-4); display: flex; align-items: flex-start; gap: var(--space-2); padding: var(--space-3); border-radius: var(--radius-md); background: color-mix(in srgb, var(--color-warning, #d97706) 12%, transparent); border: 1px solid color-mix(in srgb, var(--color-warning, #d97706) 40%, transparent); color: var(--color-text-primary); font-size: var(--text-sm); }
   .sync-warning-icon { font-size: 1.1em; line-height: 1; flex-shrink: 0; }
 

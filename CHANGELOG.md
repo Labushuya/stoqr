@@ -5,6 +5,33 @@ Neueste Einträge oben. Jeder Eintrag nennt den Commit-Kontext, damit andere LLM
 
 ---
 
+## [Unreleased] — G18: Drei Regressionen behoben (Katalog-Anzeige, Bild-uid, Bild-Selbstheilung) (implementiert, Test auf Pi ausstehend)
+
+Aus dem G17-Test: Katalog zeigt wieder nur Preis, Katalog-Sync übernimmt nichts, Bilder-404 trotz Volume-Fix. Regressions-Jagd (Workflow):
+
+- **G18-1 (Bild-uid — mein Fehler in G17):** Meine chown-Anleitung `1000:1000` war falsch. Der Container-User wurde
+  per `adduser -S stoqr` **ohne feste uid** angelegt; `node:alpine` belegt 1000 bereits mit `node` → `stoqr` bekam
+  eine andere uid → kein Schreibrecht im gemounteten `/data/media` → Bild-Download schlug still fehl → 404. Fix:
+  Dockerfile pinnt jetzt **uid/gid 1001** (`adduser -u 1001`); entrypoint + Compose + Anleitung auf 1001. Nutzer muss
+  einmalig neues Image ziehen + `chown -R 1001:1001` auf dem Pi (Rollback des falschen 1000 — Anleitung im Chat).
+- **G18-2 (Katalog zeigt nur Preis — Folge von G17-2):** Weil OFF jetzt Name/Kategorie befüllt, waren Artikel- und
+  Katalog-Wert gleich → der Abweichungs-Diff blendete die Zeilen aus. Umgesetzt wie ursprünglich (G10) vom Nutzer
+  gefordert: der Katalog-Spiegel zeigt **IMMER alle Felder** (Name/Bild/Kategorie/Preis) mit Artikel- und Katalog-Wert
+  + Herkunft; abweichende sind markiert/vorausgewählt, übereinstimmende abgedunkelt mit „gleich". Kein Ausblenden mehr.
+- **G18-3 (verlorene Bilder — Selbstheilung):** Bilder, deren DB-Referenz auf eine (nach altem Update) verlorene Datei
+  zeigt, wurden nie neu geladen. Der `/media`-Handler lädt bei fehlender Datei jetzt einmalig on-demand aus dem
+  neuesten Snapshot-`imageRemoteUrl` derselben EAN nach — kein dauerhaftes 404 für Alt-Referenzen.
+- **Klarstellung:** Marke + Einheit kann der Globus-Katalog fachlich NICHT liefern (nur Name/Preis/Kategorie/Bild im
+  Suggest) — die kommen nur von OFF/manuell. Katalog-Sync übernimmt zudem nur Artikel, die einem Markt mit Abruf-URL
+  zugeordnet sind und deren EAN Globus führt.
+
+Gates: typecheck 0, lint 0/33, build ✓, vitest 105/105. Manifest: G17-1 (uid 1001) + neuer G18-Block.
+
+### Commits
+(folgt)
+
+---
+
 ## [Unreleased] — G17: Kategorie-Mapping robuster + Bild-Persistenz (Volume-Fix) (implementiert, Test auf Pi ausstehend)
 
 Aus dem G16-Test: G15-4 (Kategorie) + Bilder-404-nach-jedem-Update. Diagnose (Workflow):

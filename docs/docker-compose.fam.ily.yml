@@ -15,8 +15,8 @@
 #     ├── postgres/               ← PostgreSQL Datenvolume
 #     └── media/                  ← Artikel-/Katalog-Bilder (persistent, MEDIA_DIR)
 #
-# WICHTIG: das media-Verzeichnis muss dem Container-User (uid 1000) gehoeren:
-#   sudo mkdir -p /srv/hubdata/state/stoqr/media && sudo chown -R 1000:1000 /srv/hubdata/state/stoqr/media
+# WICHTIG: das media-Verzeichnis muss dem Container-User (uid 1001) gehoeren:
+#   sudo mkdir -p /srv/hubdata/state/stoqr/media && sudo chown -R 1001:1001 /srv/hubdata/state/stoqr/media
 #
 # Optionaler Symlink (nur zur Bequemlichkeit, nicht zwingend):
 #   ln -s /srv/hubdata/state/stoqr/.env /srv/hubdata/stacks/stoqr/.env
