@@ -5,6 +5,32 @@ Neueste Einträge oben. Jeder Eintrag nennt den Commit-Kontext, damit andere LLM
 
 ---
 
+## [Unreleased] — G26: Räume/Lagerorte-Verwaltung vereinheitlicht (geteilter Emoji-Picker, Fächer-Icon, Toast) (implementiert, Test auf Pi ausstehend)
+
+Aus dem G25-Test: die `/orte`-Seite soll dieselben Bausteine wie die Kategorie-Verwaltung nutzen — uniforme
+Darstellung, bestehende Features wiederverwenden statt duplizieren.
+
+- **Geteilter Emoji-Picker statt Duplikat:** `/orte` hatte einen eigenen, **4× duplizierten** Inline-Picker mit
+  eigenem Emoji-Set. Ersetzt durch die geteilte `EmojiPicker.svelte` (eine Instanz, `emojiPickerFor`-State) —
+  identisches Such-Modal wie bei Kategorien.
+- **Kontextabhängige Vorschläge:** `EmojiPicker` bekam einen `context`-Prop (`'category'|'place'`). Die Emoji-Daten
+  (`category-emojis.ts`) tragen jetzt eine `group` (`food|place|general`) + neue Raum-/Möbel-Emojis (🏠🍳🛋️🛏️🗄️🧊❄️…
+  mit deutschen Keywords). Ohne Suche zeigt der Picker die passende Gruppe zuerst (`emojisByContext`); die **Suche
+  findet weiterhin alles**.
+- **Fächer-Icon ergänzt:** Fächer (`places`) hatten in der UI kein Icon — obwohl DB + API es längst unterstützen.
+  Jetzt beim Anlegen/Bearbeiten wählbar; die Fach-Chips zeigen das Icon.
+- **Toast vereinheitlicht:** das lokale Toast-System der `/orte`-Seite entfernt, jetzt der geteilte
+  `$lib/stores/toast` (wie überall sonst).
+- Accordion/Struktur/Layout unverändert; kein Server-/DB-Change, keine Migration.
+- **Tests:** `emojisByContext` + erweiterte `filterEmojis`-Abdeckung (vitest 120, +3).
+
+Gates: typecheck 0, lint 0/33, build ✓, vitest 120/120. Manifest: neuer G26-Block.
+
+### Commits
+G26 (dieser Commit) — geteilter Emoji-Picker in /orte, Kontext-Vorschläge, Fächer-Icon, Toast vereinheitlicht. Exakter Hash: siehe `git log`.
+
+---
+
 ## [Unreleased] — G25: Kategorie-Nachbesserungen — Emoji-Picker + Löschen im Edit-Modus (implementiert, Test auf Pi ausstehend)
 
 Aus dem G24-Test: Icon-Freitextfeld unbrauchbar (Text-Symbol ❄ sah anders aus als die Farb-Emoji der Basis-Kategorien); Löschen-Button im Bearbeiten-Modus nicht auffindbar.

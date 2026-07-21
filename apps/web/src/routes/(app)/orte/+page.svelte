@@ -1,5 +1,7 @@
 <script lang="ts">
   import type { PageData } from './$types'
+  import { toast } from '$lib/stores/toast'
+  import EmojiPicker from '$lib/components/EmojiPicker.svelte'
 
   // ── Types ─────────────────────────────────────────────────────────────────
 
@@ -31,17 +33,6 @@
 
   let { data }: { data: PageData } = $props()
 
-  // ── Emoji picker constant ─────────────────────────────────────────────────
-
-  // Curated household emojis — grouped by theme
-  const EMOJI_GROUPS = [
-    { label: 'Räume', emojis: ['🏠','🍳','🛋️','🛏️','🛁','🚿','🚪','🪟','🧺','🪑','🪞','🚽','🛗','🧹','🪣','🧲','🔑'] },
-    { label: 'Kühlen', emojis: ['🧊','❄️','🥶','🌡️','🥫','🫙','🫕','🫗'] },
-    { label: 'Lebensmittel', emojis: ['🥛','🧀','🍞','🥐','🥚','🥩','🍗','🐟','🍎','🍋','🫐','🍇','🥕','🥦','🧄','🧅','🍫','🍰','🧁','🥤','☕','🍵','🧃','🍶','🧂','🫒','🍾','🍷','🍺'] },
-    { label: 'Reinigung', emojis: ['🧴','🧼','🧽','🧻','🪥','🪒','💊','🩺','🩹','🧪'] },
-    { label: 'Sonstiges', emojis: ['📦','🗄️','📋','⚡','🔋','💡','🪜','🧰','🔧','🪛','🎮','📺','💻','📱'] },
-  ]
-
   // ── State ─────────────────────────────────────────────────────────────────
 
   // svelte-ignore state_referenced_locally
@@ -55,7 +46,7 @@
   type EditTarget =
     | { kind: 'location'; id: string; name: string; icon: string }
     | { kind: 'storage'; id: string; name: string; icon: string }
-    | { kind: 'place'; id: string; name: string }
+    | { kind: 'place'; id: string; name: string; icon: string }
 
   let editing = $state<EditTarget | null>(null)
 
@@ -69,40 +60,17 @@
   let addName = $state('')
   let addIcon = $state('')
 
-  // Emoji picker open state per context
-  let showLocationPicker = $state(false)
-  let showEditLocationPicker = $state(false)
-  let showStoragePicker = $state(false)
-  let showEditStoragePicker = $state(false)
+  // Shared emoji picker — one instance, driven by scope
+  let emojiPickerFor = $state<{ scope: 'add' | 'edit' } | null>(null)
 
-  // Shared emoji picker tab + search state
-  let emojiTab = $state(0)
-  let emojiSearch = $state('')
-
-  function filteredEmojis(): string[] {
-    const q = emojiSearch.trim().toLowerCase()
-    if (!q) return EMOJI_GROUPS[emojiTab]?.emojis ?? []
-    return EMOJI_GROUPS.flatMap((g) =>
-      g.emojis.filter((e) => e.includes(q) || g.label.toLowerCase().includes(q))
-    )
+  function pickEmoji(emoji: string) {
+    if (emojiPickerFor?.scope === 'add') {
+      addIcon = emoji
+    } else if (editing !== null) {
+      editing = { ...editing, icon: emoji }
+    }
   }
 
-  // Toast
-  type Toast = { id: number; message: string; type: 'success' | 'error' }
-  let toasts = $state<Toast[]>([])
-  let toastCounter = 0
-
-  // ── Toast helpers ─────────────────────────────────────────────────────────
-
-  function showToast(message: string, type: 'success' | 'error' = 'success') {
-    const id = ++toastCounter
-    toasts = [...toasts, { id, message, type }]
-    setTimeout(() => {
-      toasts = toasts.filter((t) => t.id !== id)
-    }, 3500)
-  }
-
-  // ── Toggle helpers ────────────────────────────────────────────────────────
 
   function toggleLocation(id: string) {
     const next = new Set(openLocations)
@@ -173,7 +141,7 @@
         const created: Location = await res.json()
         locations = [...locations, { ...created, storages: [] }]
         openLocations = new Set([...openLocations, created.id])
-        showToast(`Raum "${name}" hinzugefügt`)
+        toast.success(`Raum "${name}" hinzugefügt`)
       } else if (adding.kind === 'storage') {
         const res = await fetch('/api/storages', {
           method: 'POST',
@@ -188,12 +156,12 @@
             : loc
         )
         openStorages = new Set([...openStorages, created.id])
-        showToast(`Lagerort "${name}" hinzugefügt`)
+        toast.success(`Lagerort "${name}" hinzugefügt`)
       } else if (adding.kind === 'place') {
         const res = await fetch('/api/places', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ storageId: adding.storageId, name }),
+          body: JSON.stringify({ storageId: adding.storageId, name, icon: addIcon.trim() || null }),
         })
         if (!res.ok) throw new Error(await res.text())
         const created: Place = await res.json()
@@ -205,17 +173,15 @@
               : s
           ),
         }))
-        showToast(`Fach "${name}" hinzugefügt`)
+        toast.success(`Fach "${name}" hinzugefügt`)
       }
     } catch {
-      showToast('Fehler beim Hinzufügen', 'error')
+      toast.error('Fehler beim Hinzufügen')
     } finally {
       adding = null
       addName = ''
       addIcon = ''
-      emojiSearch = ''
-      showLocationPicker = false
-      showStoragePicker = false
+      emojiPickerFor = null
     }
   }
 
@@ -223,17 +189,14 @@
     adding = null
     addName = ''
     addIcon = ''
-    emojiSearch = ''
-    showLocationPicker = false
-    showStoragePicker = false
+    emojiPickerFor = null
   }
 
   // ── EDIT mutations ────────────────────────────────────────────────────────
 
   function startEdit(target: EditTarget) {
     editing = { ...target }
-    showEditLocationPicker = false
-    showEditStoragePicker = false
+    emojiPickerFor = null
   }
 
   async function submitEdit() {
@@ -253,7 +216,7 @@
         locations = locations.map((loc) =>
           loc.id === editing!.id ? { ...loc, name, icon } : loc
         )
-        showToast('Raum umbenannt')
+        toast.success('Raum umbenannt')
       } else if (editing.kind === 'storage') {
         const icon = editing.icon.trim() || null
         const res = await fetch(`/api/storages/${editing.id}`, {
@@ -268,12 +231,13 @@
             s.id === editing!.id ? { ...s, name, icon } : s
           ),
         }))
-        showToast('Lagerort umbenannt')
+        toast.success('Lagerort umbenannt')
       } else if (editing.kind === 'place') {
+        const icon = editing.icon.trim() || null
         const res = await fetch(`/api/places/${editing.id}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name }),
+          body: JSON.stringify({ name, icon }),
         })
         if (!res.ok) throw new Error(await res.text())
         locations = locations.map((loc) => ({
@@ -281,27 +245,23 @@
           storages: loc.storages.map((s) => ({
             ...s,
             places: s.places.map((p) =>
-              p.id === editing!.id ? { ...p, name } : p
+              p.id === editing!.id ? { ...p, name, icon } : p
             ),
           })),
         }))
-        showToast('Fach umbenannt')
+        toast.success('Fach umbenannt')
       }
     } catch {
-      showToast('Fehler beim Speichern', 'error')
+      toast.error('Fehler beim Speichern')
     } finally {
       editing = null
-      emojiSearch = ''
-      showEditLocationPicker = false
-      showEditStoragePicker = false
+      emojiPickerFor = null
     }
   }
 
   function cancelEdit() {
     editing = null
-    emojiSearch = ''
-    showEditLocationPicker = false
-    showEditStoragePicker = false
+    emojiPickerFor = null
   }
 
   // ── DELETE mutations ──────────────────────────────────────────────────────
@@ -312,9 +272,9 @@
       const res = await fetch(`/api/locations/${loc.id}`, { method: 'DELETE' })
       if (!res.ok) throw new Error(await res.text())
       locations = locations.filter((l) => l.id !== loc.id)
-      showToast(`Raum "${loc.name}" gelöscht`)
+      toast.success(`Raum "${loc.name}" gelöscht`)
     } catch {
-      showToast('Fehler beim Löschen', 'error')
+      toast.error('Fehler beim Löschen')
     }
   }
 
@@ -327,9 +287,9 @@
         ...loc,
         storages: loc.storages.filter((s) => s.id !== storage.id),
       }))
-      showToast(`Lagerort "${storage.name}" gelöscht`)
+      toast.success(`Lagerort "${storage.name}" gelöscht`)
     } catch {
-      showToast('Fehler beim Löschen', 'error')
+      toast.error('Fehler beim Löschen')
     }
   }
 
@@ -345,9 +305,9 @@
           places: s.places.filter((p) => p.id !== place.id),
         })),
       }))
-      showToast(`Fach "${place.name}" gelöscht`)
+      toast.success(`Fach "${place.name}" gelöscht`)
     } catch {
-      showToast('Fehler beim Löschen', 'error')
+      toast.error('Fehler beim Löschen')
     }
   }
 
@@ -373,7 +333,7 @@
     <button
       class="btn-primary"
       type="button"
-      onclick={() => { adding = { kind: 'location' }; addName = ''; addIcon = ''; showLocationPicker = false }}
+      onclick={() => { adding = { kind: 'location' }; addName = ''; addIcon = ''; emojiPickerFor = null }}
     >
       <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
         <path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
@@ -387,45 +347,13 @@
     <div class="add-form add-form--top">
       <div class="field field--emoji">
         <span class="field-label">Icon</span>
-        <div class="emoji-field">
-          <button
-            type="button"
-            class="emoji-preview"
-            onclick={() => { showLocationPicker = !showLocationPicker }}
-            title="Emoji wählen"
-          >{addIcon || '📍'}</button>
-          {#if showLocationPicker}
-            <div class="emoji-grid" role="listbox" aria-label="Emoji auswählen">
-              <input
-                class="emoji-search"
-                type="text"
-                placeholder="Suchen…"
-                bind:value={emojiSearch}
-              />
-              <div class="emoji-tabs">
-                {#each EMOJI_GROUPS as g, i}
-                  <button
-                    type="button"
-                    class="emoji-tab"
-                    class:active={emojiTab === i}
-                    onclick={() => { emojiTab = i; emojiSearch = '' }}
-                  >{g.label}</button>
-                {/each}
-              </div>
-              <div class="emoji-opts">
-                {#each filteredEmojis() as e}
-                  <button
-                    type="button"
-                    class="emoji-opt"
-                    role="option"
-                    aria-selected={addIcon === e}
-                    onclick={() => { addIcon = e; showLocationPicker = false; emojiSearch = '' }}
-                  >{e}</button>
-                {/each}
-              </div>
-            </div>
-          {/if}
-        </div>
+        <button
+          class="icon-btn"
+          type="button"
+          onclick={() => (emojiPickerFor = { scope: 'add' })}
+          aria-label="Icon wählen"
+          title="Icon wählen"
+        >{addIcon || '📍'}</button>
       </div>
       <div class="field field--grow">
         <span class="field-label">Name</span>
@@ -461,7 +389,7 @@
       <button
         class="btn-primary btn-primary--lg"
         type="button"
-        onclick={() => { adding = { kind: 'location' }; addName = ''; addIcon = ''; showLocationPicker = false }}
+        onclick={() => { adding = { kind: 'location' }; addName = ''; addIcon = ''; emojiPickerFor = null }}
       >
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
           <path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
@@ -501,45 +429,13 @@
 
             {#if editing?.kind === 'location' && editing.id === loc.id}
               <div class="inline-edit">
-                <div class="emoji-field">
-                  <button
-                    type="button"
-                    class="emoji-preview"
-                    onclick={() => { showEditLocationPicker = !showEditLocationPicker }}
-                    title="Emoji wählen"
-                  >{editing.icon || '📍'}</button>
-                  {#if showEditLocationPicker}
-                    <div class="emoji-grid" role="listbox" aria-label="Emoji auswählen">
-                      <input
-                        class="emoji-search"
-                        type="text"
-                        placeholder="Suchen…"
-                        bind:value={emojiSearch}
-                      />
-                      <div class="emoji-tabs">
-                        {#each EMOJI_GROUPS as g, i}
-                          <button
-                            type="button"
-                            class="emoji-tab"
-                            class:active={emojiTab === i}
-                            onclick={() => { emojiTab = i; emojiSearch = '' }}
-                          >{g.label}</button>
-                        {/each}
-                      </div>
-                      <div class="emoji-opts">
-                        {#each filteredEmojis() as e}
-                          <button
-                            type="button"
-                            class="emoji-opt"
-                            role="option"
-                            aria-selected={editing.icon === e}
-                            onclick={() => { if (editing && editing.kind === 'location') { editing = { ...editing, icon: e }; showEditLocationPicker = false; emojiSearch = '' } }}
-                          >{e}</button>
-                        {/each}
-                      </div>
-                    </div>
-                  {/if}
-                </div>
+                <button
+                  class="icon-btn"
+                  type="button"
+                  onclick={() => (emojiPickerFor = { scope: 'edit' })}
+                  aria-label="Icon wählen"
+                  title="Icon wählen"
+                >{editing?.icon || '📍'}</button>
                 <!-- svelte-ignore a11y_autofocus -->
                 <input
                   class="input input--sm"
@@ -613,45 +509,13 @@
 
                       {#if editing?.kind === 'storage' && editing.id === st.id}
                         <div class="inline-edit">
-                          <div class="emoji-field">
-                            <button
-                              type="button"
-                              class="emoji-preview"
-                              onclick={() => { showEditStoragePicker = !showEditStoragePicker }}
-                              title="Emoji wählen"
-                            >{editing.icon || '📦'}</button>
-                            {#if showEditStoragePicker}
-                              <div class="emoji-grid" role="listbox" aria-label="Emoji auswählen">
-                                <input
-                                  class="emoji-search"
-                                  type="text"
-                                  placeholder="Suchen…"
-                                  bind:value={emojiSearch}
-                                />
-                                <div class="emoji-tabs">
-                                  {#each EMOJI_GROUPS as g, i}
-                                    <button
-                                      type="button"
-                                      class="emoji-tab"
-                                      class:active={emojiTab === i}
-                                      onclick={() => { emojiTab = i; emojiSearch = '' }}
-                                    >{g.label}</button>
-                                  {/each}
-                                </div>
-                                <div class="emoji-opts">
-                                  {#each filteredEmojis() as e}
-                                    <button
-                                      type="button"
-                                      class="emoji-opt"
-                                      role="option"
-                                      aria-selected={editing.icon === e}
-                                      onclick={() => { if (editing && editing.kind === 'storage') { editing = { ...editing, icon: e }; showEditStoragePicker = false; emojiSearch = '' } }}
-                                    >{e}</button>
-                                  {/each}
-                                </div>
-                              </div>
-                            {/if}
-                          </div>
+                          <button
+                            class="icon-btn"
+                            type="button"
+                            onclick={() => (emojiPickerFor = { scope: 'edit' })}
+                            aria-label="Icon wählen"
+                            title="Icon wählen"
+                          >{editing?.icon || '📦'}</button>
                           <!-- svelte-ignore a11y_autofocus -->
                           <input
                             class="input input--sm"
@@ -698,6 +562,13 @@
                               <div class="place-chip">
                                 {#if editing?.kind === 'place' && editing.id === pl.id}
                                   <div class="inline-edit inline-edit--chip">
+                                    <button
+                                      class="icon-btn"
+                                      type="button"
+                                      onclick={() => (emojiPickerFor = { scope: 'edit' })}
+                                      aria-label="Icon wählen"
+                                      title="Icon wählen"
+                                    >{editing?.icon || '📦'}</button>
                                     <!-- svelte-ignore a11y_autofocus -->
                                     <input
                                       class="input input--xs"
@@ -718,12 +589,13 @@
                                     </button>
                                   </div>
                                 {:else}
+                                  <span class="place-icon">{pl.icon ?? '📦'}</span>
                                   <span class="place-name">{pl.name}</span>
                                   <button
                                     class="chip-btn"
                                     type="button"
                                     title="Bearbeiten"
-                                    onclick={() => startEdit({ kind: 'place', id: pl.id, name: pl.name })}
+                                    onclick={() => startEdit({ kind: 'place', id: pl.id, name: pl.name, icon: pl.icon ?? '' })}
                                   >
                                     <svg width="11" height="11" viewBox="0 0 14 14" fill="none" aria-hidden="true">
                                       <path d="M9.5 2.5L11.5 4.5L5 11H3V9L9.5 2.5Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>
@@ -748,6 +620,13 @@
                         <!-- Add place form -->
                         {#if adding?.kind === 'place' && adding.storageId === st.id}
                           <div class="add-form add-form--inline">
+                            <button
+                              class="icon-btn"
+                              type="button"
+                              onclick={() => (emojiPickerFor = { scope: 'add' })}
+                              aria-label="Icon wählen"
+                              title="Icon wählen"
+                            >{addIcon || '📦'}</button>
                             <!-- svelte-ignore a11y_autofocus -->
                             <input
                               class="input input--sm"
@@ -764,7 +643,7 @@
                           <button
                             class="btn-add-child"
                             type="button"
-                            onclick={() => { adding = { kind: 'place', storageId: st.id }; addName = '' }}
+                            onclick={() => { adding = { kind: 'place', storageId: st.id }; addName = ''; addIcon = ''; emojiPickerFor = null }}
                           >
                             <svg width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden="true">
                               <path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
@@ -783,45 +662,13 @@
                 <div class="add-form add-form--inline add-form--storage">
                   <div class="field field--emoji">
                     <span class="field-label">Icon</span>
-                    <div class="emoji-field">
-                      <button
-                        type="button"
-                        class="emoji-preview"
-                        onclick={() => { showStoragePicker = !showStoragePicker }}
-                        title="Emoji wählen"
-                      >{addIcon || '📦'}</button>
-                      {#if showStoragePicker}
-                        <div class="emoji-grid" role="listbox" aria-label="Emoji auswählen">
-                          <input
-                            class="emoji-search"
-                            type="text"
-                            placeholder="Suchen…"
-                            bind:value={emojiSearch}
-                          />
-                          <div class="emoji-tabs">
-                            {#each EMOJI_GROUPS as g, i}
-                              <button
-                                type="button"
-                                class="emoji-tab"
-                                class:active={emojiTab === i}
-                                onclick={() => { emojiTab = i; emojiSearch = '' }}
-                              >{g.label}</button>
-                            {/each}
-                          </div>
-                          <div class="emoji-opts">
-                            {#each filteredEmojis() as e}
-                              <button
-                                type="button"
-                                class="emoji-opt"
-                                role="option"
-                                aria-selected={addIcon === e}
-                                onclick={() => { addIcon = e; showStoragePicker = false; emojiSearch = '' }}
-                              >{e}</button>
-                            {/each}
-                          </div>
-                        </div>
-                      {/if}
-                    </div>
+                    <button
+                      class="icon-btn"
+                      type="button"
+                      onclick={() => (emojiPickerFor = { scope: 'add' })}
+                      aria-label="Icon wählen"
+                      title="Icon wählen"
+                    >{addIcon || '📦'}</button>
                   </div>
                   <div class="field field--grow">
                     <span class="field-label">Name</span>
@@ -844,7 +691,7 @@
                 <button
                   class="btn-add-child"
                   type="button"
-                  onclick={() => { adding = { kind: 'storage', locationId: loc.id }; addName = ''; addIcon = ''; showStoragePicker = false }}
+                  onclick={() => { adding = { kind: 'storage', locationId: loc.id }; addName = ''; addIcon = ''; emojiPickerFor = null }}
                 >
                   <svg width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden="true">
                     <path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
@@ -860,27 +707,14 @@
   {/if}
 </div>
 
-<!-- Toast container -->
-{#if toasts.length > 0}
-  <div class="toast-container" role="status" aria-live="polite">
-    {#each toasts as toast (toast.id)}
-      <div class="toast" class:toast--error={toast.type === 'error'}>
-        {#if toast.type === 'success'}
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-            <circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.5"/>
-            <path d="M5 8l2 2 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-        {:else}
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-            <circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.5"/>
-            <path d="M8 5v3.5M8 11v.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-          </svg>
-        {/if}
-        {toast.message}
-      </div>
-    {/each}
-  </div>
-{/if}
+<!-- Shared emoji picker -->
+<EmojiPicker
+  open={emojiPickerFor !== null}
+  context="place"
+  current={emojiPickerFor?.scope === 'add' ? (addIcon || null) : (editing?.icon || null)}
+  onPick={pickEmoji}
+  onClose={() => (emojiPickerFor = null)}
+/>
 
 <style>
   /* ── Page layout ──────────────────────────────────────────────────────── */
@@ -1137,114 +971,26 @@
     white-space: nowrap;
   }
 
-  /* ── Emoji picker ─────────────────────────────────────────────────────── */
+  /* ── Icon button ──────────────────────────────────────────────────────── */
 
-  .emoji-field {
-    position: relative;
-    display: flex;
+  .icon-btn {
+    flex: 0 0 auto;
+    width: 48px;
+    height: 40px;
+    display: inline-flex;
     align-items: center;
-    gap: var(--space-2);
-    flex-shrink: 0;
-  }
-
-  .emoji-preview {
-    font-size: 1.4rem;
-    padding: 2px 6px;
-    border: 1px solid var(--color-border);
+    justify-content: center;
+    font-size: 22px;
+    line-height: 1;
     border-radius: var(--radius-md);
-    background: var(--color-surface);
-    cursor: pointer;
-    min-width: 40px;
-    max-width: 44px;
-    text-align: center;
-    line-height: 1.5;
-    transition: border-color var(--transition-fast);
-    flex-shrink: 0;
-  }
-
-  .emoji-preview:hover {
-    border-color: var(--color-border-strong);
-  }
-
-  .emoji-grid {
-    padding: 8px;
-    background: var(--color-surface-raised);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-md);
-    position: absolute;
-    top: calc(100% + 6px);
-    left: 0;
-    z-index: var(--z-dropdown, 100);
-    box-shadow: var(--shadow-lg);
-    min-width: 260px;
-    max-width: 320px;
-  }
-
-  .emoji-search {
-    width: 100%;
-    padding: 4px 8px;
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-md);
-    font-size: var(--text-sm);
-    background: var(--color-surface);
-    color: var(--color-text-primary);
-    margin-bottom: 6px;
-    box-sizing: border-box;
-    outline: none;
-    transition: border-color var(--transition-fast);
-  }
-
-  .emoji-search:focus {
-    border-color: var(--color-border-focus);
-  }
-
-  .emoji-tabs {
-    display: flex;
-    gap: 4px;
-    margin-bottom: 6px;
-    flex-wrap: wrap;
-  }
-
-  .emoji-tab {
-    font-size: var(--text-xs);
-    padding: 2px 8px;
-    border-radius: var(--radius-full);
     border: 1px solid var(--color-border);
     background: var(--color-surface);
     cursor: pointer;
-    transition: background-color var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast);
   }
 
-  .emoji-tab.active {
-    background: var(--color-primary);
-    color: white;
+  .icon-btn:hover {
     border-color: var(--color-primary);
-  }
-
-  .emoji-tab:not(.active):hover {
-    background: var(--color-surface-sunken);
-  }
-
-  .emoji-opts {
-    display: grid;
-    grid-template-columns: repeat(6, 1fr);
-    gap: 4px;
-  }
-
-  .emoji-opt {
-    font-size: 1.25rem;
-    padding: 4px;
-    cursor: pointer;
-    border: none;
-    background: none;
-    border-radius: 4px;
-    line-height: 1.4;
-    text-align: center;
-    transition: background-color var(--transition-fast);
-  }
-
-  .emoji-opt:hover {
-    background: var(--color-surface-sunken);
+    background: var(--color-primary-subtle);
   }
 
   /* ── Add form ─────────────────────────────────────────────────────────── */
@@ -1530,6 +1276,12 @@
     font-size: var(--text-sm);
   }
 
+  .place-icon {
+    font-size: var(--text-sm);
+    line-height: 1;
+    flex-shrink: 0;
+  }
+
   .place-name {
     font-size: var(--text-sm);
     font-weight: 500;
@@ -1562,45 +1314,6 @@
     color: var(--color-danger);
   }
 
-  /* ── Toast ────────────────────────────────────────────────────────────── */
-
-  .toast-container {
-    position: fixed;
-    bottom: var(--space-6);
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: var(--z-toast);
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-2);
-    align-items: center;
-    pointer-events: none;
-  }
-
-  .toast {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--space-2);
-    padding: var(--space-3) var(--space-4);
-    border-radius: var(--radius-lg);
-    background-color: var(--color-accent);
-    color: var(--color-text-inverse);
-    font-size: var(--text-sm);
-    font-weight: 500;
-    box-shadow: var(--shadow-lg);
-    white-space: nowrap;
-    animation: toast-in 200ms ease;
-  }
-
-  .toast--error {
-    background-color: var(--color-danger);
-  }
-
-  @keyframes toast-in {
-    from { opacity: 0; transform: translateY(8px); }
-    to   { opacity: 1; transform: translateY(0); }
-  }
-
   /* ── Mobile ───────────────────────────────────────────────────────────── */
 
   @media (max-width: 600px) {
@@ -1623,18 +1336,6 @@
     .add-form .input {
       min-width: 0;
       flex: 1 1 auto;
-    }
-
-    .toast-container {
-      bottom: var(--space-4);
-      left: var(--space-4);
-      right: var(--space-4);
-      transform: none;
-    }
-
-    .toast {
-      width: 100%;
-      justify-content: center;
     }
   }
 </style>

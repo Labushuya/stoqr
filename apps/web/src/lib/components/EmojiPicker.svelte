@@ -1,21 +1,25 @@
 <script lang="ts">
   import Modal from './Modal.svelte'
-  import { filterEmojis } from '$lib/data/category-emojis'
+  import { filterEmojis, emojisByContext } from '$lib/data/category-emojis'
 
   let {
     open = false,
     current = null,
+    context = 'category',
     onPick,
     onClose,
   }: {
     open: boolean
     current?: string | null
+    context?: 'category' | 'place'
     onPick: (emoji: string) => void
     onClose: () => void
   } = $props()
 
   let query = $state('')
-  const results = $derived(filterEmojis(query))
+  // Ohne Suche: kontextpassende Vorsortierung (Lebensmittel bzw. Raeume zuerst).
+  // Sobald gesucht wird: ueber ALLE Gruppen filtern.
+  const results = $derived(query.trim() ? filterEmojis(query) : emojisByContext(context))
 
   function pick(emoji: string) {
     onPick(emoji)

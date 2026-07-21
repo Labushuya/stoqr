@@ -3,7 +3,7 @@
 > Kanonisches Datenmodell und Entwicklungsplan. Diese Datei ist führend für Absicht,
 > Logik und Ziel von stoqr. Bei Widersprüchen zwischen Code und dieser Datei gilt diese Datei.
 
-Letzte Aktualisierung: 2026-07-21 (G25: Kategorie-Feinschliff — durchsuchbarer Farb-Emoji-Picker (Modal) statt Freitext-Icon + Löschen auch im Bearbeiten-Modus; Test auf Pi ausstehend)
+Letzte Aktualisierung: 2026-07-22 (G26: Räume/Lagerorte-Verwaltung vereinheitlicht — geteilter Emoji-Picker mit kontextabhängigen Vorschlägen, Fächer-Icon ergänzt, Toast vereinheitlicht; Test auf Pi ausstehend)
 
 ---
 
