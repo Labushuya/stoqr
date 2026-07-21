@@ -5,6 +5,31 @@ Neueste Einträge oben. Jeder Eintrag nennt den Commit-Kontext, damit andere LLM
 
 ---
 
+## [Unreleased] — G24: Kategorie-Verwaltung (CRUD) — Stufe 1 des Kategorie-Ausbaus (implementiert, Test auf Pi ausstehend)
+
+Erster Schritt des gestuften Kategorie-System-Ausbaus (Stufe 1 CRUD → Stufe 2 Nesting → Stufe 3 Mapping-Regeln).
+Ziel des Gesamtausbaus: das schwache Auto-Mapping (G17-2) durch pflegbare Kategorien + spätere Mapping-Regeln lösen.
+
+- **Neue Seite `Einstellungen → Kategorien`:** Kategorien anlegen, umbenennen (+ Icon), löschen — analog zur
+  Einheiten-Verwaltung (Liste, Inline-Edit, ConfirmModal, `toast`).
+- **Server:** neues Query-Modul `queries/categories.ts` (list/create/update/delete) + reine Helfer in
+  `category-slug.ts` (DB-frei, unit-testbar); API `api/categories` (GET/POST) + `api/categories/[id]` (PATCH/DELETE),
+  jeweils mit Auth + `writeAudit`. Slug wird serverseitig aus dem Namen erzeugt (Umlaut-Transliteration,
+  Kollisions-Suffix). `sortOrder` = max+1.
+- **Schutzregeln:** die 9 Basis-Kategorien (Seed-Slugs) sind umbenennbar, aber **nicht löschbar**; Kategorien mit
+  zugeordneten Artikeln oder (vorwärtskompatibel) Unterkategorien → **409** mit Klartext.
+- **Hinweis (Design):** `categories` ist global (kein `household_id`) — CRUD wirkt haushaltsübergreifend; bei einem
+  Haushalt unkritisch, in der ROADMAP als Design-Schuld vermerkt (analog EAN global unique).
+- **Tests:** `slugify`/`isSeedCategorySlug` (vitest 113, +6).
+- Nesting (beliebig tief, Rekursionsschutz) und automatische Mapping-Regeln folgen als eigene Stufen.
+
+Gates: typecheck 0, lint 0/33, build ✓, vitest 113/113. Manifest: neuer Block „Kategorie-Verwaltung".
+
+### Commits
+G24 (dieser Commit) — Kategorie-CRUD-Seite + API + Query-Modul + Slug-Helfer/Tests. Exakter Hash: siehe `git log`.
+
+---
+
 ## [Unreleased] — G22: Kategorie bleibt nach Reload sichtbar + Soll-Bestand ohne Einheiten-Feld (implementiert, Test auf Pi ausstehend)
 
 Aus dem G21-Test: manuelle Kategorie im Katalog-Spiegel fiel nach Reload auf „— Kategorie wählen —" zurück; Soll-Bestand-Dialog hatte ein überflüssiges Einheiten-Feld. Diagnose (Workflow):

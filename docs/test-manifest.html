@@ -108,7 +108,7 @@
 <div class="wrap">
   <header class="top">
     <h1>stoqr — Test-Manifest</h1>
-    <p class="subtitle">Blöcke A–E + F/F2 + G/G6/G7/G8/G10/G11/G12/G13/G15/G16/G17/G18/G19/G20/G21/G22 · logisch aufbauender Durchlauf · Stand nach G22 (Regressionen behoben)</p>
+    <p class="subtitle">Blöcke A–E + F/F2 + G/G6/G7/G8/G10/G11/G12/G13/G15/G16/G17/G18/G19/G20/G21/G22/G24 · logisch aufbauender Durchlauf · Stand nach G24 (Kategorie-Verwaltung)</p>
 
     <div class="pre">
       <h2>Voraussetzung (kein Testschritt)</h2>
@@ -468,6 +468,19 @@ const BLOCKS = [
         expect: 'Das Dropdown zeigt weiterhin die gesetzte Kategorie (nicht mehr — Kategorie waehlen —). Der Status-Tag steht auf gesetzt bzw. manuell. Die am Artikel gespeicherte Kategorie wird als Anzeigewert genutzt, auch wenn der Globus-Pfad selbst nicht automatisch zuordenbar war.' },
       { id: 'G22-2', title: 'Soll-Bestand-Dialog hat KEIN Einheiten-Feld mehr', steps: ['Artikel oeffnen, Soll-Bestand festlegen oeffnen.', 'Die Felder im Dialog betrachten.', 'Einen Soll-Wert speichern und die Soll-Anzeige/den Bedarf pruefen.'],
         expect: 'Der Dialog zeigt nur noch Soll-Menge (mit Einheiten-Hinweis am Label, z.B. Soll-Menge in Stück) und Mindestbestand — KEIN separates Einheiten-Dropdown mehr. Die Soll-Einheit kommt aus dem Artikel/bestehenden Soll. Speichern + Soll-Ist-Vergleich funktionieren unveraendert.' },
+    ]
+  },
+  {
+    tag: 'G24', name: 'Kategorie-Verwaltung (anlegen/umbenennen/loeschen)', desc: 'Eigene Seite Einstellungen -> Kategorien. Stufe 1 des Kategorie-Ausbaus (Nesting + automatische Mapping-Regeln folgen).',
+    items: [
+      { id: 'G24-1', title: 'Kategorien-Seite listet alle Kategorien', steps: ['Einstellungen oeffnen.', 'Auf Kategorien verwalten tippen.'],
+        expect: 'Die Seite listet die 9 Basis-Kategorien (mit Badge Basis) plus evtl. eigene. Basis-Kategorien haben KEINEN Loeschen-Button, nur Bearbeiten.' },
+      { id: 'G24-2', title: 'Neue Kategorie anlegen', steps: ['Unter Neue Kategorie anlegen einen Namen (z.B. Tiefkuehlkost) und optional ein Emoji-Icon eingeben.', 'Anlegen.', 'Danach einen Artikel bearbeiten und das Kategorie-Dropdown oeffnen.'],
+        expect: 'Die neue Kategorie erscheint sofort in der Liste (Toast Kategorie angelegt) und ist in den Artikel-/Bestand-Kategorie-Dropdowns waehlbar.' },
+      { id: 'G24-3', title: 'Kategorie umbenennen + Icon aendern', steps: ['Bei einer Kategorie (auch einer Basis-Kategorie) auf Bearbeiten.', 'Name und/oder Icon aendern, Speichern.', 'Seite neu laden.'],
+        expect: 'Name/Icon sind sofort und nach Reload aktualisiert — auch bei Basis-Kategorien (die sind umbenennbar, nur nicht loeschbar).' },
+      { id: 'G24-4', title: 'Loeschschutz: verwendete + Basis-Kategorien', steps: ['Eine eigene, NICHT verwendete Kategorie loeschen (bestaetigen).', 'Versuchen, eine Kategorie zu loeschen, die einem Artikel zugeordnet ist.', 'Beobachten, dass Basis-Kategorien gar keinen Loeschen-Button haben.'],
+        expect: 'Unbenutzte eigene Kategorie wird geloescht (Toast). Verwendete Kategorie -> Fehlermeldung (409) Kategorie wird von N Artikel(n) verwendet, bleibt erhalten. Basis-Kategorien lassen sich nicht loeschen. /aktivitaet zeigt Anlegen/Umbenennen/Loeschen.' },
     ]
   },
   {
