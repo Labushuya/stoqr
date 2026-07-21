@@ -26,7 +26,7 @@ Aus dem G16-Test: G15-4 (Kategorie) + Bilder-404-nach-jedem-Update. Diagnose (Wo
 Gates: typecheck 0, lint 0/33, build ✓, vitest 105/105. Manifest: G15-4 geschärft + neuer G17-Block.
 
 ### Commits
-(folgt)
+91e7628 (G17 — Kategorie-Mapping-Fallback, easy-add-Kategorie-Wert, Media-Volume-Mount)
 
 ---
 
