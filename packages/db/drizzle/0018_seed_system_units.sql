@@ -14,7 +14,7 @@
 
 --> statement-breakpoint
 INSERT INTO "units" ("name", "symbol", "sort_order", "is_system", "dimension", "to_base_factor")
-SELECT v.name, v.symbol, v.sort_order, true, v.dimension, v.to_base_factor
+SELECT v.name, v.symbol, v.sort_order, true, v.dimension, v.to_base_factor::numeric(12,4)
 FROM (VALUES
   ('Stück',    'piece',    1, 'count',  '1'),
   ('Gramm',    'g',        2, 'mass',   '1'),
