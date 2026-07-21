@@ -15,7 +15,7 @@
 
   // ── Types ─────────────────────────────────────────────────────────────────
 
-  type NutrientType = { id: string; slug: string; name: string; unit: string }
+  type NutrientType = { id: string; slug: string; name: string; unit: string; parentId: string | null; sortOrder: number }
   type Unit = { id: string; name: string; symbol: string }
   type LocSegment = { id: string; name: string; kind: 'location' | 'storage' | 'place' }
   type Sibling = {
@@ -605,6 +605,35 @@
     nutrientTypes.filter((t) => !nutrientRows.some((r) => r.nutrientTypeId === t.id))
   )
 
+  // Hierarchische Sortierung der Naehrwert-Zeilen (G16-4): Parents nach sortOrder,
+  // Children (parentId gesetzt) direkt unter ihrem Parent + eingerueckt. Basiert auf
+  // nutrient_types.sortOrder/parentId — deckt auch Custom-Typen ab.
+  const nutrientOrder = $derived.by(() => {
+    const byId = new Map(nutrientTypes.map((t) => [t.id, t]))
+    const order = new Map<string, number>() // typeId → globaler Rang
+    const roots = nutrientTypes
+      .filter((t) => !t.parentId)
+      .sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name, 'de'))
+    let rank = 0
+    for (const root of roots) {
+      order.set(root.id, rank++)
+      const children = nutrientTypes
+        .filter((t) => t.parentId === root.id)
+        .sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name, 'de'))
+      for (const c of children) order.set(c.id, rank++)
+    }
+    return { order, byId }
+  })
+  const sortedNutrientRows = $derived(
+    [...nutrientRows]
+      .map((r) => ({ ...r, isChild: !!nutrientOrder.byId.get(r.nutrientTypeId)?.parentId }))
+      .sort(
+        (a, b) =>
+          (nutrientOrder.order.get(a.nutrientTypeId) ?? 9999) -
+          (nutrientOrder.order.get(b.nutrientTypeId) ?? 9999)
+      )
+  )
+
   let addingNutrient = $state(false)
   let selectedNewType = $state('')
 
@@ -910,7 +939,7 @@
         <h1 class="product-name">{product.name} <SourceBadge source={fieldSources.name} /></h1>
         {#if product.brand}<span class="product-brand">{product.brand} <SourceBadge source={fieldSources.brand} /></span>{/if}
         {#if product.category}<span class="product-category">{product.category.name} <SourceBadge source={fieldSources.category} /></span>{/if}
-        {#if fieldSources.image}<span class="product-img-source">Bild: <SourceBadge source={fieldSources.image} /></span>{/if}
+        {#if product.imageUrl}<span class="product-img-source">Bild: <SourceBadge source={fieldSources.image} /></span>{/if}
         {#if product.gtin}
           <span class="product-ean" title="EAN / Barcode">
             <svg width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden="true">
@@ -1015,8 +1044,8 @@
       <p class="empty-hint">Noch keine Nährwerte erfasst.</p>
     {:else}
       <div class="nutrient-list">
-        {#each nutrientRows as row (row.nutrientTypeId)}
-          <div class="nutrient-row">
+        {#each sortedNutrientRows as row (row.nutrientTypeId)}
+          <div class="nutrient-row" class:nutrient-row--child={row.isChild}>
             <span class="nutrient-name">
               {nutrientName(row.nutrientTypeId)}
               <SourceBadge source={row.source === 'off' ? 'off' : 'manual'} />
@@ -1719,6 +1748,8 @@
     align-items: center;
     gap: var(--space-2);
   }
+  .nutrient-row--child { padding-left: var(--space-4); }
+  .nutrient-row--child .nutrient-name { color: var(--color-text-secondary); }
   .nutrient-name { flex: 1; font-size: var(--text-sm); color: var(--color-text-primary); min-width: 0; overflow: hidden; text-overflow: ellipsis; }
   .product-img-source { font-size: var(--text-xs); color: var(--color-text-muted); }
   .nutrient-header { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); flex-wrap: wrap; }

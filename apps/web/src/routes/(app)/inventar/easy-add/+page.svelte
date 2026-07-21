@@ -1,6 +1,7 @@
 <script lang="ts">
   import { goto } from '$app/navigation'
   import { onMount } from 'svelte'
+  import SourceBadge from '$lib/components/SourceBadge.svelte'
   import type { PageData } from './$types'
 
   // ── Types ──────────────────────────────────────────────────────────────────
@@ -94,9 +95,10 @@
 
   // EAN / barcode scanner (this stock entry's EAN)
   let scannedGtin = $state('')
-  // Hinweis: der ausgewaehlte Artikel wurde gerade per Barcode von OpenFoodFacts
-  // bezogen/angelegt (G15 — Quelle transparent machen).
-  let offHint = $state(false)
+  // Feld-Herkunft (OFF/Globus/manuell) des ausgewaehlten Artikels — generell
+  // angezeigt (nicht nur nach Scan), analog zur Detailseite (G16-2).
+  type FieldSourceMap = Partial<Record<'name' | 'brand' | 'image' | 'category' | 'unit', 'off' | 'globus' | 'manual'>>
+  let selectedSources = $state<FieldSourceMap>({})
   let showScanner = $state(false)
   let scannerLoading = $state(false)
   let scannerNotFound = $state(false)
@@ -187,7 +189,12 @@
     selectedProduct = p
     searchQuery = p.name
     searchResults = []
-    offHint = false
+    selectedSources = {}
+    // Feld-Herkunft des Artikels laden (best-effort, rein informativ).
+    void fetch(`/api/products/${p.id}/sources`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((b) => { if (b?.sources) selectedSources = b.sources as FieldSourceMap })
+      .catch(() => {})
     // Einheit-Vorauswahl: Standard-Einheit des Artikels uebernehmen,
     // solange der Nutzer die Einheit nicht selbst gesetzt hat und sie existiert.
     if (!unitTouched && p.defaultUnit && unitOptions.some((u) => u.symbol === p.defaultUnit)) {
@@ -232,7 +239,7 @@
     selectedProduct = null
     searchQuery = ''
     searchResults = []
-    offHint = false
+    selectedSources = {}
     scannedGtin = ''
     scannerNotFound = false
     unitTouched = false
@@ -327,8 +334,6 @@
               category: null,
               defaultUnit: product.defaultUnit ?? null,
             })
-            // Nach selectProduct setzen (das den Hint sonst zuruecksetzt).
-            offHint = true
           } else {
             searchQuery = product.name
             onSearchInput()
@@ -577,16 +582,18 @@
           <span class="selected-icon" aria-hidden="true">{productIcon(selectedProduct)}</span>
         {/if}
         <div class="selected-info">
-          <span class="selected-name">{selectedProduct.name}</span>
+          <span class="selected-name">{selectedProduct.name} <SourceBadge source={selectedSources.name} /></span>
           {#if selectedProduct.brand}
             <span class="selected-brand">{selectedProduct.brand}</span>
           {/if}
           {#if scannedGtin}
             <span class="selected-brand">EAN {scannedGtin}</span>
           {/if}
-          {#if offHint}
-            <span class="selected-off-hint">Stammdaten von OpenFoodFacts</span>
-          {/if}
+          <span class="selected-sources">
+            Herkunft:
+            {#if selectedProduct.imageUrl}Bild <SourceBadge source={selectedSources.image} />{/if}
+            Kat. <SourceBadge source={selectedSources.category} />
+          </span>
         </div>
         <button class="selected-clear" type="button" aria-label="Produkt entfernen" onclick={clearProduct}>
           <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
@@ -1536,10 +1543,13 @@
     color: var(--color-text-muted);
   }
 
-  .selected-off-hint {
+  .selected-sources {
     font-size: var(--text-xs);
-    font-weight: 600;
-    color: var(--color-primary);
+    color: var(--color-text-muted);
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    flex-wrap: wrap;
   }
 
   .selected-clear {

@@ -110,17 +110,28 @@
   function onKeydown(e: KeyboardEvent) {
     if (e.key === 'Escape') onClose()
   }
+
+  // Backdrop-Close nur, wenn Klick auf dem Backdrop begann UND endete — sonst
+  // schliesst Text-Markieren (Maus zieht raus) faelschlich (G16-3).
+  let downOnBackdrop = false
+  function onBackdropPointerDown(e: PointerEvent) {
+    downOnBackdrop = e.target === e.currentTarget
+  }
+  function onBackdropClick(e: MouseEvent) {
+    const onBackdrop = downOnBackdrop && e.target === e.currentTarget
+    downOnBackdrop = false
+    if (onBackdrop) onClose()
+  }
 </script>
 
 {#if open}
-  <div class="pf-backdrop" role="presentation" onclick={onClose}>
+  <div class="pf-backdrop" role="presentation" onpointerdown={onBackdropPointerDown} onclick={onBackdropClick}>
     <div
       class="pf-modal"
       role="dialog"
       aria-modal="true"
       tabindex="-1"
       aria-label={isEdit ? 'Artikel bearbeiten' : 'Neuen Artikel anlegen'}
-      onclick={(e) => e.stopPropagation()}
       onkeydown={onKeydown}
     >
       <h2 class="pf-title">{isEdit ? 'Artikel bearbeiten' : 'Neuen Artikel anlegen'}</h2>

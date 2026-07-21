@@ -42,7 +42,7 @@ export async function createNutrientType(input: { name: string; unit: string }) 
 
   await db
     .insert(nutrientTypes)
-    .values({ slug, name: input.name.trim(), unit: input.unit.trim() })
+    .values({ slug, name: input.name.trim(), unit: input.unit.trim(), sortOrder: 900 })
     .onConflictDoNothing({ target: nutrientTypes.slug })
 
   const row = await db.query.nutrientTypes.findFirst({

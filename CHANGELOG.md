@@ -5,6 +5,33 @@ Neueste Einträge oben. Jeder Eintrag nennt den Commit-Kontext, damit andere LLM
 
 ---
 
+## [Unreleased] — G16: Feinschliff nach G15-Test (implementiert, Test auf Pi ausstehend)
+
+Aus dem G15-Test: 3 offene G15-Punkte + 2 gefundene Bugs + Modell-Fragen (die keine Änderung erforderten).
+
+- **G16-1 (Badges immer):** `SourceBadge` zeigte bei fehlender Herkunft nichts → Altartikel ohne erfasste Quelle
+  hatten gar kein Badge. Jetzt: neutrales „?"-Pill (Tooltip „Herkunft nicht erfasst"). Bild-Herkunft-Zeile hängt
+  an `product.imageUrl` statt an erfasster Quelle.
+- **G16-2 (easy-add Herkunft generell):** Der OFF-Hinweis erschien nur nach Kamera-Scan. Neuer Endpoint
+  `GET /api/products/[id]/sources`; „Bestand hinzufügen" lädt beim Auswählen (Suche/Scan/Katalog) die Feld-Herkunft
+  und zeigt Badges im Auswahl-Pill — generell, nicht nur nach Scan.
+- **G16-3 (Modal-Bug):** Modals schlossen beim Text-Markieren, wenn die Maus dabei aus dem Modal gezogen wurde
+  (Backdrop-`onclick` feuerte). Fix in `Modal.svelte` + `ProductForm.svelte`: Schließen nur, wenn `pointerdown`
+  **und** `click` beide auf dem Backdrop selbst (`e.target === e.currentTarget` + Down-Flag). Deckt alle Dialoge ab.
+- **G16-4 (Nährstoff-Sortierung):** Der Loader sortierte Nährwerte nach UUID (zufällig). Jetzt hierarchisch nach
+  `nutrient_types.sortOrder`/`parentId` — Unterzeilen („davon Zucker/ges. Fettsäuren") direkt unter ihrem Oberbegriff
+  und eingerückt. Custom-Typen bekommen `sortOrder=900` (nach den Seed-Typen).
+- **Modell-Fragen beantwortet (kein Code):** 1 EAN = 1 globales Produkt (GS1); verschiedene Gebinde haben eigene EANs;
+  Preis/Verfügbarkeit markt-abhängig, Produkt global; Katalog-Diff klammert die EAN bewusst aus. Doku-Notiz + Backlog
+  (Pfand/Leergut, günstigster Preis, Dubletten) in ROADMAP gepflegt.
+
+Gates: typecheck 0, lint 0/33, build ✓, vitest 105/105. Manifest: G15-1/-4 geschärft + neuer G16-Block.
+
+### Commits
+(folgt)
+
+---
+
 ## [Unreleased] — G15: Feld-Provenienz (OFF / Globus / manuell) für Artikel-Stammdaten (implementiert, Test auf Pi ausstehend)
 
 Nutzer-Klarstellung nach dem Bild-Debakel: OFF darf beim initialen Anlegen alles liefern, aber **jedes Feld muss

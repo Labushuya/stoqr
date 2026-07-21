@@ -205,6 +205,13 @@ Kein Text-/Pipe-Export (existiert so in Bring! nicht).
   Preisvergleich pro Basiseinheit (via toBaseFactor + Einheiten v2), damit z.B. 1,5-l-Vergleiche fair sind.
 - **EAN auf der Artikel-Übersichtsseite anzeigen** (klein, Konsistenz): EAN/Barcode ist in Einstellungen→Artikel sichtbar,
   aber nicht auf `/inventar`. Dort ebenfalls anzeigen (analog Einstellungen-Artikel-Zeile).
+- **Doku-Notiz EAN-Identität vs. Katalog-Diff** (klein, aufgenommen 2026-07-21): festhalten, dass eine EAN/GTIN global
+  genau EIN Produkt identifiziert (GS1) — verschiedene Gebinde (1 l / 1,5 l, Glas vs. PET) haben je eine EIGENE EAN,
+  sind also verschiedene Artikel. Der Katalog-Diff (snapshot-diff) vergleicht bewusst Name/Bild/Kategorie/Preis, NICHT
+  die EAN: Feld-Änderungen und EAN-Identität sind orthogonale Achsen. Preis/Verfügbarkeit sind markt-abhängig
+  (product_prices/product_stores), das Produkt selbst ist global. (Klärung aus G16-Test — kein Code, nur Doku.)
+- **Erledigt in G16 (2026-07-21):** Modal schließt nicht mehr beim Text-Markieren; Nährstoffe hierarchisch sortiert
+  (Parents → eingerückte Children); Herkunft-Badges immer sichtbar; easy-add zeigt Feld-Herkunft.
 
 ### Kreislauf (Zielbild)
 Inventur (Ist erfassen) → Soll-Ist-Bedarf → Einkaufsliste (virtuelle Bestände) → Einkauf → Einbuchen

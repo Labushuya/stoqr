@@ -18,13 +18,27 @@
     children: Snippet
     footer?: Snippet
   } = $props()
+
+  // Backdrop-Close nur, wenn der Klick WIRKLICH auf dem Backdrop begann UND endete
+  // (e.target === Backdrop bei pointerdown UND click). Verhindert das faelschliche
+  // Schliessen, wenn man im Modal Text markiert und die Maus dabei nach aussen zieht.
+  let downOnBackdrop = false
+  function onBackdropPointerDown(e: PointerEvent) {
+    downOnBackdrop = e.target === e.currentTarget
+  }
+  function onBackdropClick(e: MouseEvent) {
+    const onBackdrop = downOnBackdrop && e.target === e.currentTarget
+    downOnBackdrop = false
+    if (closeOnBackdrop && onBackdrop) onClose()
+  }
 </script>
 
 {#if open}
   <!-- svelte-ignore a11y_no_static_element_interactions -->
   <div
     class="modal-backdrop"
-    onclick={() => closeOnBackdrop && onClose()}
+    onpointerdown={onBackdropPointerDown}
+    onclick={onBackdropClick}
     onkeydown={(e) => e.key === 'Escape' && onClose()}
     role="presentation"
   >
@@ -33,8 +47,6 @@
       role="dialog"
       aria-modal="true"
       aria-labelledby="modal-title"
-      onclick={(e) => e.stopPropagation()}
-      onkeydown={(e) => e.stopPropagation()}
       tabindex="-1"
     >
       <div class="modal-header">

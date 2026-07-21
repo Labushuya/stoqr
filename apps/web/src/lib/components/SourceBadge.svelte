@@ -1,23 +1,24 @@
 <script lang="ts">
   // ---------------------------------------------------------------------------
-  // SourceBadge — kleines Herkunfts-Pill fuer ein Feld (G15).
+  // SourceBadge — kleines Herkunfts-Pill fuer ein Feld (G15/G16).
   // Zeigt, woher der aktuelle Wert stammt: OpenFoodFacts / Markt-Katalog / manuell.
-  // Fehlt die Quelle (undefined/null), wird nichts gerendert.
+  // Fehlt die Quelle (Altartikel ohne erfasste Herkunft), wird ein neutrales
+  // '?'-Pill mit Tooltip angezeigt (G16 — Badge IMMER sichtbar).
   // ---------------------------------------------------------------------------
 
   let { source }: { source: 'off' | 'globus' | 'manual' | null | undefined } = $props()
 
-  const LABEL = { off: 'OFF', globus: 'Globus', manual: 'manuell' } as const
+  const key = $derived(source ?? 'unknown')
+  const LABEL = { off: 'OFF', globus: 'Globus', manual: 'manuell', unknown: '?' } as const
   const TITLE = {
     off: 'Quelle: OpenFoodFacts',
     globus: 'Quelle: Globus-Katalog',
     manual: 'Manuell gepflegt',
+    unknown: 'Herkunft nicht erfasst',
   } as const
 </script>
 
-{#if source}
-  <span class="source-badge source-badge--{source}" title={TITLE[source]}>{LABEL[source]}</span>
-{/if}
+<span class="source-badge source-badge--{key}" title={TITLE[key]}>{LABEL[key]}</span>
 
 <style>
   .source-badge {
@@ -39,5 +40,5 @@
     background: color-mix(in srgb, var(--color-success, #16a34a) 16%, transparent);
     color: var(--color-success, #16a34a);
   }
-  /* manuell = neutraler Default */
+  /* manuell + unknown = neutraler Default */
 </style>
