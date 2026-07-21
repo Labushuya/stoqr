@@ -113,6 +113,23 @@ describe('formatStockTotal', () => {
     expect(formatStockTotal(totals)).toBe('2 Packung + 1,5 kg')
   })
 
+  it('zeigt count-Einheit mit Namen (piece → Stück), nicht das Roh-Symbol (G21-1)', () => {
+    const totals = aggregateStock(
+      [{ quantity: '10', unit: 'piece', status: 'available' }],
+      meta
+    )
+    expect(formatStockTotal(totals)).toBe('10 Stück')
+  })
+
+  it('faellt bei unbekannter count-Einheit auf das Symbol zurueck (kein Crash)', () => {
+    const totals = aggregateStock(
+      [{ quantity: '3', unit: 'blihn', status: 'available' }],
+      meta
+    )
+    // 'blihn' ist keine bekannte Einheit → displayName == Symbol als Fallback.
+    expect(formatStockTotal(totals)).toBe('3 blihn')
+  })
+
   it('gibt — für leere Bestände zurück', () => {
     expect(formatStockTotal({ groups: [], itemCount: 0 })).toBe('—')
   })

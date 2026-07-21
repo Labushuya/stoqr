@@ -120,11 +120,13 @@
     catalogMirrorTick++
   }
 
-  // G20-2: manuell gewaehlte Ziel-Kategorie je Snapshot (snapshotId → categoryId).
-  // Eigenes untracked Overlay + Tick — NICHT aus $derived reseeden.
-  const snapCategoryChoice: Record<string, string> = {}
+  // G20-2/G21-2: manuell gewaehlte Ziel-Kategorie je Snapshot (snapshotId → categoryId).
+  // MUSS $state sein — als plain object waeren die Template-Zugriffe ({#if …}, der
+  // Select-Wert) nicht reaktiv, sodass Status-Tag und Auswahl nach der Wahl nicht
+  // aktualisierten (G21-2). Zuweisung per Spread, damit die Mutation getrackt wird.
+  let snapCategoryChoice = $state<Record<string, string>>({})
   function setSnapCategory(id: string, categoryId: string) {
-    snapCategoryChoice[id] = categoryId
+    snapCategoryChoice = { ...snapCategoryChoice, [id]: categoryId }
     // Manuelle Wahl impliziert Uebernahme → Kategorie-Checkbox aktivieren, damit
     // die Wahl beim Uebernehmen auch mitgesendet wird (sonst waere sie wirkungslos).
     const cur = snapFields[id]
@@ -133,7 +135,6 @@
   }
   // Effektiv gewaehlte Kategorie: manuelle Wahl → sonst Auto-Match des Katalogs.
   function snapCategoryFor(id: string, fallback: string | null): string {
-    void catalogMirrorTick
     return snapCategoryChoice[id] ?? fallback ?? ''
   }
 

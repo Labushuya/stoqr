@@ -508,7 +508,14 @@
   let normalizeSaving = $state(false)
 
   function openNormalizeModal() {
-    normalizeUnit = product.defaultUnit
+    // Zieleinheit NUR mit einem gueltigen Wert vorbelegen. Ist product.defaultUnit
+    // ein verwaister Wert (z.B. 'piece', wenn diese Einheit in der DB fehlt), wuerde
+    // ein <select bind:value> darauf haengenbleiben und "Angleichen" mit 400
+    // "Unbekannte Einheit" scheitern (G21-1, der "Eier"-Blocker). Dann erste
+    // gueltige Einheit vorbelegen.
+    normalizeUnit = units.some((u) => u.symbol === product.defaultUnit)
+      ? product.defaultUnit
+      : (units[0]?.symbol ?? '')
     normalizeMode = 'relabel'
     normalizeOpen = true
   }

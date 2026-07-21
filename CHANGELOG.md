@@ -5,6 +5,36 @@ Neueste Einträge oben. Jeder Eintrag nennt den Commit-Kontext, damit andere LLM
 
 ---
 
+## [Unreleased] — G21: „piece"-Anzeige geheilt + „Alle angleichen"-Blocker + Kategorie-Spiegel-Reaktivität (implementiert, Test auf Pi ausstehend)
+
+Aus dem G20-Test: „Gesamtbestand 10 piece" ließ sich nicht ändern; manuelle Kategorie-Wahl blieb rot + Select zeigte „keine Auswahl". Diagnose (Workflow) korrigierte meine bisherige Fehlannahme:
+
+- **G21-1 (der eigentliche „piece"-Bug — bisher an der FALSCHEN Stelle gesucht):** „Gesamtbestand 10 piece"
+  ist die **Bestands-Einheit** (`inventory_items.unit`), NICHT `products.defaultUnit`. Meine G19/G20-Fixe an der
+  Standard-Einheit konnten diesen Wert gar nicht berühren. Zwei Ursachen behoben:
+  - **Anzeige:** `formatStockTotal` zeigte für count-Gruppen das **Roh-Symbol** „piece" statt des Namens „Stück".
+    Jetzt: count → aufgelöster Name (`displayName`, z.B. „Stück"), mass/volume weiterhin Symbol (kg/g/ml/l).
+  - **„Eier festgefroren":** `openNormalizeModal` (der „Alle angleichen…"-Dialog, der Artikel **und alle Bestände**
+    auf eine Einheit setzt) belegte die Zieleinheit mit `product.defaultUnit` vor — war das ein verwaister Wert
+    (orphan „piece"), blieb das `<select>` darauf hängen und der Server lehnte mit 400 „Unbekannte Einheit" ab.
+    Deshalb ging es bei anderen Artikeln, bei den Eiern nicht. Jetzt wird **nur ein gültiger** Wert vorbelegt
+    (erste Einheit, falls `defaultUnit` nicht in der Liste). Zusammen mit Migration 0018 (G20) ist „Alle angleichen"
+    damit der zuverlässige Weg, „10 piece" auf jede Einheit zu setzen.
+- **G21-2 (mein G20-Kategorie-Feature war buggy):** Nach manueller Kategorie-Wahl im Katalog-Spiegel blieb der
+  Status-Tag rot („nicht zuordenbar") und das Dropdown zeigte weiter „— Kategorie wählen —". Ursachen:
+  (1) `snapCategoryChoice` war ein **untracked** plain object → die Template-Bedingung war nicht reaktiv; jetzt `$state`
+  → der Tag wechselt auf **„manuell"**. (2) Der Select-Wert wird jetzt reaktiv aus `$state` gelesen und mit der
+  Auto-Match-Kategorie als Fallback vorbelegt → die gewählte (bzw. automatisch erkannte) Kategorie steht sichtbar drin,
+  nicht mehr generisch „keine Auswahl".
+- **Regressionstests:** count-Einheit „piece → Stück" + Fallback auf Symbol bei unbekannter Einheit (vitest 107).
+
+Gates: typecheck 0, lint 0/33, build ✓, vitest 107/107 (2 neu). Manifest: G20-1/G20-4 präzisiert, neuer G21-Block.
+
+### Commits
+G21 (dieser Commit) — count-Einheit als Name, Angleichen-Vorbelegung nur gültig, Kategorie-Spiegel $state+reaktiv. Exakter Hash: siehe `git log`.
+
+---
+
 ## [Unreleased] — G20: Standard-Einheit entklemmt + Kategorie manuell überschreibbar (implementiert, Test auf Pi ausstehend)
 
 Aus dem G19-Test: zwei nicht erfüllte Punkte, **beide durch meine G19-Arbeit verursacht**. Diagnose (Workflow):

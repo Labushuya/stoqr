@@ -108,7 +108,7 @@
 <div class="wrap">
   <header class="top">
     <h1>stoqr — Test-Manifest</h1>
-    <p class="subtitle">Blöcke A–E + F/F2 + G/G6/G7/G8/G10/G11/G12/G13/G15/G16/G17/G18/G19/G20 · logisch aufbauender Durchlauf · Stand nach G20 (Regressionen behoben)</p>
+    <p class="subtitle">Blöcke A–E + F/F2 + G/G6/G7/G8/G10/G11/G12/G13/G15/G16/G17/G18/G19/G20/G21 · logisch aufbauender Durchlauf · Stand nach G21 (Regressionen behoben)</p>
 
     <div class="pre">
       <h2>Voraussetzung (kein Testschritt)</h2>
@@ -444,14 +444,23 @@ const BLOCKS = [
   {
     tag: 'G20', name: 'Standard-Einheit entklemmt + Kategorie manuell ueberschreibbar', desc: 'Der G19-Einheiten-Fix wird zurueckgebaut und durch Migration + Server-Validierung ersetzt; Kategorie ist im Katalog-Spiegel frei waehlbar (echte Anforderung).',
     items: [
-      { id: 'G20-1', title: 'Standard-Einheit laesst sich wieder aendern (piece klebt nicht mehr)', steps: ['VORAUSSETZUNG: neues Image ist deployt (Migration 0018 lief beim Neustart).', 'Artikel oeffnen, der bisher piece klebte (z.B. die Eier).', 'Ueber Aendern die Standard-Einheit betrachten: die Liste zeigt Stueck/ml/g/...', 'Auf ml umstellen, speichern; dann wieder auf Stueck, speichern — jeweils Header ohne Reload pruefen.'],
-        expect: 'Die Anzeige zeigt Stueck (nicht roh piece). Umstellen greift SOFORT im Header, ohne Reload, in beide Richtungen. Kein Einfrieren mehr. Trug ein Artikel eine echt unbekannte Einheit, wird sie als unbekannte Einheit markiert und zwingt zur Neuwahl.' },
+      { id: 'G20-1', title: 'Standard-Einheit (Artikel) laesst sich aendern', steps: ['VORAUSSETZUNG: neues Image deployt (Migration 0018 lief).', 'Artikel oeffnen, Standard-Einheit ueber Aendern umstellen, speichern.'],
+        expect: 'Die Artikel-Standard-Einheit laesst sich waehlen/speichern (Liste zeigt Stueck/ml/g/...). HINWEIS: Der Satz Gesamtbestand X piece betrifft die BESTANDS-Einheit, nicht diese — dafuer siehe G21-1.' },
       { id: 'G20-2', title: 'Kategorie im Katalog-Spiegel manuell zuordnen', steps: ['Katalog sichern.', 'Einen Artikel aufklappen, dessen Globus-Kategorie NICHT automatisch gemappt wird.', 'In der Kategorie-Zeile im Dropdown eine der stoqr-Kategorien waehlen.', 'Uebernehmen. Danach die Artikel-Detailseite oeffnen.'],
-        expect: 'Das Dropdown listet ALLE stoqr-Kategorien und ist auch bei nicht automatisch mappbaren Pfaden waehlbar (keine gesperrte Sackgasse mehr). Nach dem Waehlen ist die Kategorie-Uebernahme automatisch aktiv. Die gewaehlte Kategorie steht danach am Artikel mit Herkunft manuell.' },
+        expect: 'Das Dropdown listet ALLE stoqr-Kategorien und ist auch bei nicht automatisch mappbaren Pfaden waehlbar (keine gesperrte Sackgasse mehr). Nach dem Waehlen ist die Kategorie-Uebernahme automatisch aktiv. Die gewaehlte Kategorie steht danach am Artikel mit Herkunft manuell. (Status/Anzeige-Fixes: siehe G21-2.)' },
       { id: 'G20-3', title: 'Manuelle Kategorie ueberlebt den naechsten Sync', steps: ['Fuer einen Artikel wie in G20-2 die Kategorie manuell setzen.', 'Katalog erneut sichern (Sync).', 'Artikel-Detailseite betrachten.'],
         expect: 'Die manuell gesetzte Kategorie (Herkunft manuell) bleibt erhalten — ein erneuter Globus-Sync ueberschreibt sie NICHT (Auto-Match greift nur, wenn keine manuelle Wahl vorliegt).' },
-      { id: 'G20-4', title: 'Ungueltige Einheit wird serverseitig abgelehnt', steps: ['Optional/technisch: einen PATCH auf /api/products/<id> mit defaultUnit=xyz (nicht existierende Einheit) senden.'],
-        expect: 'Der Server antwortet mit 400 Unbekannte Einheit — ein verwaister Einheiten-Wert kann sich nicht mehr festsetzen.' },
+      { id: 'G20-4', title: 'Ungueltige Artikel-Einheit wird serverseitig abgelehnt', steps: ['Rein technisch/optional — nicht zwingend testbar in der UI. Wer mag: einen PATCH auf /api/products/<id> mit defaultUnit=xyz senden (z.B. per Browser-DevTools-Konsole: fetch mit method PATCH).'],
+        expect: 'Der Server antwortet mit 400 Unbekannte Einheit. Kein UI-Testschritt noetig — dient nur der Absicherung, dass sich kein verwaister Wert festsetzt.' },
+    ]
+  },
+  {
+    tag: 'G21', name: 'Gesamtbestand-Einheit (piece) + Katalog-Kategorie-Anzeige', desc: 'Gesamtbestand zeigt Stueck statt piece und laesst sich via Alle angleichen zuverlaessig aendern; manuelle Kategorie-Wahl zeigt Status + Auswahl korrekt.',
+    items: [
+      { id: 'G21-1', title: 'Gesamtbestand: piece -> Stueck + via Alle angleichen aenderbar', steps: ['Artikel oeffnen, bei dem oben Gesamtbestand X piece aus N Bestand stand (die Eier).', 'Zuerst nur die Anzeige betrachten.', 'Dann Alle angleichen... oeffnen, eine Zieleinheit waehlen (z.B. Stueck oder Packung), Modus nur umbenennen, uebernehmen.', 'Gesamtbestand-Zeile danach betrachten.'],
+        expect: 'Die Anzeige zeigt Stueck statt roh piece (count-Einheiten erscheinen mit Namen). Alle angleichen ist NICHT mehr blockiert — die Zieleinheit ist gueltig vorbelegt (kein Haengenbleiben auf einem verwaisten Wert), das Angleichen setzt Artikel UND alle Bestaende auf die Einheit. Gesamtbestand aktualisiert sich (ggf. nach dem automatischen Reload).' },
+      { id: 'G21-2', title: 'Manuelle Kategorie: Status wird manuell + Auswahl bleibt sichtbar', steps: ['Katalog sichern.', 'Einen Artikel aufklappen und in der Kategorie-Zeile im Dropdown eine Kategorie waehlen.', 'Sofort Status-Tag und Dropdown-Inhalt betrachten (ohne Reload).'],
+        expect: 'Der Status-Tag wechselt sofort auf manuell (nicht mehr rot nicht zuordenbar). Das Dropdown zeigt die gewaehlte Kategorie (bzw. bei Auto-Match die erkannte) — nicht mehr generisch — Kategorie waehlen —. Die Kategorie-Uebernahme-Checkbox ist dabei automatisch aktiviert.' },
     ]
   },
   {
