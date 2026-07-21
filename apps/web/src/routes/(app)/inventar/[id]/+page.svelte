@@ -109,10 +109,13 @@
 
   let showTargetModal = $state(false)
   let targetQtyInput = $state('')
-  let targetUnitInput = $state('piece')
   let targetMinInput = $state('')
   let targetSaving = $state(false)
   let targetError = $state<string | null>(null)
+  // Einheit des Soll-Bestands wird NICHT mehr im Dialog gewaehlt (G22-2). Sie kommt
+  // aus dem bestehenden Soll (unveraendert), sonst aus der Artikel-Standard-Einheit.
+  // compareToTarget/PUT-Endpoint brauchen weiterhin eine Einheit — daher hier abgeleitet.
+  const targetEffectiveUnit = $derived(stockTarget?.unit ?? product.defaultUnit ?? 'piece')
 
   const TARGET_LABEL: Record<string, string> = {
     ok: 'Bestand ausreichend',
@@ -124,11 +127,9 @@
   function openTargetModal() {
     if (stockTarget) {
       targetQtyInput = stockTarget.targetQuantity
-      targetUnitInput = stockTarget.unit
       targetMinInput = stockTarget.minQuantity ?? ''
     } else {
       targetQtyInput = ''
-      targetUnitInput = product.defaultUnit ?? 'piece'
       targetMinInput = ''
     }
     targetError = null
@@ -146,7 +147,7 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           targetQuantity: qty,
-          unit: targetUnitInput,
+          unit: targetEffectiveUnit,
           minQuantity: String(targetMinInput ?? '').trim() || undefined,
         }),
       })
@@ -1433,14 +1434,8 @@
   {#if targetError}<p class="field-error">{targetError}</p>{/if}
   <div class="target-form">
     <label class="tf-field">
-      <span class="tf-label">Soll-Menge</span>
+      <span class="tf-label">Soll-Menge {#if targetEffectiveUnit}<span class="tf-unit-hint">in {unitLabel(targetEffectiveUnit)}</span>{/if}</span>
       <input class="input" type="number" min="0" step="0.25" bind:value={targetQtyInput} />
-    </label>
-    <label class="tf-field">
-      <span class="tf-label">Einheit</span>
-      <select class="input" bind:value={targetUnitInput}>
-        {#each units as u (u.id)}<option value={u.symbol}>{u.name}</option>{/each}
-      </select>
     </label>
     <label class="tf-field">
       <span class="tf-label">Mindestbestand (optional)</span>
@@ -1683,6 +1678,7 @@
   .target-form { display: flex; flex-direction: column; gap: var(--space-3); }
   .tf-field { display: flex; flex-direction: column; gap: var(--space-1); }
   .tf-label { font-size: var(--text-xs); color: var(--color-text-muted); }
+  .tf-unit-hint { font-weight: 600; color: var(--color-text-secondary); }
 
   /* ── Inputs / buttons ───────────────────────────────────────────────── */
   .input {

@@ -3,7 +3,7 @@
 > Kanonisches Datenmodell und Entwicklungsplan. Diese Datei ist führend für Absicht,
 > Logik und Ziel von stoqr. Bei Widersprüchen zwischen Code und dieser Datei gilt diese Datei.
 
-Letzte Aktualisierung: 2026-07-21 (G21: Gesamtbestand zeigt count-Einheiten mit Namen (Stück statt piece) + „Alle angleichen" nicht mehr durch verwaisten Vorbelegungswert blockiert; Katalog-Kategorie-Spiegel reaktiv (Status manuell + Auswahl sichtbar); Test auf Pi ausstehend)
+Letzte Aktualisierung: 2026-07-21 (G22: manuell gesetzte Kategorie bleibt im Katalog-Spiegel nach Reload sichtbar (Select-Fallback auf gespeicherte product.categoryId); Soll-Bestand-Dialog ohne separates Einheiten-Feld; Test auf Pi ausstehend)
 
 ---
 

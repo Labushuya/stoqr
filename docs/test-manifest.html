@@ -108,7 +108,7 @@
 <div class="wrap">
   <header class="top">
     <h1>stoqr — Test-Manifest</h1>
-    <p class="subtitle">Blöcke A–E + F/F2 + G/G6/G7/G8/G10/G11/G12/G13/G15/G16/G17/G18/G19/G20/G21 · logisch aufbauender Durchlauf · Stand nach G21 (Regressionen behoben)</p>
+    <p class="subtitle">Blöcke A–E + F/F2 + G/G6/G7/G8/G10/G11/G12/G13/G15/G16/G17/G18/G19/G20/G21/G22 · logisch aufbauender Durchlauf · Stand nach G22 (Regressionen behoben)</p>
 
     <div class="pre">
       <h2>Voraussetzung (kein Testschritt)</h2>
@@ -459,8 +459,17 @@ const BLOCKS = [
     items: [
       { id: 'G21-1', title: 'Gesamtbestand: piece -> Stueck + via Alle angleichen aenderbar', steps: ['Artikel oeffnen, bei dem oben Gesamtbestand X piece aus N Bestand stand (die Eier).', 'Zuerst nur die Anzeige betrachten.', 'Dann Alle angleichen... oeffnen, eine Zieleinheit waehlen (z.B. Stueck oder Packung), Modus nur umbenennen, uebernehmen.', 'Gesamtbestand-Zeile danach betrachten.'],
         expect: 'Die Anzeige zeigt Stueck statt roh piece (count-Einheiten erscheinen mit Namen). Alle angleichen ist NICHT mehr blockiert — die Zieleinheit ist gueltig vorbelegt (kein Haengenbleiben auf einem verwaisten Wert), das Angleichen setzt Artikel UND alle Bestaende auf die Einheit. Gesamtbestand aktualisiert sich (ggf. nach dem automatischen Reload).' },
-      { id: 'G21-2', title: 'Manuelle Kategorie: Status wird manuell + Auswahl bleibt sichtbar', steps: ['Katalog sichern.', 'Einen Artikel aufklappen und in der Kategorie-Zeile im Dropdown eine Kategorie waehlen.', 'Sofort Status-Tag und Dropdown-Inhalt betrachten (ohne Reload).'],
-        expect: 'Der Status-Tag wechselt sofort auf manuell (nicht mehr rot nicht zuordenbar). Das Dropdown zeigt die gewaehlte Kategorie (bzw. bei Auto-Match die erkannte) — nicht mehr generisch — Kategorie waehlen —. Die Kategorie-Uebernahme-Checkbox ist dabei automatisch aktiviert.' },
+      { id: 'G21-2', title: 'Manuelle Kategorie: Status wird manuell + Auswahl bleibt sichtbar (in Session)', steps: ['Katalog sichern.', 'Einen Artikel aufklappen und in der Kategorie-Zeile im Dropdown eine Kategorie waehlen.', 'Sofort Status-Tag und Dropdown-Inhalt betrachten (ohne Reload).'],
+        expect: 'Der Status-Tag wechselt sofort auf manuell (nicht mehr rot nicht zuordenbar). Das Dropdown zeigt die gewaehlte Kategorie. Fuer das Verhalten NACH Uebernehmen+Reload siehe G22-1.' },
+    ]
+  },
+  {
+    tag: 'G22', name: 'Kategorie bleibt nach Reload sichtbar + Soll-Bestand ohne Einheiten-Feld', desc: 'Uebernommene/gesetzte Kategorie steht nach Reload im Spiegel-Dropdown; der Soll-Bestand-Dialog hat kein separates Einheiten-Feld mehr.',
+    items: [
+      { id: 'G22-1', title: 'Manuelle Kategorie ueberlebt Uebernehmen + Reload', steps: ['Katalog sichern.', 'Bei einem Artikel im Spiegel eine Kategorie im Dropdown waehlen und Uebernehmen.', 'Danach die Seite neu laden (F5) bzw. Katalog erneut oeffnen.', 'Die Kategorie-Zeile desselben Artikels betrachten.'],
+        expect: 'Das Dropdown zeigt weiterhin die gesetzte Kategorie (nicht mehr — Kategorie waehlen —). Der Status-Tag steht auf gesetzt bzw. manuell. Die am Artikel gespeicherte Kategorie wird als Anzeigewert genutzt, auch wenn der Globus-Pfad selbst nicht automatisch zuordenbar war.' },
+      { id: 'G22-2', title: 'Soll-Bestand-Dialog hat KEIN Einheiten-Feld mehr', steps: ['Artikel oeffnen, Soll-Bestand festlegen oeffnen.', 'Die Felder im Dialog betrachten.', 'Einen Soll-Wert speichern und die Soll-Anzeige/den Bedarf pruefen.'],
+        expect: 'Der Dialog zeigt nur noch Soll-Menge (mit Einheiten-Hinweis am Label, z.B. Soll-Menge in Stück) und Mindestbestand — KEIN separates Einheiten-Dropdown mehr. Die Soll-Einheit kommt aus dem Artikel/bestehenden Soll. Speichern + Soll-Ist-Vergleich funktionieren unveraendert.' },
     ]
   },
   {

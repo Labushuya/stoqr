@@ -133,9 +133,15 @@
     if (cur && categoryId) snapFieldOverrides[id] = { ...cur, category: true }
     catalogMirrorTick++
   }
-  // Effektiv gewaehlte Kategorie: manuelle Wahl → sonst Auto-Match des Katalogs.
-  function snapCategoryFor(id: string, fallback: string | null): string {
-    return snapCategoryChoice[id] ?? fallback ?? ''
+  // Effektiv anzuzeigende Kategorie im Spiegel-Select. Reihenfolge (G22-1):
+  //  1. manuelle Session-Wahl (snapCategoryChoice)
+  //  2. bereits am Artikel GESPEICHERTE Kategorie (stored = r.product.categoryId) —
+  //     damit die uebernommene Wahl nach Reload sichtbar bleibt (frueher fehlte das
+  //     → Select fiel faelschlich auf "— Kategorie wählen —" zurueck)
+  //  3. Auto-Match des Katalog-Pfads (autoMatch = snap.catalogCategoryId) als Vorschlag
+  //  4. leer
+  function snapCategoryFor(id: string, autoMatch: string | null, stored: string | null): string {
+    return snapCategoryChoice[id] ?? stored ?? autoMatch ?? ''
   }
 
   async function reviewSnapshot(id: string, action: 'confirm' | 'reject', allFields = false) {
@@ -575,16 +581,16 @@
                   <span class="snap-diff-new">{snap.localImagePath ? 'Katalog-Bild' : '(Katalog: kein Bild)'}</span>
                 </label>
 
-                <!-- Kategorie: Auto-Match ODER manuelle Zuordnung (G20-2). Checkbox
-                     ist aktiv, sobald eine Ziel-Kategorie waehlbar ist (Dropdown). -->
+                <!-- Kategorie: Auto-Match, gespeicherte Kategorie ODER manuelle Zuordnung
+                     (G20-2/G22-1). Checkbox aktiv, sobald eine Ziel-Kategorie waehlbar ist. -->
                 <label class="snap-diff-row" class:snap-diff-row--diff={r.diff.category.differs}>
-                  <input type="checkbox" disabled={!snapCategoryFor(snap.id, snap.catalogCategoryId)} checked={snapFields[snap.id]?.category} onchange={() => toggleSnapField(snap.id, 'category')} />
-                  <span class="snap-diff-field">Kategorie {#if snapCategoryChoice[snap.id]}<span class="snap-diff-tag snap-diff-tag--ok">manuell</span>{:else if (snap.category?.length ?? 0) > 0 && !snap.catalogCategoryId}<span class="snap-diff-tag snap-diff-tag--warn">nicht zuordenbar</span>{:else if r.diff.category.differs}<span class="snap-diff-tag">abweichend</span>{:else}<span class="snap-diff-tag snap-diff-tag--ok">gleich</span>{/if}</span>
+                  <input type="checkbox" disabled={!snapCategoryFor(snap.id, snap.catalogCategoryId, r.product.categoryId)} checked={snapFields[snap.id]?.category} onchange={() => toggleSnapField(snap.id, 'category')} />
+                  <span class="snap-diff-field">Kategorie {#if snapCategoryChoice[snap.id]}<span class="snap-diff-tag snap-diff-tag--ok">manuell</span>{:else if r.product.categoryId && !r.diff.category.differs}<span class="snap-diff-tag snap-diff-tag--ok">gesetzt</span>{:else if (snap.category?.length ?? 0) > 0 && !snap.catalogCategoryId}<span class="snap-diff-tag snap-diff-tag--warn">nicht zuordenbar</span>{:else if r.diff.category.differs}<span class="snap-diff-tag">abweichend</span>{:else}<span class="snap-diff-tag snap-diff-tag--ok">gleich</span>{/if}</span>
                   <span class="snap-diff-old">{r.product.categoryName || '(leer)'}</span>
                   <span class="snap-diff-arrow" aria-hidden="true">→</span>
                   <span class="snap-diff-new snap-cat-pick">
                     {#if (snap.category?.length ?? 0) > 0}<span class="snap-cat-raw" title="Globus-Kategorie-Pfad">{snap.category?.join(' › ')}</span>{/if}
-                    <select class="input snap-cat-select" value={snapCategoryFor(snap.id, snap.catalogCategoryId)} onchange={(e) => setSnapCategory(snap.id, e.currentTarget.value)} aria-label="Kategorie manuell zuordnen">
+                    <select class="input snap-cat-select" value={snapCategoryFor(snap.id, snap.catalogCategoryId, r.product.categoryId)} onchange={(e) => setSnapCategory(snap.id, e.currentTarget.value)} aria-label="Kategorie manuell zuordnen">
                       <option value="">— Kategorie wählen —</option>
                       {#each data.categories as c (c.id)}<option value={c.id}>{c.name}</option>{/each}
                     </select>

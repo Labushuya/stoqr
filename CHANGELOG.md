@@ -5,6 +5,30 @@ Neueste Einträge oben. Jeder Eintrag nennt den Commit-Kontext, damit andere LLM
 
 ---
 
+## [Unreleased] — G22: Kategorie bleibt nach Reload sichtbar + Soll-Bestand ohne Einheiten-Feld (implementiert, Test auf Pi ausstehend)
+
+Aus dem G21-Test: manuelle Kategorie im Katalog-Spiegel fiel nach Reload auf „— Kategorie wählen —" zurück; Soll-Bestand-Dialog hatte ein überflüssiges Einheiten-Feld. Diagnose (Workflow):
+
+- **G22-1 (Kategorie fällt nach Reload zurück — anderer Bug als G21-2):** Die manuelle Wahl **wird korrekt
+  persistiert** (`product.categoryId`, Herkunft `manual`) — der Spiegel **las sie nach Reload nur nicht zurück**.
+  Das Select-Fallback nutzte ausschließlich den Auto-Match (`snap.catalogCategoryId`); war der null, zeigte es
+  „— Kategorie wählen —", obwohl der Artikel eine gesetzte Kategorie hatte. Fix: `snapCategoryFor` fällt jetzt
+  in der Reihenfolge **manuelle Wahl → gespeicherte `r.product.categoryId` → Auto-Match → leer** zurück; die
+  Checkbox-`disabled`-Bedingung und ein neuer Status-Tag **„gesetzt"** nutzen denselben Wert. Damit steht die
+  übernommene Kategorie nach Reload sichtbar im Dropdown. (Rein Frontend; Persistenz war schon korrekt.)
+- **G22-2 (Soll-Bestand-Dialog: Einheiten-Feld raus):** Auf Nutzer-Wunsch — Einheiten gehören an Artikel/Bestand,
+  nicht in jeden Dialog. Das Einheiten-`<select>` im „Soll-Bestand festlegen"-Modal ist entfernt. Die Soll-Einheit
+  kommt jetzt aus dem bestehenden Soll (unverändert) bzw. der Artikel-Standard-Einheit; die Soll-Menge zeigt die
+  Einheit als Label-Hinweis („Soll-Menge in Stück"). `compareToTarget` und der PUT-Endpoint bleiben unberührt
+  (Einheit wird weiter mitgesendet, nur nicht mehr editiert).
+
+Gates: typecheck 0, lint 0/33, build ✓, vitest 107/107. Manifest: G21-2/G17-2 präzisiert, neuer G22-Block.
+
+### Commits
+G22 (dieser Commit) — Kategorie-Select-Fallback auf gespeicherte categoryId, Soll-Dialog ohne Einheiten-Feld. Exakter Hash: siehe `git log`.
+
+---
+
 ## [Unreleased] — G21: „piece"-Anzeige geheilt + „Alle angleichen"-Blocker + Kategorie-Spiegel-Reaktivität (implementiert, Test auf Pi ausstehend)
 
 Aus dem G20-Test: „Gesamtbestand 10 piece" ließ sich nicht ändern; manuelle Kategorie-Wahl blieb rot + Select zeigte „keine Auswahl". Diagnose (Workflow) korrigierte meine bisherige Fehlannahme:
