@@ -108,7 +108,7 @@
 <div class="wrap">
   <header class="top">
     <h1>stoqr — Test-Manifest</h1>
-    <p class="subtitle">Blöcke A–E + F/F2 + G/G6/G7/G8/G10/G11/G12/G13/G15/G16/G17/G18 · logisch aufbauender Durchlauf · Stand nach G18 (Regressionen behoben)</p>
+    <p class="subtitle">Blöcke A–E + F/F2 + G/G6/G7/G8/G10/G11/G12/G13/G15/G16/G17/G18/G19 · logisch aufbauender Durchlauf · Stand nach G19 (Regressionen behoben)</p>
 
     <div class="pre">
       <h2>Voraussetzung (kein Testschritt)</h2>
@@ -413,8 +413,8 @@ const BLOCKS = [
   {
     tag: 'G17', name: 'Kategorie-Mapping & Bild-Persistenz', desc: 'OFF-Kategorie greift jetzt viel oefter; Bilder ueberleben Updates (Volume-Fix auf dem Pi noetig).',
     items: [
-      { id: 'G17-2', title: 'OFF-Kategorie wird zuverlaessiger uebernommen', steps: ['Mehrere Artikel per Barcode scannen/anlegen (z.B. Wasser, Joghurt, Schokolade).', 'Kategorie am Artikel pruefen (Detailseite oder easy-add-Pill).'],
-        expect: 'Deutlich mehr Artikel bekommen automatisch eine Kategorie (Getraenke, Milchprodukte, Suesses, ...) — nicht mehr fast immer leer. Das Mapping matcht jetzt auch spezifische OFF-Tags per Schluesselwort.' },
+      { id: 'G17-2', title: 'OFF-Kategorie wird zuverlaessiger uebernommen', steps: ['Mehrere Artikel per Barcode scannen/anlegen (z.B. Wasser, Joghurt, Schokolade, Konserve).', 'Kategorie am Artikel pruefen (Detailseite oder easy-add-Pill).'],
+        expect: 'Artikel bekommen eine der 9 echten Kategorien (Getraenke, Milchprodukte, Suessigkeiten & Snacks, Konserven & Tiefkuehl, ...) — nicht mehr leer und nicht mehr eine nicht existente Kategorie. Frueher zeigte das Mapping auf tote Slugs (meat/fish/frozen/...) und loeste nie auf; jetzt matcht es exakt UND per Schluesselwort auf die Seed-Kategorien.' },
       { id: 'G17-1', title: 'Bilder ueberleben ein Update', steps: ['VORAUSSETZUNG (einmalig am Pi): neue docker-compose mit /data/media-Mount + neues Image (uid 1001), Verzeichnis chown 1001:1001.', 'Katalog sichern (Bilder laden).', 'stoqr-Stack neu ziehen/neustarten (Update simulieren).', 'Inventar/Detailseite betrachten.'],
         expect: 'Bilder sind nach dem Update sofort da (keine 404 in der Konsole, keine preload-Warnung). Fehlt eine Datei (Alt-Referenz), wird sie beim ersten Abruf automatisch aus dem Katalog nachgeladen.' },
     ]
@@ -428,6 +428,17 @@ const BLOCKS = [
         expect: 'Log zeigt media dir OK (writable) statt der WARN-Zeile. Neue Katalog-Bilder werden tatsaechlich gespeichert und angezeigt. (Frueher: falsche uid 1000 -> keine Schreibrechte -> keine Bilder.)' },
       { id: 'G18-3', title: 'Verlorene Bilder laden sich selbst nach', steps: ['Einen Artikel mit Katalog-Bild oeffnen, dessen Bilddatei fehlt (z.B. nach altem Update).'],
         expect: 'Das Bild erscheint beim Aufruf automatisch (On-demand-Reload aus dem Snapshot) — kein dauerhaftes 404 mehr fuer Alt-Referenzen.' },
+    ]
+  },
+  {
+    tag: 'G19', name: 'Standard-Einheit-Header & Kategorie-Mapping (Regressionen)', desc: 'Standard-Einheit-Aenderung greift ohne Reload und ohne falsches piece; Kategorie wird korrekt gemappt bzw. ehrlich als nicht zuordenbar markiert.',
+    items: [
+      { id: 'G19-1', title: 'Standard-Einheit aendern greift sofort (kein piece, kein Reload)', steps: ['Artikel-Detailseite oeffnen.', 'Standard-Einheit ueber den Selektor auf einen anderen Wert setzen und speichern.', 'Header/Anzeige direkt danach betrachten (ohne Reload).'],
+        expect: 'Der Header zeigt sofort die gewaehlte Einheit — NICHT piece und ohne dass ein Reload noetig ist. Steht am Artikel eine Einheit, die nicht in der Liste ist, bleibt sie als Option waehlbar (springt nicht auf die erste Option). Ein Leerwert laesst sich nicht speichern (Hinweis erscheint).' },
+      { id: 'G19-2', title: 'Kategorie: korrekt gemappt oder ehrlich nicht zuordenbar', steps: ['Katalog sichern.', 'Einen Artikel im Katalog-Spiegel aufklappen und die Kategorie-Zeile betrachten.', 'Idealerweise einen mit gut mappbarer und einen mit ungewoehnlicher Globus-Kategorie vergleichen.'],
+        expect: 'Mappt der Globus-Pfad auf eine echte stoqr-Kategorie, steht gleich bzw. abweichend (und Uebernehmen ist moeglich). Mappt er auf KEINE der 9 Kategorien, steht jetzt nicht zuordenbar (roter Tag) + Hinweis keine passende stoqr-Kategorie, und die Uebernahme-Checkbox ist gesperrt — nicht mehr faelschlich gleich fuer einen Pfad, den es gar nicht gibt.' },
+      { id: 'G19-3', title: 'Uebernahme auf existierende Kategorie funktioniert', steps: ['Einen Artikel mit mappbarer Globus-Kategorie im Spiegel aufklappen.', 'Kategorie ankreuzen und Uebernehmen.', 'Artikel-Detailseite oeffnen.'],
+        expect: 'Die uebernommene Kategorie steht am Artikel (eine der 9 echten Kategorien) mit Herkunft Globus. Das Matching prueft jetzt alle Pfad-Segmente gegen Name UND Slug, nicht nur das letzte Segment.' },
     ]
   },
   {

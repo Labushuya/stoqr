@@ -5,7 +5,36 @@ Neueste Einträge oben. Jeder Eintrag nennt den Commit-Kontext, damit andere LLM
 
 ---
 
-## [Unreleased] — G18: Drei Regressionen behoben (Katalog-Anzeige, Bild-uid, Bild-Selbstheilung) (implementiert, Test auf Pi ausstehend)
+## [Unreleased] — G19: Standard-Einheit-Header-Regression + Kategorie-Mapping-Fix (implementiert, Test auf Pi ausstehend)
+
+Aus dem G18-Test: harte Regression beim Ändern der Standard-Einheit + fälschlich als „gleich" gewertete, nicht existente Kategorie.
+
+- **G19-1 (Standard-Einheit-Header — harte Regression):** Das `<select bind:value>` für die Standard-Einheit setzt
+  sich in Svelte 5 auf die **erste Option** zurück, wenn der gebundene Ist-Wert nicht unter den Optionen war — dadurch
+  zeigte der Header nach dem Speichern „piece" (bzw. brauchte ein Reload). Fix: (a) das Select rendert eine
+  **Fallback-Option** für den aktuellen `product.defaultUnit`, falls dieser nicht in der Einheiten-Liste ist, sodass der
+  Ist-Wert immer selektierbar bleibt; (b) `saveDefaultUnit` **guardet gegen Leerwerte** (kein Speichern eines
+  Leer-/Falschwerts, stattdessen Hinweis). Reseed nach `invalidateAll` weiterhin aus `data.*`, nicht aus `$derived`.
+- **G19-2 (Kategorie fälschlich „gleich" + totes Mapping):** Zwei Ursachen. (1) Die `OFF_CATEGORY_MAP`/
+  `OFF_CATEGORY_KEYWORDS` im Barcode-Endpunkt zeigten auf **nicht existente** Slugs (`meat`, `fish`, `fruits`, `frozen`,
+  `desserts`, `pasta`, …) → die Kategorie wurde nie aufgelöst. Jetzt zeigen sie ausschließlich auf die **9 echten
+  Seed-Slugs** (`fruits-vegetables`, `dairy`, `meat-fish`, `bakery`, `canned-frozen`, `beverages`, `snacks`,
+  `condiments`, `other`). (2) `matchCategoryId` (Globus) prüfte nur das **letzte** Pfad-Segment gegen den Namen; jetzt
+  werden **alle Segmente** (spezifischste zuerst) gegen **Name UND Slug** geprüft. (3) Der Katalog-Spiegel in den
+  Einstellungen wertete einen rohen Globus-Kategorie-Pfad, der auf keine stoqr-Kategorie mappt, fälschlich als „gleich".
+  Jetzt gibt es einen **dritten Status „nicht zuordenbar"** (roter Tag + Hinweis „keine passende stoqr-Kategorie"), und
+  die Übernahme-Checkbox bleibt in dem Fall gesperrt. Die Übernahme auf **existierende** Kategorien läuft über das
+  robustere `matchCategoryId`.
+- **G19-3 (Backlog):** Gebinde-Nesting („1 Packung = 18 Riegel à 21 g", 2-stufige Kette, größter Nutzen bei
+  „Alle angleichen"/convert) und eine **editierbare Kategorie-Mapping-Tabelle** (+ optional nested Kategorien) sind als
+  Backlog in die ROADMAP aufgenommen — bewusst NICHT jetzt gebaut (Nutzer-Entscheidung).
+
+Gates: typecheck 0, lint 0/33, build ✓, vitest 105/105. Manifest: G15-4/G17-2 geschärft, neue G19-Items.
+
+### Commits
+_(folgt beim Commit)_
+
+---
 
 Aus dem G17-Test: Katalog zeigt wieder nur Preis, Katalog-Sync übernimmt nichts, Bilder-404 trotz Volume-Fix. Regressions-Jagd (Workflow):
 

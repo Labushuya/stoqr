@@ -368,13 +368,30 @@ export async function applySnapshotToProduct(
   return { ok: true }
 }
 
-/** Globus-Kategorie-Namen (spezifischste zuletzt) best-effort auf categories.id mappen. */
+/**
+ * Globus-Kategorie-Pfad best-effort auf categories.id mappen (G19-2).
+ * Robuster als frueher: es werden ALLE Pfad-Segmente geprueft (nicht nur das
+ * letzte), und zwar gegen Name UND Slug der Seed-Kategorien. Reihenfolge:
+ * spezifischste Segmente (hinten im Pfad) zuerst — so gewinnt "Joghurt" vor dem
+ * Ober-Segment "Kühlregal", wenn beide zufaellig treffen wuerden.
+ * Ergibt sich KEIN Treffer, wird null zurueckgegeben (→ "nicht zuordenbar" in der UI),
+ * NICHT stillschweigend eine Default-Kategorie.
+ */
 async function matchCategoryId(category: string[] | null | undefined): Promise<string | null> {
   if (!Array.isArray(category) || category.length === 0) return null
-  const wanted = category[category.length - 1].trim().toLowerCase()
-  if (wanted === '') return null
-  const cats = await db.select({ id: categories.id, name: categories.name }).from(categories)
-  return cats.find((c) => c.name.trim().toLowerCase() === wanted)?.id ?? null
+  const cats = await db
+    .select({ id: categories.id, name: categories.name, slug: categories.slug })
+    .from(categories)
+
+  const norm = (s: string) => s.trim().toLowerCase()
+  // Spezifischste zuerst (Pfad ist grob → fein): von hinten nach vorne.
+  for (let i = category.length - 1; i >= 0; i--) {
+    const seg = norm(category[i] ?? '')
+    if (seg === '') continue
+    const hit = cats.find((c) => norm(c.name) === seg || norm(c.slug) === seg)
+    if (hit) return hit.id
+  }
+  return null
 }
 
 /**

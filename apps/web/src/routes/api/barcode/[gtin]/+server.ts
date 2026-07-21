@@ -7,30 +7,32 @@ import { extractOffNutrients, type OffNutrient } from '$lib/utils/off-nutrients'
 import { setFieldSources, type ProductField } from '$lib/server/queries/products'
 
 // ---------------------------------------------------------------------------
-// OFF category tag → stoqr category slug mapping (best-effort, extensible)
+// OFF category tag → stoqr category slug. WICHTIG: die Ziel-Slugs muessen den
+// TATSAECHLICHEN Seed-Kategorien entsprechen (packages/db seed): fruits-vegetables,
+// dairy, meat-fish, bakery, canned-frozen, beverages, snacks, condiments, other.
+// (Frueher zeigten sie auf nicht-existente Slugs wie 'meat'/'fish' → Kategorie
+// wurde nie aufgeloest, G19-2.)
 // ---------------------------------------------------------------------------
 
 const OFF_CATEGORY_MAP: Record<string, string> = {
   'en:beverages':            'beverages',
   'en:dairies':              'dairy',
-  'en:meats':                'meat',
-  'en:fish':                 'fish',
-  'en:fruits':               'fruits',
-  'en:vegetables':           'vegetables',
+  'en:meats':                'meat-fish',
+  'en:fish':                 'meat-fish',
+  'en:seafood':              'meat-fish',
+  'en:fruits':               'fruits-vegetables',
+  'en:vegetables':           'fruits-vegetables',
   'en:breads':               'bakery',
-  'en:cereals-and-potatoes': 'cereals',
-  'en:frozen-foods':         'frozen',
+  'en:frozen-foods':         'canned-frozen',
+  'en:canned-foods':         'canned-frozen',
   'en:condiments':           'condiments',
   'en:snacks':               'snacks',
-  'en:desserts':             'desserts',
-  'en:canned-foods':         'canned',
-  'en:pastas':               'pasta',
+  'en:desserts':             'snacks',
 }
 
 // Fallback-Schluesselwoerter: OFF-Tags sind meist SPEZIFISCH (en:sodas,
 // en:sparkling-waters, en:yogurts, en:milk-chocolates, ...). Wenn kein exakter
-// Map-Treffer, wird jeder Tag auf diese Substrings geprueft (spezifisch → grob).
-// Reihenfolge = Prioritaet (spezifischere zuerst).
+// Map-Treffer, wird jeder Tag auf diese Substrings geprueft. Ziel-Slugs = Seed.
 const OFF_CATEGORY_KEYWORDS: Array<{ needle: string; slug: string }> = [
   { needle: 'water',      slug: 'beverages' },
   { needle: 'soda',       slug: 'beverages' },
@@ -46,32 +48,30 @@ const OFF_CATEGORY_KEYWORDS: Array<{ needle: string; slug: string }> = [
   { needle: 'dairy',      slug: 'dairy' },
   { needle: 'cream',      slug: 'dairy' },
   { needle: 'butter',     slug: 'dairy' },
-  { needle: 'meat',       slug: 'meat' },
-  { needle: 'sausage',    slug: 'meat' },
-  { needle: 'poultry',    slug: 'meat' },
-  { needle: 'fish',       slug: 'fish' },
-  { needle: 'seafood',    slug: 'fish' },
-  { needle: 'fruit',      slug: 'fruits' },
-  { needle: 'vegetable',  slug: 'vegetables' },
+  { needle: 'meat',       slug: 'meat-fish' },
+  { needle: 'sausage',    slug: 'meat-fish' },
+  { needle: 'poultry',    slug: 'meat-fish' },
+  { needle: 'fish',       slug: 'meat-fish' },
+  { needle: 'seafood',    slug: 'meat-fish' },
+  { needle: 'fruit',      slug: 'fruits-vegetables' },
+  { needle: 'vegetable',  slug: 'fruits-vegetables' },
   { needle: 'bread',      slug: 'bakery' },
   { needle: 'bakery',     slug: 'bakery' },
   { needle: 'pastr',      slug: 'bakery' },
-  { needle: 'cereal',     slug: 'cereals' },
-  { needle: 'potato',     slug: 'cereals' },
-  { needle: 'frozen',     slug: 'frozen' },
+  { needle: 'frozen',     slug: 'canned-frozen' },
+  { needle: 'canned',     slug: 'canned-frozen' },
   { needle: 'condiment',  slug: 'condiments' },
   { needle: 'sauce',      slug: 'condiments' },
   { needle: 'spice',      slug: 'condiments' },
   { needle: 'snack',      slug: 'snacks' },
   { needle: 'chip',       slug: 'snacks' },
-  { needle: 'chocolate',  slug: 'desserts' },
-  { needle: 'candy',      slug: 'desserts' },
-  { needle: 'sweet',      slug: 'desserts' },
-  { needle: 'dessert',    slug: 'desserts' },
-  { needle: 'biscuit',    slug: 'desserts' },
-  { needle: 'canned',     slug: 'canned' },
-  { needle: 'pasta',      slug: 'pasta' },
-  { needle: 'noodle',     slug: 'pasta' },
+  { needle: 'chocolate',  slug: 'snacks' },
+  { needle: 'candy',      slug: 'snacks' },
+  { needle: 'sweet',      slug: 'snacks' },
+  { needle: 'dessert',    slug: 'snacks' },
+  { needle: 'biscuit',    slug: 'snacks' },
+  { needle: 'pasta',      slug: 'canned-frozen' },
+  { needle: 'noodle',     slug: 'canned-frozen' },
 ]
 
 // ---------------------------------------------------------------------------

@@ -476,6 +476,9 @@
     unitEditing = true
   }
   async function saveDefaultUnit() {
+    // Guard: <select> kann sich auf einen Leer-/Falschwert zuruecksetzen, wenn der
+    // Ist-Wert nicht in den Optionen war (G19-1). Leeren Wert nicht speichern.
+    if (!draftDefaultUnit) { showToast('Bitte eine Einheit wählen', 'error'); return }
     unitSaving = true
     try {
       const res = await fetch(`/api/products/${product.id}`, {
@@ -985,6 +988,10 @@
         <div class="pack-edit">
           <span class="pack-label">Standard-Einheit:</span>
           <select class="input" bind:value={draftDefaultUnit} aria-label="Standard-Einheit">
+            {#if product.defaultUnit && !units.some((u) => u.symbol === product.defaultUnit)}
+              <!-- Fallback: aktueller (nicht-Standard-)Wert, damit der Select ihn nicht verwirft (G19-1). -->
+              <option value={product.defaultUnit}>{product.defaultUnit}</option>
+            {/if}
             {#each units as u (u.id)}<option value={u.symbol}>{u.name}</option>{/each}
           </select>
           <button class="btn-save-inline" type="button" disabled={unitSaving} onclick={saveDefaultUnit}>Speichern</button>
