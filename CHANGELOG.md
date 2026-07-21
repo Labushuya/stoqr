@@ -28,7 +28,7 @@ Aus dem G17-Test: Katalog zeigt wieder nur Preis, Katalog-Sync übernimmt nichts
 Gates: typecheck 0, lint 0/33, build ✓, vitest 105/105. Manifest: G17-1 (uid 1001) + neuer G18-Block.
 
 ### Commits
-(folgt)
+eaae112 (G18 — Katalog-immer-alle-Felder, uid 1001, Bild-Selbstheilung)
 
 ---
 
