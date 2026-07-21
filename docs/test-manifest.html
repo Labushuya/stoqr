@@ -108,7 +108,7 @@
 <div class="wrap">
   <header class="top">
     <h1>stoqr — Test-Manifest</h1>
-    <p class="subtitle">Blöcke A–E + F/F2 + G/G6/G7/G8/G10/G11/G12/G13/G15/G16 · logisch aufbauender Durchlauf · Stand nach G16 (Feinschliff)</p>
+    <p class="subtitle">Blöcke A–E + F/F2 + G/G6/G7/G8/G10/G11/G12/G13/G15/G16/G17 · logisch aufbauender Durchlauf · Stand nach G17 (Kategorie + Bild-Persistenz)</p>
 
     <div class="pre">
       <h2>Voraussetzung (kein Testschritt)</h2>
@@ -406,8 +406,17 @@ const BLOCKS = [
         expect: 'Im Spiegel steht die Legende Aktueller Wert zu Globus-Katalog. Nach dem Uebernehmen zeigt das uebernommene Feld auf der Detailseite das Badge Globus (vorher OFF/?). Nur die angekreuzten Felder wechseln.' },
       { id: 'G15-3', title: 'Manuelles Bearbeiten setzt NUR geaenderte Felder auf manuell', steps: ['Artikel bearbeiten (Detailseite, Bearbeiten).', 'NUR den Namen aendern, speichern.'],
         expect: 'Nur das Name-Badge wechselt auf manuell. Bild/Kategorie/Marke behalten ihre bisherige Herkunft (OFF/Globus/?) - unveraenderte Felder werden nicht als manuell markiert.' },
-      { id: 'G15-4', title: 'Bestand hinzufuegen zeigt die Feld-Herkunft', steps: ['Bestand hinzufuegen. Einen Artikel per Suche ODER Scan auswaehlen.', 'Den ausgewaehlten Artikel (Pille oben) betrachten.'],
-        expect: 'Am ausgewaehlten Artikel erscheint die Herkunft (Badge hinter dem Namen + Zeile Herkunft: Bild/Kat.) — bei JEDEM ausgewaehlten Artikel, nicht nur nach Scan. Ohne erfasste Herkunft steht das neutrale ?.' },
+      { id: 'G15-4', title: 'Bestand hinzufuegen zeigt Kategorie-Wert + Herkunft', steps: ['Bestand hinzufuegen. Einen Artikel per Suche ODER Scan auswaehlen.', 'Den ausgewaehlten Artikel (Pille oben) betrachten.'],
+        expect: 'Der Pill zeigt den KATEGORIE-WERT (Icon + Name) mit Herkunfts-Badge dahinter — oder Keine Kategorie, wenn keine gesetzt ist. Name traegt ebenfalls ein Badge. Herkunft erscheint bei JEDEM ausgewaehlten Artikel, nicht nur nach Scan; ohne erfasste Herkunft neutrales ?.' },
+    ]
+  },
+  {
+    tag: 'G17', name: 'Kategorie-Mapping & Bild-Persistenz', desc: 'OFF-Kategorie greift jetzt viel oefter; Bilder ueberleben Updates (Volume-Fix auf dem Pi noetig).',
+    items: [
+      { id: 'G17-2', title: 'OFF-Kategorie wird zuverlaessiger uebernommen', steps: ['Mehrere Artikel per Barcode scannen/anlegen (z.B. Wasser, Joghurt, Schokolade).', 'Kategorie am Artikel pruefen (Detailseite oder easy-add-Pill).'],
+        expect: 'Deutlich mehr Artikel bekommen automatisch eine Kategorie (Getraenke, Milchprodukte, Suesses, ...) — nicht mehr fast immer leer. Das Mapping matcht jetzt auch spezifische OFF-Tags per Schluesselwort.' },
+      { id: 'G17-1', title: 'Bilder ueberleben ein Update', steps: ['VORAUSSETZUNG (einmalig am Pi): neue docker-compose mit /data/media-Mount deployen, Verzeichnis chown 1000:1000.', 'Katalog sichern (Bilder laden).', 'stoqr-Stack neu ziehen/neustarten (Update simulieren).', 'Inventar/Detailseite betrachten.'],
+        expect: 'Bilder sind nach dem Update sofort da (keine 404 in der Konsole, keine preload-Warnung). Vorher gingen sie bei jedem Update verloren, weil /data/media nicht persistent gemountet war.' },
     ]
   },
   {

@@ -12,7 +12,11 @@
 #     └── docker-compose.yml      ← diese Datei
 #   /srv/hubdata/state/stoqr/
 #     ├── .env                    ← Secrets (nie ins Repo)
-#     └── postgres/               ← PostgreSQL Datenvolume
+#     ├── postgres/               ← PostgreSQL Datenvolume
+#     └── media/                  ← Artikel-/Katalog-Bilder (persistent, MEDIA_DIR)
+#
+# WICHTIG: das media-Verzeichnis muss dem Container-User (uid 1000) gehoeren:
+#   sudo mkdir -p /srv/hubdata/state/stoqr/media && sudo chown -R 1000:1000 /srv/hubdata/state/stoqr/media
 #
 # Optionaler Symlink (nur zur Bequemlichkeit, nicht zwingend):
 #   ln -s /srv/hubdata/state/stoqr/.env /srv/hubdata/stacks/stoqr/.env
@@ -24,6 +28,10 @@ services:
     image: ghcr.io/labushuya/stoqr:main
     restart: unless-stopped
     env_file: /srv/hubdata/state/stoqr/.env
+    # Bilder MUESSEN persistent gemountet sein — sonst gehen sie bei JEDEM
+    # Image-Update verloren (Container-Layer ist fluechtig). MEDIA_DIR=/data/media.
+    volumes:
+      - /srv/hubdata/state/stoqr/media:/data/media
     depends_on:
       postgres:
         condition: service_healthy

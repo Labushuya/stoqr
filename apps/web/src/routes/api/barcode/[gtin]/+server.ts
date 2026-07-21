@@ -27,6 +27,53 @@ const OFF_CATEGORY_MAP: Record<string, string> = {
   'en:pastas':               'pasta',
 }
 
+// Fallback-Schluesselwoerter: OFF-Tags sind meist SPEZIFISCH (en:sodas,
+// en:sparkling-waters, en:yogurts, en:milk-chocolates, ...). Wenn kein exakter
+// Map-Treffer, wird jeder Tag auf diese Substrings geprueft (spezifisch → grob).
+// Reihenfolge = Prioritaet (spezifischere zuerst).
+const OFF_CATEGORY_KEYWORDS: Array<{ needle: string; slug: string }> = [
+  { needle: 'water',      slug: 'beverages' },
+  { needle: 'soda',       slug: 'beverages' },
+  { needle: 'juice',      slug: 'beverages' },
+  { needle: 'drink',      slug: 'beverages' },
+  { needle: 'beverage',   slug: 'beverages' },
+  { needle: 'tea',        slug: 'beverages' },
+  { needle: 'coffee',     slug: 'beverages' },
+  { needle: 'yogurt',     slug: 'dairy' },
+  { needle: 'yoghurt',    slug: 'dairy' },
+  { needle: 'cheese',     slug: 'dairy' },
+  { needle: 'milk',       slug: 'dairy' },
+  { needle: 'dairy',      slug: 'dairy' },
+  { needle: 'cream',      slug: 'dairy' },
+  { needle: 'butter',     slug: 'dairy' },
+  { needle: 'meat',       slug: 'meat' },
+  { needle: 'sausage',    slug: 'meat' },
+  { needle: 'poultry',    slug: 'meat' },
+  { needle: 'fish',       slug: 'fish' },
+  { needle: 'seafood',    slug: 'fish' },
+  { needle: 'fruit',      slug: 'fruits' },
+  { needle: 'vegetable',  slug: 'vegetables' },
+  { needle: 'bread',      slug: 'bakery' },
+  { needle: 'bakery',     slug: 'bakery' },
+  { needle: 'pastr',      slug: 'bakery' },
+  { needle: 'cereal',     slug: 'cereals' },
+  { needle: 'potato',     slug: 'cereals' },
+  { needle: 'frozen',     slug: 'frozen' },
+  { needle: 'condiment',  slug: 'condiments' },
+  { needle: 'sauce',      slug: 'condiments' },
+  { needle: 'spice',      slug: 'condiments' },
+  { needle: 'snack',      slug: 'snacks' },
+  { needle: 'chip',       slug: 'snacks' },
+  { needle: 'chocolate',  slug: 'desserts' },
+  { needle: 'candy',      slug: 'desserts' },
+  { needle: 'sweet',      slug: 'desserts' },
+  { needle: 'dessert',    slug: 'desserts' },
+  { needle: 'biscuit',    slug: 'desserts' },
+  { needle: 'canned',     slug: 'canned' },
+  { needle: 'pasta',      slug: 'pasta' },
+  { needle: 'noodle',     slug: 'pasta' },
+]
+
 // ---------------------------------------------------------------------------
 // Parse "500 g" / "1 l" quantity strings from OFF
 // ---------------------------------------------------------------------------
@@ -77,17 +124,32 @@ function parseQuantity(raw: string | undefined): {
 async function resolveCategoryId(categoriesTags: string[] | undefined): Promise<string | null> {
   if (!categoriesTags?.length) return null
 
+  // 1. Exakter Map-Treffer (zuverlaessigste Zuordnung).
   for (const tag of categoriesTags) {
     const slug = OFF_CATEGORY_MAP[tag]
     if (slug) {
-      const row = await db.query.categories.findFirst({
-        where: eq(categories.slug, slug),
-        columns: { id: true },
-      })
-      if (row) return row.id
+      const id = await categoryIdBySlug(slug)
+      if (id) return id
+    }
+  }
+
+  // 2. Fallback: Schluesselwort-Substring in irgendeinem Tag (deckt spezifische
+  // OFF-Tags wie en:sparkling-waters, en:yogurts, en:milk-chocolates ab).
+  for (const { needle, slug } of OFF_CATEGORY_KEYWORDS) {
+    if (categoriesTags.some((t) => t.includes(needle))) {
+      const id = await categoryIdBySlug(slug)
+      if (id) return id
     }
   }
   return null
+}
+
+async function categoryIdBySlug(slug: string): Promise<string | null> {
+  const row = await db.query.categories.findFirst({
+    where: eq(categories.slug, slug),
+    columns: { id: true },
+  })
+  return row?.id ?? null
 }
 
 // ---------------------------------------------------------------------------

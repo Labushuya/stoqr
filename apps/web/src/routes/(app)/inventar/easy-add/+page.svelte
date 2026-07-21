@@ -190,10 +190,17 @@
     searchQuery = p.name
     searchResults = []
     selectedSources = {}
-    // Feld-Herkunft des Artikels laden (best-effort, rein informativ).
+    // Feld-Herkunft + Kategorie-Objekt des Artikels laden (best-effort, informativ).
+    // Fuellt die Kategorie nach, wenn sie im Treffer fehlt (z.B. Barcode-Scan gibt
+    // nur categoryId) — damit der Pill den Kategorie-WERT zeigt, nicht nur '?'.
     void fetch(`/api/products/${p.id}/sources`)
       .then((r) => (r.ok ? r.json() : null))
-      .then((b) => { if (b?.sources) selectedSources = b.sources as FieldSourceMap })
+      .then((b) => {
+        if (b?.sources) selectedSources = b.sources as FieldSourceMap
+        if (b?.category && selectedProduct && selectedProduct.id === p.id && !selectedProduct.category) {
+          selectedProduct = { ...selectedProduct, category: b.category as Category }
+        }
+      })
       .catch(() => {})
     // Einheit-Vorauswahl: Standard-Einheit des Artikels uebernehmen,
     // solange der Nutzer die Einheit nicht selbst gesetzt hat und sie existiert.
@@ -586,14 +593,17 @@
           {#if selectedProduct.brand}
             <span class="selected-brand">{selectedProduct.brand}</span>
           {/if}
+          {#if selectedProduct.category}
+            <span class="selected-cat">{selectedProduct.category.icon ? selectedProduct.category.icon + ' ' : ''}{selectedProduct.category.name} <SourceBadge source={selectedSources.category} /></span>
+          {:else}
+            <span class="selected-cat selected-cat--none">Keine Kategorie</span>
+          {/if}
           {#if scannedGtin}
             <span class="selected-brand">EAN {scannedGtin}</span>
           {/if}
-          <span class="selected-sources">
-            Herkunft:
-            {#if selectedProduct.imageUrl}Bild <SourceBadge source={selectedSources.image} />{/if}
-            Kat. <SourceBadge source={selectedSources.category} />
-          </span>
+          {#if selectedProduct.imageUrl}
+            <span class="selected-sources">Bild-Herkunft: <SourceBadge source={selectedSources.image} /></span>
+          {/if}
         </div>
         <button class="selected-clear" type="button" aria-label="Produkt entfernen" onclick={clearProduct}>
           <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
@@ -1551,6 +1561,15 @@
     gap: 4px;
     flex-wrap: wrap;
   }
+  .selected-cat {
+    font-size: var(--text-xs);
+    color: var(--color-text-secondary);
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    flex-wrap: wrap;
+  }
+  .selected-cat--none { color: var(--color-text-muted); font-style: italic; }
 
   .selected-clear {
     display: flex;

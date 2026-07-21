@@ -5,6 +5,31 @@ Neueste Einträge oben. Jeder Eintrag nennt den Commit-Kontext, damit andere LLM
 
 ---
 
+## [Unreleased] — G17: Kategorie-Mapping robuster + Bild-Persistenz (Volume-Fix) (implementiert, Test auf Pi ausstehend)
+
+Aus dem G16-Test: G15-4 (Kategorie) + Bilder-404-nach-jedem-Update. Diagnose (Workflow):
+
+- **G17-1 (Bild-Verlust bei jedem Update — echter, kritischer Fund):** Die auf dem Pi deployte
+  `docs/docker-compose.fam.ily.yml` hatte für den stoqr-Service **keinen Volume-Mount für `/data/media`** — nur
+  Postgres. Bilder lagen im flüchtigen Container-Layer und verschwanden bei **jedem** Image-Update (Container-Ersatz).
+  Die 404s + die `preload`-Warnung waren Symptome davon. Fix: Bind-Mount `/srv/hubdata/state/stoqr/media:/data/media`
+  ergänzt; entrypoint prüft Schreibbarkeit und weist auf `chown 1000:1000` hin. **Nutzer muss die Compose-Datei
+  einmalig auf dem Pi ersetzen + `chown` setzen**, dann sind Bilder persistent. (Die frühere G13-3-„Milderung" hatte
+  nur das Symptom berührt — die Ursache war ein fehlender Mount.)
+- **G17-2 (Kategorie greift jetzt):** `resolveCategoryId` matchte OFF-`categories_tags` nur exakt gegen 14 grobe
+  Top-Level-Tags → reale spezifische Tags (`en:sodas`, `en:yogurts`, …) verfehlten fast immer → `categoryId` blieb
+  leer. Neu: Keyword-Fallback (Substring-Matching, ~40 Begriffe → Kategorie) nach dem Exakt-Match.
+- **G17-3 (easy-add zeigt Kategorie-Wert):** Der „Bestand hinzufügen"-Pill zeigte nur die Kategorie-*Herkunft* („Kat. ?"),
+  nie den Wert → wirkte kaputt. Jetzt: Kategorie-Wert (Icon + Name) mit Herkunfts-Badge, bzw. „Keine Kategorie". Der
+  `/api/products/[id]/sources`-Endpoint liefert dafür zusätzlich das Kategorie-Objekt (füllt es auch nach Barcode-Scan).
+
+Gates: typecheck 0, lint 0/33, build ✓, vitest 105/105. Manifest: G15-4 geschärft + neuer G17-Block.
+
+### Commits
+(folgt)
+
+---
+
 ## [Unreleased] — G16: Feinschliff nach G15-Test (implementiert, Test auf Pi ausstehend)
 
 Aus dem G15-Test: 3 offene G15-Punkte + 2 gefundene Bugs + Modell-Fragen (die keine Änderung erforderten).
