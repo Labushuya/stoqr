@@ -5,6 +5,27 @@ Neueste Einträge oben. Jeder Eintrag nennt den Commit-Kontext, damit andere LLM
 
 ---
 
+## [Unreleased] — G25: Kategorie-Nachbesserungen — Emoji-Picker + Löschen im Edit-Modus (implementiert, Test auf Pi ausstehend)
+
+Aus dem G24-Test: Icon-Freitextfeld unbrauchbar (Text-Symbol ❄ sah anders aus als die Farb-Emoji der Basis-Kategorien); Löschen-Button im Bearbeiten-Modus nicht auffindbar.
+
+- **G25-1 (Löschen auch im Edit-Modus):** Der Löschen-Button steht jetzt sowohl in der Zeile (neben „Bearbeiten")
+  ALS AUCH im Bearbeiten-Panel (neben „Speichern"/„Abbrechen") — dort hatte der Nutzer ihn gesucht. Für die 9
+  Basis-Kategorien bleibt er ausgeblendet (löschgeschützt). Die Server-Löschlogik war korrekt; es war ein reines
+  Auffindbarkeits-Problem der UI.
+- **G25-2 (Emoji-Picker-Modal mit Suche):** Das Freitext-Icon-Feld ist durch einen **Icon-Button + Picker-Modal**
+  ersetzt (neu `EmojiPicker.svelte`). Der Picker zeigt eine kuratierte, durchsuchbare Sammlung von **Farb-Emojis**
+  (neu `lib/data/category-emojis.ts` mit Keyword-Suche, deutsch/englisch) — jedes garantiert ein Farb-Emoji, keine
+  monochromen Text-Symbole wie ❄. Das behebt das uneinheitliche Aussehen. Beim Anlegen UND Bearbeiten nutzbar.
+- **Tests:** `filterEmojis` (vitest 117, +4).
+
+Gates: typecheck 0, lint 0/33, build ✓, vitest 117/117. Manifest: G24-2/G24-4 präzisiert, neuer G25-Block.
+
+### Commits
+G25 (dieser Commit) — EmojiPicker-Modal + kuratierte Emoji-Daten, Löschen im Kategorie-Edit-Modus. Exakter Hash: siehe `git log`.
+
+---
+
 ## [Unreleased] — G24: Kategorie-Verwaltung (CRUD) — Stufe 1 des Kategorie-Ausbaus (implementiert, Test auf Pi ausstehend)
 
 Erster Schritt des gestuften Kategorie-System-Ausbaus (Stufe 1 CRUD → Stufe 2 Nesting → Stufe 3 Mapping-Regeln).

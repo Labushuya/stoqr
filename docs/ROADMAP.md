@@ -3,7 +3,7 @@
 > Kanonisches Datenmodell und Entwicklungsplan. Diese Datei ist führend für Absicht,
 > Logik und Ziel von stoqr. Bei Widersprüchen zwischen Code und dieser Datei gilt diese Datei.
 
-Letzte Aktualisierung: 2026-07-21 (G24: Kategorie-Verwaltung/CRUD — Stufe 1 des gestuften Kategorie-Ausbaus (CRUD → Nesting → Mapping); Einstellungen → Kategorien anlegen/umbenennen/löschen mit Seed-Schutz; Test auf Pi ausstehend)
+Letzte Aktualisierung: 2026-07-21 (G25: Kategorie-Feinschliff — durchsuchbarer Farb-Emoji-Picker (Modal) statt Freitext-Icon + Löschen auch im Bearbeiten-Modus; Test auf Pi ausstehend)
 
 ---
 

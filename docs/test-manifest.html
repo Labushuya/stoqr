@@ -108,7 +108,7 @@
 <div class="wrap">
   <header class="top">
     <h1>stoqr — Test-Manifest</h1>
-    <p class="subtitle">Blöcke A–E + F/F2 + G/G6/G7/G8/G10/G11/G12/G13/G15/G16/G17/G18/G19/G20/G21/G22/G24 · logisch aufbauender Durchlauf · Stand nach G24 (Kategorie-Verwaltung)</p>
+    <p class="subtitle">Blöcke A–E + F/F2 + G/G6/G7/G8/G10/G11/G12/G13/G15/G16/G17/G18/G19/G20/G21/G22/G24/G25 · logisch aufbauender Durchlauf · Stand nach G25 (Kategorie-Verwaltung + Emoji-Picker)</p>
 
     <div class="pre">
       <h2>Voraussetzung (kein Testschritt)</h2>
@@ -475,12 +475,21 @@ const BLOCKS = [
     items: [
       { id: 'G24-1', title: 'Kategorien-Seite listet alle Kategorien', steps: ['Einstellungen oeffnen.', 'Auf Kategorien verwalten tippen.'],
         expect: 'Die Seite listet die 9 Basis-Kategorien (mit Badge Basis) plus evtl. eigene. Basis-Kategorien haben KEINEN Loeschen-Button, nur Bearbeiten.' },
-      { id: 'G24-2', title: 'Neue Kategorie anlegen', steps: ['Unter Neue Kategorie anlegen einen Namen (z.B. Tiefkuehlkost) und optional ein Emoji-Icon eingeben.', 'Anlegen.', 'Danach einen Artikel bearbeiten und das Kategorie-Dropdown oeffnen.'],
-        expect: 'Die neue Kategorie erscheint sofort in der Liste (Toast Kategorie angelegt) und ist in den Artikel-/Bestand-Kategorie-Dropdowns waehlbar.' },
-      { id: 'G24-3', title: 'Kategorie umbenennen + Icon aendern', steps: ['Bei einer Kategorie (auch einer Basis-Kategorie) auf Bearbeiten.', 'Name und/oder Icon aendern, Speichern.', 'Seite neu laden.'],
+      { id: 'G24-2', title: 'Neue Kategorie anlegen (mit Emoji-Picker)', steps: ['Unter Neue Kategorie anlegen auf den Icon-Button tippen → Picker-Modal.', 'Im Picker per Suchfeld ein Emoji finden (z.B. tiefkuehl) und waehlen.', 'Namen (z.B. Tiefkuehlkost) eingeben, Anlegen.', 'Danach einen Artikel bearbeiten und das Kategorie-Dropdown oeffnen.'],
+        expect: 'Der Icon-Button oeffnet den Emoji-Picker (durchsuchbar, nur Farb-Emojis). Das gewaehlte Icon erscheint auf dem Button und spaeter an der Kategorie — konsistent mit den Basis-Icons (kein monochromes Text-Symbol). Die neue Kategorie erscheint sofort in der Liste und ist in den Kategorie-Dropdowns waehlbar.' },
+      { id: 'G24-3', title: 'Kategorie umbenennen + Icon aendern', steps: ['Bei einer Kategorie (auch einer Basis-Kategorie) auf Bearbeiten.', 'Icon ueber den Icon-Button (Picker) und/oder Name aendern, Speichern.', 'Seite neu laden.'],
         expect: 'Name/Icon sind sofort und nach Reload aktualisiert — auch bei Basis-Kategorien (die sind umbenennbar, nur nicht loeschbar).' },
-      { id: 'G24-4', title: 'Loeschschutz: verwendete + Basis-Kategorien', steps: ['Eine eigene, NICHT verwendete Kategorie loeschen (bestaetigen).', 'Versuchen, eine Kategorie zu loeschen, die einem Artikel zugeordnet ist.', 'Beobachten, dass Basis-Kategorien gar keinen Loeschen-Button haben.'],
+      { id: 'G24-4', title: 'Loeschschutz: verwendete + Basis-Kategorien', steps: ['Eine eigene, NICHT verwendete Kategorie loeschen (Loeschen-Button in der Zeile ODER im Bearbeiten-Modus, siehe G25-1).', 'Versuchen, eine Kategorie zu loeschen, die einem Artikel zugeordnet ist.', 'Beobachten, dass Basis-Kategorien keinen Loeschen-Button haben.'],
         expect: 'Unbenutzte eigene Kategorie wird geloescht (Toast). Verwendete Kategorie -> Fehlermeldung (409) Kategorie wird von N Artikel(n) verwendet, bleibt erhalten. Basis-Kategorien lassen sich nicht loeschen. /aktivitaet zeigt Anlegen/Umbenennen/Loeschen.' },
+    ]
+  },
+  {
+    tag: 'G25', name: 'Kategorie-Feinschliff: Emoji-Picker + Loeschen im Edit-Modus', desc: 'Nachbesserungen aus dem G24-Test: durchsuchbarer Farb-Emoji-Picker statt Freitext-Icon; Loeschen auch im Bearbeiten-Modus.',
+    items: [
+      { id: 'G25-1', title: 'Loeschen-Button auch im Bearbeiten-Modus', steps: ['Eine eigene Kategorie auf Bearbeiten.', 'Im Bearbeiten-Panel nach dem Loeschen-Button schauen (neben Speichern/Abbrechen).'],
+        expect: 'Im Bearbeiten-Modus gibt es fuer eigene Kategorien einen Loeschen-Button (neben Speichern/Abbrechen) — zusaetzlich zu dem in der Zeile. Bei Basis-Kategorien fehlt er (loeschgeschuetzt).' },
+      { id: 'G25-2', title: 'Emoji-Picker mit Suche (nur Farb-Emojis)', steps: ['Kategorie anlegen ODER bearbeiten → auf den Icon-Button tippen.', 'Im Modal ins Suchfeld z.B. kaese, wasser, putzen, hund tippen.', 'Ein Emoji anklicken.'],
+        expect: 'Ein Modal mit durchsuchbarem Emoji-Raster oeffnet sich. Die Suche filtert per Stichwort (deutsch/englisch). Alle angebotenen Icons sind FARB-Emojis (einheitlich mit den Basis-Kategorien) — kein monochromes ❄-Text-Symbol. Das gewaehlte Emoji landet am Icon-Button und wird beim Speichern uebernommen.' },
     ]
   },
   {

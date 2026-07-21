@@ -2,6 +2,7 @@
   import type { PageData } from './$types'
   import { toast } from '$lib/stores/toast'
   import ConfirmModal from '$lib/components/ConfirmModal.svelte'
+  import EmojiPicker from '$lib/components/EmojiPicker.svelte'
 
   let { data }: { data: PageData } = $props()
 
@@ -49,6 +50,14 @@
     confirmModal = { open: true, title, message, onConfirm }
   }
   function closeConfirm() { confirmModal = null }
+
+  // ── Emoji-Picker (Icon-Auswahl per Modal, G25) ─────────────────────────────
+  // target = 'add' → schreibt newIcon; target = 'edit' → schreibt editIcon.
+  let emojiPickerFor = $state<'add' | 'edit' | null>(null)
+  function pickEmoji(emoji: string) {
+    if (emojiPickerFor === 'add') newIcon = emoji
+    else if (emojiPickerFor === 'edit') editIcon = emoji
+  }
 
   function startEdit(c: Category) {
     editingId = c.id
@@ -170,13 +179,16 @@
           {#if editingId === cat.id}
             <div class="cat-edit">
               <div class="edit-fields">
-                <input class="input input--icon" type="text" bind:value={editIcon} placeholder="Icon" maxlength="64" aria-label="Icon (Emoji)" />
+                <button class="icon-btn" type="button" onclick={() => (emojiPickerFor = 'edit')} aria-label="Icon wählen" title="Icon wählen">{editIcon || '🏷️'}</button>
                 <input class="input" type="text" bind:value={editName} placeholder="Name" maxlength="128" aria-label="Name" />
               </div>
               {#if rowErrors[cat.id]}<p class="field-error">{rowErrors[cat.id]}</p>{/if}
               <div class="edit-actions">
                 <button class="btn-save-inline" type="button" disabled={editSaving} onclick={() => saveEdit(cat.id)}>Speichern</button>
                 <button class="btn-cancel-inline" type="button" onclick={cancelEdit}>Abbrechen</button>
+                {#if !isSeed(cat)}
+                  <button class="btn-delete-inline" type="button" disabled={deleting === cat.id} onclick={() => requestDelete(cat)}>Löschen</button>
+                {/if}
               </div>
             </div>
           {:else}
@@ -203,7 +215,7 @@
     {#if addError}<div class="alert alert--error" role="alert">{addError}</div>{/if}
     <div class="add-form">
       <div class="add-fields">
-        <input class="input input--icon" type="text" bind:value={newIcon} placeholder="Icon" maxlength="64" aria-label="Icon (Emoji)" />
+        <button class="icon-btn" type="button" onclick={() => (emojiPickerFor = 'add')} aria-label="Icon wählen" title="Icon wählen">{newIcon || '🏷️'}</button>
         <input class="input" type="text" bind:value={newName} placeholder="Name — z.B. Tiefkühlkost" maxlength="128" aria-label="Name" />
       </div>
       <div class="add-footer">
@@ -212,6 +224,13 @@
     </div>
   </section>
 </div>
+
+<EmojiPicker
+  open={emojiPickerFor !== null}
+  current={emojiPickerFor === 'add' ? (newIcon || null) : (editIcon || null)}
+  onPick={pickEmoji}
+  onClose={() => (emojiPickerFor = null)}
+/>
 
 {#if confirmModal}
   <ConfirmModal
@@ -261,7 +280,8 @@
 
   .input { flex: 1 1 200px; min-width: 0; height: 40px; padding: 0 var(--space-3); border-radius: var(--radius-md); border: 1px solid var(--color-border); background-color: var(--color-surface); color: var(--color-text-primary); font-family: var(--font-body); font-size: var(--text-base); outline: none; box-sizing: border-box; }
   .input:focus { border-color: var(--color-border-focus); box-shadow: 0 0 0 3px rgba(196, 103, 58, 0.15); }
-  .input--icon { flex: 0 1 72px; text-align: center; }
+  .icon-btn { flex: 0 0 auto; width: 48px; height: 40px; display: inline-flex; align-items: center; justify-content: center; font-size: 22px; line-height: 1; border-radius: var(--radius-md); border: 1px solid var(--color-border); background: var(--color-surface); cursor: pointer; }
+  .icon-btn:hover { border-color: var(--color-primary); background: var(--color-primary-subtle); }
 
   .alert { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-3) var(--space-4); border-radius: var(--radius-md); font-size: var(--text-sm); font-weight: 500; margin-bottom: var(--space-4); }
   .alert--error { background-color: var(--color-danger-subtle, #fee2e2); color: var(--color-danger, #dc2626); border: 1px solid rgba(220, 38, 38, 0.2); }
@@ -281,7 +301,6 @@
     .page { padding: var(--space-5) var(--space-3) var(--space-12); }
     .settings-section { padding: var(--space-4); }
     .edit-fields .input, .add-fields .input { flex-basis: 100%; }
-    .input--icon { flex-basis: 72px; }
     .cat-row { flex-direction: column; align-items: flex-start; }
     .cat-actions { width: 100%; justify-content: flex-end; }
   }
