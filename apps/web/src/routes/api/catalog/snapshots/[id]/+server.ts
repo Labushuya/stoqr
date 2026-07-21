@@ -23,6 +23,8 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
   const body = (await request.json().catch(() => ({}))) as {
     action?: 'confirm' | 'reject' | 'materialize'
     fields?: { image?: boolean; name?: boolean; category?: boolean; price?: boolean }
+    // G20-2: im Katalog-Spiegel manuell gewaehlte Ziel-Kategorie (gewinnt ueber Auto-Match).
+    categoryId?: string | null
   }
 
   if (body.action === 'materialize') {
@@ -41,7 +43,13 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
 
   if (body.action === 'confirm') {
     const fields = body.fields ?? { image: true }
-    const res = await applySnapshotToProduct(params.id, householdId, fields, locals.user.id)
+    const res = await applySnapshotToProduct(
+      params.id,
+      householdId,
+      fields,
+      locals.user.id,
+      body.categoryId ?? null
+    )
     if (!res.ok) {
       if (res.reason === 'no-product') {
         return json({ error: 'Kein Artikel mit dieser EAN gefunden.' }, { status: 409 })

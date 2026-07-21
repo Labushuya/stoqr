@@ -472,7 +472,11 @@
   let unitSaving = $state(false)
 
   function startUnitEdit() {
-    draftDefaultUnit = product.defaultUnit
+    // Nur vorbelegen, wenn der aktuelle Wert eine bekannte Einheit ist. Ein
+    // verwaister Wert (z.B. 'piece', wenn diese System-Einheit in der DB fehlt)
+    // wuerde sonst wieder gebunden und liesse sich nicht aendern (G20-1). Dann
+    // leer lassen → der Nutzer waehlt eine gueltige Einheit, der Save-Guard greift.
+    draftDefaultUnit = units.some((u) => u.symbol === product.defaultUnit) ? product.defaultUnit : ''
     unitEditing = true
   }
   async function saveDefaultUnit() {
@@ -988,17 +992,13 @@
         <div class="pack-edit">
           <span class="pack-label">Standard-Einheit:</span>
           <select class="input" bind:value={draftDefaultUnit} aria-label="Standard-Einheit">
-            {#if product.defaultUnit && !units.some((u) => u.symbol === product.defaultUnit)}
-              <!-- Fallback: aktueller (nicht-Standard-)Wert, damit der Select ihn nicht verwirft (G19-1). -->
-              <option value={product.defaultUnit}>{product.defaultUnit}</option>
-            {/if}
             {#each units as u (u.id)}<option value={u.symbol}>{u.name}</option>{/each}
           </select>
           <button class="btn-save-inline" type="button" disabled={unitSaving} onclick={saveDefaultUnit}>Speichern</button>
           <button class="btn-cancel-inline" type="button" onclick={() => (unitEditing = false)}>Abbrechen</button>
         </div>
       {:else}
-        <span class="pack-view">Standard-Einheit: <strong>{unitLabel(product.defaultUnit)}</strong></span>
+        <span class="pack-view">Standard-Einheit: <strong>{unitLabel(product.defaultUnit)}</strong>{#if product.defaultUnit && !units.some((u) => u.symbol === product.defaultUnit)}<span class="unit-orphan-hint" title="Diese Einheit ist im Haushalt nicht (mehr) vorhanden. Bitte über „Ändern“ eine gültige Einheit wählen.">unbekannte Einheit</span>{/if}</span>
         <button class="target-edit-btn" type="button" onclick={startUnitEdit}>Ändern</button>
         <button class="target-edit-btn" type="button" onclick={openNormalizeModal}>Alle angleichen…</button>
       {/if}
@@ -1954,6 +1954,7 @@
   .pack-row { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; margin-top: var(--space-3); padding-top: var(--space-3); border-top: 1px solid var(--color-border-subtle); }
   .pack-view { font-size: var(--text-sm); color: var(--color-text-secondary); flex: 1; min-width: 0; }
   .pack-view strong { color: var(--color-text-primary); }
+  .unit-orphan-hint { display: inline-block; margin-left: 6px; font-size: 9px; font-weight: 700; padding: 0 5px; border-radius: 999px; background: color-mix(in srgb, var(--color-danger, #dc2626) 16%, transparent); color: var(--color-danger, #dc2626); text-transform: uppercase; letter-spacing: 0.03em; cursor: help; }
   .pack-none { color: var(--color-text-muted); font-style: italic; }
   .pack-edit { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; flex: 1; }
   .pack-label { font-size: var(--text-sm); color: var(--color-text-secondary); }

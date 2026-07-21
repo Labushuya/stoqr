@@ -1,7 +1,7 @@
 import { json } from '@sveltejs/kit'
 import type { RequestHandler } from './$types'
 import { deleteProduct, updateProduct, getProductById, setFieldSources, type ProductField } from '$lib/server/queries/products'
-import { requireHouseholdId } from '$lib/server/queries/households'
+import { requireHouseholdId, getUnits } from '$lib/server/queries/households'
 import { writeAudit } from '$lib/server/queries/audit'
 import { isUniqueViolation } from '$lib/server/db-errors'
 import { db } from '$lib/server/db'
@@ -42,7 +42,17 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
     if (description !== undefined) patch.description = description
     if (notes !== undefined) patch.notes = notes
     if (categoryId !== undefined) patch.categoryId = categoryId || null
-    if (defaultUnit !== undefined) patch.defaultUnit = defaultUnit
+    if (defaultUnit !== undefined) {
+      // defaultUnit MUSS eine im Haushalt bekannte Einheit sein (System oder
+      // Custom). Sonst faellt die Detailseite auf einen verwaisten Wert zurueck,
+      // der sich nicht mehr korrekt anzeigen/aendern laesst (G20-1). Strikte
+      // Validierung — analog api/inventory/normalize-unit.
+      const units = await getUnits(householdId)
+      if (!units.some((u) => u.symbol === defaultUnit)) {
+        return json({ error: `Unbekannte Einheit: ${defaultUnit}` }, { status: 400 })
+      }
+      patch.defaultUnit = defaultUnit
+    }
     // EAN/GTIN: leerer String → null (Feld leeren)
     if (gtin !== undefined) patch.gtin = gtin ? String(gtin).trim() : null
     // Bild-URL: leerer String → null

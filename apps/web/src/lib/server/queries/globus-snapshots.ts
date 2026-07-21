@@ -286,7 +286,11 @@ export async function applySnapshotToProduct(
   id: string,
   householdId: string,
   fields: { image?: boolean; name?: boolean; category?: boolean; price?: boolean },
-  reviewedBy?: string | null
+  reviewedBy?: string | null,
+  // G20-2: explizit im Katalog-Spiegel manuell gewaehlte Ziel-Kategorie. Wenn
+  // gesetzt (und fields.category), gewinnt sie ueber das Best-Effort-matchCategoryId
+  // und wird mit Herkunft 'manual' geschrieben (schuetzt vor spaeterem Auto-Sync).
+  manualCategoryId?: string | null
 ): Promise<{ ok: boolean; reason?: string }> {
   const snap = await db.query.globusSnapshots.findFirst({
     where: (s, { and, eq }) => and(eq(s.id, id), eq(s.householdId, householdId)),
@@ -311,6 +315,8 @@ export async function applySnapshotToProduct(
   if (!product) return { ok: false, reason: 'no-product' }
 
   const patch: { name?: string; imageUrl?: string | null; categoryId?: string | null } = {}
+  // Herkunft der Kategorie: 'globus' beim Auto-Match, 'manual' bei expliziter Wahl (G20-2).
+  let categorySource: 'globus' | 'manual' | null = null
 
   // Bild: lokaler /media-Pfad; angekreuzt -> immer setzen, sonst nur wenn leer.
   if (snap.localImagePath) {
@@ -321,19 +327,34 @@ export async function applySnapshotToProduct(
   if (snap.name && snap.name.trim() !== '' && (fields.name || !product.name?.trim())) {
     patch.name = snap.name.trim()
   }
-  // Kategorie best-effort: letzte (spezifischste) Kategorie per Name matchen.
-  if (Array.isArray(snap.category) && snap.category.length > 0) {
+  // Kategorie: 1) explizit manuell gewaehlt (gewinnt, Herkunft 'manual'); sonst
+  // 2) Best-Effort per matchCategoryId (Herkunft 'globus'). Manuelle Wahl wird
+  // gegen die categories-Tabelle validiert, damit keine Fremd-/Fantasie-ID landet.
+  if (fields.category && manualCategoryId) {
+    const catExists = await db.query.categories.findFirst({
+      where: eq(categories.id, manualCategoryId),
+      columns: { id: true },
+    })
+    if (catExists) {
+      patch.categoryId = manualCategoryId
+      categorySource = 'manual'
+    }
+  }
+  if (patch.categoryId === undefined && Array.isArray(snap.category) && snap.category.length > 0) {
     const catId = await matchCategoryId(snap.category)
-    if (catId && (fields.category || !product.categoryId)) patch.categoryId = catId
+    if (catId && (fields.category || !product.categoryId)) {
+      patch.categoryId = catId
+      categorySource = 'globus'
+    }
   }
 
   if (Object.keys(patch).length > 0) {
     await updateProduct(product.id, patch)
-    // Herkunft der uebernommenen Felder auf 'globus' setzen (G15).
-    const srcs: Partial<Record<ProductField, 'globus'>> = {}
+    // Herkunft der uebernommenen Felder setzen (G15/G20-2).
+    const srcs: Partial<Record<ProductField, 'globus' | 'manual'>> = {}
     if (patch.name !== undefined) srcs.name = 'globus'
     if (patch.imageUrl !== undefined) srcs.image = 'globus'
-    if (patch.categoryId !== undefined) srcs.category = 'globus'
+    if (patch.categoryId !== undefined && categorySource) srcs.category = categorySource
     await setFieldSources(product.id, srcs)
   }
 

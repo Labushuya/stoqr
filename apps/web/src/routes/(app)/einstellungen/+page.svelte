@@ -120,13 +120,33 @@
     catalogMirrorTick++
   }
 
+  // G20-2: manuell gewaehlte Ziel-Kategorie je Snapshot (snapshotId → categoryId).
+  // Eigenes untracked Overlay + Tick — NICHT aus $derived reseeden.
+  const snapCategoryChoice: Record<string, string> = {}
+  function setSnapCategory(id: string, categoryId: string) {
+    snapCategoryChoice[id] = categoryId
+    // Manuelle Wahl impliziert Uebernahme → Kategorie-Checkbox aktivieren, damit
+    // die Wahl beim Uebernehmen auch mitgesendet wird (sonst waere sie wirkungslos).
+    const cur = snapFields[id]
+    if (cur && categoryId) snapFieldOverrides[id] = { ...cur, category: true }
+    catalogMirrorTick++
+  }
+  // Effektiv gewaehlte Kategorie: manuelle Wahl → sonst Auto-Match des Katalogs.
+  function snapCategoryFor(id: string, fallback: string | null): string {
+    void catalogMirrorTick
+    return snapCategoryChoice[id] ?? fallback ?? ''
+  }
+
   async function reviewSnapshot(id: string, action: 'confirm' | 'reject', allFields = false) {
     snapshotBusy = id
     try {
       const fields = allFields
         ? { image: true, name: true, category: true, price: true }
         : (snapFields[id] ?? { image: true, name: false, category: false, price: false })
-      const payload = action === 'confirm' ? { action, fields } : { action }
+      // Bei Kategorie-Uebernahme die (ggf. manuell) gewaehlte Ziel-Kategorie mitsenden (G20-2).
+      const categoryId = fields.category ? (snapCategoryChoice[id] ?? undefined) : undefined
+      const payload =
+        action === 'confirm' ? { action, fields, ...(categoryId ? { categoryId } : {}) } : { action }
       const res = await fetch(`/api/catalog/snapshots/${id}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -554,13 +574,20 @@
                   <span class="snap-diff-new">{snap.localImagePath ? 'Katalog-Bild' : '(Katalog: kein Bild)'}</span>
                 </label>
 
-                <!-- Kategorie -->
+                <!-- Kategorie: Auto-Match ODER manuelle Zuordnung (G20-2). Checkbox
+                     ist aktiv, sobald eine Ziel-Kategorie waehlbar ist (Dropdown). -->
                 <label class="snap-diff-row" class:snap-diff-row--diff={r.diff.category.differs}>
-                  <input type="checkbox" disabled={!snap.catalogCategoryId} checked={snapFields[snap.id]?.category} onchange={() => toggleSnapField(snap.id, 'category')} />
-                  <span class="snap-diff-field">Kategorie {#if (snap.category?.length ?? 0) > 0 && !snap.catalogCategoryId}<span class="snap-diff-tag snap-diff-tag--warn">nicht zuordenbar</span>{:else if r.diff.category.differs}<span class="snap-diff-tag">abweichend</span>{:else}<span class="snap-diff-tag snap-diff-tag--ok">gleich</span>{/if}</span>
+                  <input type="checkbox" disabled={!snapCategoryFor(snap.id, snap.catalogCategoryId)} checked={snapFields[snap.id]?.category} onchange={() => toggleSnapField(snap.id, 'category')} />
+                  <span class="snap-diff-field">Kategorie {#if snapCategoryChoice[snap.id]}<span class="snap-diff-tag snap-diff-tag--ok">manuell</span>{:else if (snap.category?.length ?? 0) > 0 && !snap.catalogCategoryId}<span class="snap-diff-tag snap-diff-tag--warn">nicht zuordenbar</span>{:else if r.diff.category.differs}<span class="snap-diff-tag">abweichend</span>{:else}<span class="snap-diff-tag snap-diff-tag--ok">gleich</span>{/if}</span>
                   <span class="snap-diff-old">{r.product.categoryName || '(leer)'}</span>
                   <span class="snap-diff-arrow" aria-hidden="true">→</span>
-                  <span class="snap-diff-new">{#if (snap.category?.length ?? 0) > 0 && !snap.catalogCategoryId}{snap.category?.join(' › ')} <em class="snap-diff-hint">(keine passende stoqr-Kategorie)</em>{:else}{snap.category?.join(' › ') || '(Katalog: keine)'}{/if}</span>
+                  <span class="snap-diff-new snap-cat-pick">
+                    {#if (snap.category?.length ?? 0) > 0}<span class="snap-cat-raw" title="Globus-Kategorie-Pfad">{snap.category?.join(' › ')}</span>{/if}
+                    <select class="input snap-cat-select" value={snapCategoryFor(snap.id, snap.catalogCategoryId)} onchange={(e) => setSnapCategory(snap.id, e.currentTarget.value)} aria-label="Kategorie manuell zuordnen">
+                      <option value="">— Kategorie wählen —</option>
+                      {#each data.categories as c (c.id)}<option value={c.id}>{c.name}</option>{/each}
+                    </select>
+                  </span>
                 </label>
 
                 <!-- Preis (nur bei Markt-Bezug; als Preis-Vorschlag) -->
@@ -887,7 +914,9 @@
   .snap-diff-tag { font-size: 9px; font-weight: 700; padding: 0 5px; border-radius: 999px; background: color-mix(in srgb, var(--color-warning, #d97706) 18%, transparent); color: var(--color-warning, #d97706); text-transform: uppercase; letter-spacing: 0.03em; }
   .snap-diff-tag--ok { background: var(--color-surface-sunken); color: var(--color-text-muted); }
   .snap-diff-tag--warn { background: color-mix(in srgb, var(--color-danger, #dc2626) 16%, transparent); color: var(--color-danger, #dc2626); }
-  .snap-diff-hint { font-size: var(--text-xs); color: var(--color-text-muted); font-style: italic; }
+  .snap-cat-pick { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .snap-cat-raw { color: var(--color-text-muted); font-size: var(--text-xs); }
+  .snap-cat-select { height: 28px; padding: 0 6px; font-size: var(--text-xs); min-width: 150px; }
   .snap-diff-old { color: var(--color-text-muted); }
   .snap-diff-row--diff .snap-diff-old { text-decoration: line-through; }
   .snap-diff-arrow { color: var(--color-text-muted); }

@@ -3,7 +3,7 @@
 > Kanonisches Datenmodell und Entwicklungsplan. Diese Datei ist führend für Absicht,
 > Logik und Ziel von stoqr. Bei Widersprüchen zwischen Code und dieser Datei gilt diese Datei.
 
-Letzte Aktualisierung: 2026-07-21 (G19: Standard-Einheit-Header-Regression behoben, Kategorie-Mapping robuster + „nicht zuordenbar"-Status; Gebinde-Nesting & editierbare Kategorie-Mapping-Tabelle als Backlog aufgenommen; Test auf Pi ausstehend)
+Letzte Aktualisierung: 2026-07-21 (G20: Standard-Einheit-Klemme entschärft — fehlende System-Einheiten idempotent nachgezogen + Server-Validierung; Kategorie im Katalog-Spiegel manuell überschreibbar mit Herkunft manual; Test auf Pi ausstehend)
 
 ---
 
@@ -221,11 +221,11 @@ Kein Text-/Pipe-Export (existiert so in Bring! nicht).
   (Nullable-Felder, kein Backfill). Kein UI-Zwang — nur wo der Artikel eine Sub-Stückelung hat.
 - **Kategorie-Mapping-Tabelle (editierbar) + verschachtelte Kategorien** (Backlog, aufgenommen 2026-07-21 aus G19): heute
   sind die 9 Seed-Kategorien flach (`parent_id` NULL, nested vom Schema unterstützt aber ungenutzt). OFF-/Globus-Kategorien
-  werden per Code-Map (`OFF_CATEGORY_MAP`/`matchCategoryId`) best-effort auf diese 9 gemappt; nicht Zuordenbares zeigt jetzt
-  „nicht zuordenbar" (G19-2) statt fälschlich „gleich". **Ziel:** (a) editierbare Mapping-Tabelle in den Einstellungen
-  (Katalog-/OFF-Pfad → stoqr-Kategorie), sinnvoll sortiert, damit der User unzugeordnete Pfade selbst zuweisen kann; (b)
-  optional die Seed-Kategorien um Unterkategorien erweitern (nested, `parent_id`), falls die 9 zu grob werden. Reihenfolge:
-  erst Mapping-Tabelle (löst das akute „nicht zuordenbar" für den User), dann ggf. Nesting.
+  werden per Code-Map (`OFF_CATEGORY_MAP`/`matchCategoryId`) best-effort auf diese 9 gemappt. **Manuelles Überschreiben ist
+  seit G20 im Katalog-Spiegel möglich** (Dropdown über alle Kategorien, Herkunft `manual`) — der „nicht zuordenbar"-Fall ist
+  damit kein Sackgassen-Zustand mehr. **Offen (Backlog):** (a) eine dauerhafte, editierbare Mapping-Tabelle in den
+  Einstellungen (Katalog-/OFF-Pfad → stoqr-Kategorie), damit wiederkehrende Pfade automatisch greifen statt pro Artikel manuell;
+  (b) optional die Seed-Kategorien um Unterkategorien erweitern (nested, `parent_id`), falls die 9 zu grob werden.
 
 ### Kreislauf (Zielbild)
 Inventur (Ist erfassen) → Soll-Ist-Bedarf → Einkaufsliste (virtuelle Bestände) → Einkauf → Einbuchen

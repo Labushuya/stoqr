@@ -5,6 +5,37 @@ Neueste Einträge oben. Jeder Eintrag nennt den Commit-Kontext, damit andere LLM
 
 ---
 
+## [Unreleased] — G20: Standard-Einheit entklemmt + Kategorie manuell überschreibbar (implementiert, Test auf Pi ausstehend)
+
+Aus dem G19-Test: zwei nicht erfüllte Punkte, **beide durch meine G19-Arbeit verursacht**. Diagnose (Workflow):
+
+- **G20-1 (Standard-Einheit klebt auf „piece" — meine G19-Regression):** Mein G19-„Fix" (synthetische
+  Fallback-Option im Einheiten-`<select>`) hat den Fehler nicht behoben, sondern **eingefroren**. Wahre
+  Ursache: `product.defaultUnit='piece'` war im Haushalt **nicht in der `units`-Liste** (System-Einheit fehlte
+  — INSERT aus Migration 0002 lief in dem DB-Stand nicht sauber). Folge: rohes „piece" statt „Stück", und meine
+  Fallback-Option band den Wert stabil an Position 0 → nicht mehr änderbar. Dreifach behoben:
+  (1) **Migration 0018** trägt die 9 System-Einheiten (`piece/g/kg/ml/l/Packung/Dose/Flasche/Tetrapak`)
+  **strikt idempotent** nach (`WHERE NOT EXISTS` je Symbol, kein Overwrite, dimension/Faktor gesetzt).
+  (2) **UI-Härtung:** Fallback-Option entfernt; `startUnitEdit` bindet nur noch gültige Einheiten; ein verwaister
+  Ist-Wert wird als „unbekannte Einheit" markiert und zwingt zur Neuwahl.
+  (3) **Server-Validierung:** `PATCH /api/products/[id]` lehnt eine `defaultUnit` ab (400), die nicht in der
+  `units`-Tabelle des Haushalts existiert — so kann sich nie wieder ein verwaister Wert festsetzen.
+- **G20-2 (Kategorie manuell überschreibbar — die eigentliche, in G19 verfehlte Anforderung):** Statt nur
+  „nicht zuordenbar" anzuzeigen (wertlos), gibt es jetzt im **Katalog-Spiegel** je Artikel ein **Dropdown über
+  alle stoqr-Kategorien**. Auto-Match bleibt Vorbelegung; wählt der Nutzer manuell, wird die Kategorie
+  serverseitig validiert, übernommen und mit Herkunft **`manual`** gesetzt — ein späterer Globus-Sync
+  überschreibt die manuelle Wahl damit **nicht**. Die manuelle Wahl aktiviert die Übernahme-Checkbox automatisch.
+- **Klarstellung/Ehrlichkeit:** Der „Commit failed"-Eindruck bei G19 (`ec7b405`) war ein CI-**concurrency-cancel**
+  durch den unmittelbar folgenden Doku-Commit — der Docker-Publish lief erfolgreich, das Image `:main` enthielt
+  den Code. Ab G20 wird der Hash-Nachtrag in denselben Commit gezogen, damit sich nichts cancelt.
+
+Gates: typecheck 0, lint 0/33, build ✓, vitest 105/105. Manifest: G19-1/G17-2/G19-2/G19-3 als in G20 nachgebessert markiert, neuer G20-Block.
+
+### Commits
+G20 (dieser Commit) — Einheit-Migration 0018 + Server-Validierung, Fallback-Option zurückgebaut, manuelles Kategorie-Dropdown im Katalog-Spiegel mit Herkunft manual. Exakter Hash: siehe `git log`.
+
+---
+
 ## [Unreleased] — G19: Standard-Einheit-Header-Regression + Kategorie-Mapping-Fix (implementiert, Test auf Pi ausstehend)
 
 Aus dem G18-Test: harte Regression beim Ändern der Standard-Einheit + fälschlich als „gleich" gewertete, nicht existente Kategorie.
