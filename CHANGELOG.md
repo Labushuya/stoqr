@@ -28,7 +28,7 @@ Aus dem G15-Test: 3 offene G15-Punkte + 2 gefundene Bugs + Modell-Fragen (die ke
 Gates: typecheck 0, lint 0/33, build ✓, vitest 105/105. Manifest: G15-1/-4 geschärft + neuer G16-Block.
 
 ### Commits
-(folgt)
+f004ab1 (G16 — Badges immer, easy-add-Herkunft, Modal-Fix, Naehrstoff-Sortierung)
 
 ---
 
