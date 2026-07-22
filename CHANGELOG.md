@@ -5,6 +5,28 @@ Neueste Einträge oben. Jeder Eintrag nennt den Commit-Kontext, damit andere LLM
 
 ---
 
+## [Unreleased] — G30: Kategorie-Regeln nachgebessert (Ziel-Anzeige + Token-Auswahl statt Raten) (implementiert, Test auf Pi ausstehend)
+
+Aus dem G29-Test: die frisch angelegte Regel zeigte als Ziel „(gelöscht)", und der Token war blindes Freitext-Raten.
+
+- **G30-1 (Ziel „(gelöscht)"):** Der POST gab die rohe Insert-Zeile **ohne `categoryName`** zurück; die Liste rendert
+  `categoryName ?? '(gelöscht)'` → die frische Zeile fiel auf den Fallback (nach Reload war es korrekt). Fix:
+  `createCategoryMapping` liefert `categoryName` mit (es lädt die Kategorie zur Validierung ohnehin) → die
+  POST-Antwort ist sofort korrekt anzeigbar.
+- **G30-2 (Token-Raten behoben):** Ein Token ist ein einzelnes **Globus-Pfad-Segment** (lowercase) bzw. ein ganzer
+  **OFF-`en:`-Tag** — vorher musste der Nutzer ihn erraten. Jetzt bietet das Token-Feld ein **`<datalist>`** mit den
+  **real vorkommenden** Werten: für Globus die distinct Pfad-Segmente aus den gesicherten Katalog-Snapshots des
+  Haushalts (neue Query `listGlobusCategorySegments`, driver-agnostisch in JS geflattet), für OFF eine kuratierte
+  Liste gängiger `en:`-Tags. Freitext bleibt möglich. Dazu ein Hinweistext, was ein Token je Quelle genau ist.
+- Die Schnell-Regel im Katalog-Spiegel (G29) nahm schon immer das echte Segment — unverändert.
+
+Gates: typecheck 0, lint 0/33, build ✓, vitest 137/137. Keine Migration. Manifest: G29-Items präzisiert, G30-Verweis.
+
+### Commits
+G30 (dieser Commit) — categoryName in POST-Antwort, Token-datalist aus echten Globus-Segmenten + kuratierten OFF-Tags. Exakter Hash: siehe `git log`.
+
+---
+
 ## [Unreleased] — G29: Automatische Kategorie-Mapping-Regeln — Stufe 3 (Kategorie-Ausbau abgeschlossen) (implementiert, Test auf Pi ausstehend)
 
 Letzte Stufe des Kategorie-Ausbaus (Stufe 1 CRUD G24/G25, Stufe 2 Nesting G27/G28). Löst den ursprünglichen

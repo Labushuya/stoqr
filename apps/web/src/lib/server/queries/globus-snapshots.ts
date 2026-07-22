@@ -502,3 +502,24 @@ export async function rejectSnapshot(id: string, householdId: string, reviewedBy
     .returning()
   return row ?? null
 }
+
+/**
+ * Distinct, lowercase-normalisierte Globus-Pfad-Segmente aus den Snapshots des
+ * Haushalts — die real vorkommenden Token-Kandidaten fuer Mapping-Regeln (G30).
+ * category ist text[]; hier bewusst driver-agnostisch: Arrays laden + in JS
+ * flatten/deduplizieren (Datenmenge je Haushalt klein), statt rohes unnest-SQL.
+ */
+export async function listGlobusCategorySegments(householdId: string): Promise<string[]> {
+  const rows = await db
+    .select({ category: globusSnapshots.category })
+    .from(globusSnapshots)
+    .where(eq(globusSnapshots.householdId, householdId))
+  const set = new Set<string>()
+  for (const r of rows) {
+    for (const seg of r.category ?? []) {
+      const norm = (seg ?? '').trim().toLowerCase()
+      if (norm !== '') set.add(norm)
+    }
+  }
+  return [...set].sort((a, b) => a.localeCompare(b))
+}

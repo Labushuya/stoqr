@@ -3,7 +3,7 @@
 > Kanonisches Datenmodell und Entwicklungsplan. Diese Datei ist führend für Absicht,
 > Logik und Ziel von stoqr. Bei Widersprüchen zwischen Code und dieser Datei gilt diese Datei.
 
-Letzte Aktualisierung: 2026-07-22 (G29: automatische Kategorie-Mapping-Regeln — Stufe 3, Kategorie-Ausbau abgeschlossen; category_mappings/Migration 0019, Regeln greifen bei Scan+Sync vor dem Code-Fallback, Verwaltungsseite + Schnell-Regel; Test auf Pi ausstehend)
+Letzte Aktualisierung: 2026-07-22 (G30: Kategorie-Regeln nachgebessert — Ziel-Kategorie sofort korrekt (kein „gelöscht"), Token-Auswahl via datalist aus echten Globus-Segmenten + kuratierten OFF-Tags statt Freitext-Raten; Test auf Pi ausstehend)
 
 ---
 

@@ -21,6 +21,8 @@
   let pageLoadError = $state<string | null>(data.loadError ?? null)
 
   const categories = $derived(data.categories as Category[])
+  const globusSegments = $derived((data.globusSegments as string[] | undefined) ?? [])
+  const offTags = $derived((data.offTags as string[] | undefined) ?? [])
   const NBSP = String.fromCharCode(160)
   const categoryTree = $derived(
     buildCategoryTree(
@@ -152,12 +154,29 @@
           <option value="globus">Globus-Katalog</option>
           <option value="off">OpenFoodFacts</option>
         </select>
-        <input class="input" type="text" bind:value={newToken} placeholder={newSource === 'off' ? 'OFF-Tag — z.B. en:yogurts' : 'Katalog-Segment — z.B. Kühlregal'} maxlength="200" aria-label="Token" />
+        <input class="input" type="text" bind:value={newToken}
+          list={newSource === 'globus' ? 'token-globus' : 'token-off'}
+          placeholder={newSource === 'off' ? 'OFF-Tag — z.B. en:yogurts' : 'Katalog-Segment — z.B. Getränke'}
+          maxlength="200" aria-label="Token" />
+        <datalist id="token-globus">
+          {#each globusSegments as s (s)}<option value={s}></option>{/each}
+        </datalist>
+        <datalist id="token-off">
+          {#each offTags as t (t)}<option value={t}></option>{/each}
+        </datalist>
         <select class="input" bind:value={newCategoryId} aria-label="Zielkategorie">
           <option value="">— Zielkategorie —</option>
           {#each categoryTree as c (c.id)}<option value={c.id}>{catIndent(c.depth)}{c.name}</option>{/each}
         </select>
       </div>
+      <p class="token-hint">
+        {#if newSource === 'globus'}
+          Ein Token ist ein einzelnes Katalog-Pfad-Segment (z.B. „Getränke" oder „Kühlregal") — Groß/Klein egal.
+          {#if globusSegments.length > 0}Die Liste schlägt real vorkommende Segmente aus deinen Katalog-Sicherungen vor.{:else}Noch keine Katalog-Segmente vorhanden — sichere zuerst den Katalog, dann erscheinen echte Vorschläge.{/if}
+        {:else}
+          Ein Token ist ein ganzer OpenFoodFacts-Tag (Form „en:…", z.B. „en:yogurts"). Die Liste zeigt gängige Tags.
+        {/if}
+      </p>
       <div class="add-footer">
         <button class="btn-primary" type="button" disabled={adding} onclick={addMapping}>Anlegen</button>
       </div>
@@ -207,6 +226,7 @@
   .add-form { display: flex; flex-direction: column; gap: var(--space-4); }
   .add-fields { display: flex; gap: var(--space-2); flex-wrap: wrap; }
   .add-footer { display: flex; }
+  .token-hint { font-size: var(--text-xs); color: var(--color-text-muted); margin: 0; line-height: 1.5; }
   .input { flex: 1 1 180px; min-width: 0; height: 40px; padding: 0 var(--space-3); border-radius: var(--radius-md); border: 1px solid var(--color-border); background-color: var(--color-surface); color: var(--color-text-primary); font-family: var(--font-body); font-size: var(--text-base); outline: none; box-sizing: border-box; }
   .input:focus { border-color: var(--color-border-focus); box-shadow: 0 0 0 3px rgba(196, 103, 58, 0.15); }
   .input--src { flex: 0 1 170px; }

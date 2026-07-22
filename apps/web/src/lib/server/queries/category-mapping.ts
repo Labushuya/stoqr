@@ -42,7 +42,7 @@ export async function listCategoryMappings(householdId: string): Promise<Categor
 }
 
 export type CreateMappingResult =
-  | { ok: true; row: CategoryMappingRow }
+  | { ok: true; row: CategoryMappingListItem }
   | { ok: false; reason: 'bad-input' | 'no-category' | 'duplicate'; detail?: string }
 
 export async function createCategoryMapping(
@@ -56,7 +56,7 @@ export async function createCategoryMapping(
   }
   const cat = await db.query.categories.findFirst({
     where: eq(categories.id, input.categoryId),
-    columns: { id: true },
+    columns: { id: true, name: true },
   })
   if (!cat) return { ok: false, reason: 'no-category' }
 
@@ -78,7 +78,8 @@ export async function createCategoryMapping(
     .insert(categoryMappings)
     .values({ householdId, source, token, categoryId: input.categoryId })
     .returning()
-  return { ok: true, row }
+  // categoryName mitliefern, damit die POST-Antwort direkt anzeigbar ist (G30-1).
+  return { ok: true, row: { ...row, categoryName: cat.name } }
 }
 
 /** Loescht eine Regel (household-scoped). Liefert die geloeschte Zeile oder null. */

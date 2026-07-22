@@ -108,7 +108,7 @@
 <div class="wrap">
   <header class="top">
     <h1>stoqr — Test-Manifest</h1>
-    <p class="subtitle">Blöcke A–E + F/F2 + G/G6/G7/G8/G10/G11/G12/G13/G15/G16/G17/G18/G19/G20/G21/G22/G24/G25/G26/G27/G28/G29 · logisch aufbauender Durchlauf · Stand nach G29 (Kategorie-Mapping-Regeln)</p>
+    <p class="subtitle">Blöcke A–E + F/F2 + G/G6/G7/G8/G10/G11/G12/G13/G15/G16/G17/G18/G19/G20/G21/G22/G24/G25/G26/G27/G28/G29/G30 · logisch aufbauender Durchlauf · Stand nach G30 (Mapping-Regeln nachgebessert)</p>
 
     <div class="pre">
       <h2>Voraussetzung (kein Testschritt)</h2>
@@ -530,8 +530,8 @@ const BLOCKS = [
   {
     tag: 'G29', name: 'Automatische Kategorie-Mapping-Regeln', desc: 'Eigene Regeln (OFF-Tag / Globus-Segment -> Kategorie), die beim Scan und Sync automatisch greifen. Voraussetzung: Migration 0019 gelaufen.',
     items: [
-      { id: 'G29-1', title: 'Regel anlegen (Verwaltungsseite)', steps: ['Einstellungen -> Kategorie-Zuordnung.', 'Neue Regel: Quelle Globus-Katalog, Token z.B. Kuehlregal, Zielkategorie z.B. Milchprodukte, Anlegen.'],
-        expect: 'Die Regel erscheint in der Liste (Quelle-Badge + Token -> Kategorie). Doppelte Regel (gleiche Quelle+Token) wird mit Fehlermeldung abgelehnt.' },
+      { id: 'G29-1', title: 'Regel anlegen (Verwaltungsseite)', steps: ['Einstellungen -> Kategorie-Zuordnung.', 'Quelle Globus-Katalog waehlen; ins Token-Feld tippen/klicken -> die Vorschlagsliste (datalist) zeigt real vorkommende Katalog-Segmente; eines waehlen.', 'Zielkategorie z.B. Milchprodukte waehlen, Anlegen.'],
+        expect: 'Die Regel erscheint SOFORT korrekt in der Liste: Quelle-Badge + Token -> KATEGORIE-NAME (nicht mehr (geloescht), G30-1). Der Token muss nicht geraten werden — die Liste schlaegt echte Segmente vor (G30-2); Freitext bleibt moeglich. Doppelte Regel -> Fehlermeldung.' },
       { id: 'G29-2', title: 'Regel greift beim Katalog-Sync automatisch', steps: ['Eine Globus-Regel wie in G29-1 anlegen (Token = ein Segment, das im Globus-Pfad eines Artikels vorkommt).', 'Katalog sichern.', 'Den betreffenden Artikel im Spiegel / auf der Detailseite betrachten.'],
         expect: 'Die Kategorie wird jetzt AUTOMATISCH gemaess Regel gesetzt (vorher evtl. nicht zuordenbar). Analog beim Barcode-Scan mit passendem OFF-Tag (Quelle OpenFoodFacts).' },
       { id: 'G29-3', title: 'Vorrang: manuell schlaegt Regel', steps: ['Einem Artikel manuell eine Kategorie zuweisen (Katalog-Spiegel manuell ODER Artikel bearbeiten).', 'Katalog erneut sichern.'],
@@ -540,6 +540,15 @@ const BLOCKS = [
         expect: 'Aus dem spezifischsten Globus-Segment + der gewaehlten Kategorie wird eine dauerhafte Globus-Regel angelegt (Toast). Sie erscheint auf der Verwaltungsseite und greift beim naechsten Sync.' },
       { id: 'G29-5', title: 'Regel loeschen', steps: ['Auf der Verwaltungsseite eine Regel loeschen (bestaetigen).', 'Katalog erneut sichern.'],
         expect: 'Die Regel ist weg; die Zuordnung faellt fuer betroffene Artikel wieder auf die eingebaute Erkennung (Code-Fallback) zurueck.' },
+    ]
+  },
+  {
+    tag: 'G30', name: 'Mapping-Regeln nachgebessert (Ziel-Anzeige + Token-Auswahl)', desc: 'Nachbesserungen aus dem G29-Test: Ziel-Kategorie wird sofort korrekt angezeigt; Token wird aus echten Werten gewaehlt statt geraten.',
+    items: [
+      { id: 'G30-1', title: 'Ziel-Kategorie sofort korrekt (kein (geloescht))', steps: ['Einstellungen -> Kategorie-Zuordnung.', 'Eine Regel anlegen und die soeben angelegte Zeile in der Liste betrachten (OHNE Reload).'],
+        expect: 'Die neue Regel zeigt sofort den Kategorie-NAMEN als Ziel — nicht mehr (geloescht). (Auch nach Reload korrekt.)' },
+      { id: 'G30-2', title: 'Token-Auswahl aus echten Werten', steps: ['Quelle Globus-Katalog: ins Token-Feld klicken -> Vorschlagsliste zeigt real vorkommende Katalog-Segmente aus deinen Sicherungen.', 'Quelle OpenFoodFacts: Vorschlagsliste zeigt gaengige en:-Tags.', 'Ein Segment/Tag waehlen ODER frei tippen.'],
+        expect: 'Das Token-Feld bietet eine Auswahl echter Werte (Globus: Segmente aus den Snapshots; OFF: kuratierte en:-Tags) — kein blindes Raten mehr. Ein Hinweistext erklaert, dass ein Token ein Pfad-Segment (Globus) bzw. ein en:-Tag (OFF) ist. Freie Eingabe bleibt moeglich.' },
     ]
   },
   {
