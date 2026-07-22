@@ -32,6 +32,7 @@
     categories,
     units,
     showUnit = true,
+    fieldSources = {},
     onSaved,
     onClose,
   }: {
@@ -41,11 +42,17 @@
     units: UnitOption[]
     // Auf der Detailseite fuehrt der eigene defaultUnit-Editor → Feld hier ausblenden.
     showUnit?: boolean
+    // Feld-Herkunft (G32) — nur fuer den "Herkunft zuruecksetzen"-Button relevant.
+    fieldSources?: Partial<Record<'name' | 'brand' | 'image' | 'category' | 'unit', 'off' | 'globus' | 'manual'>>
     onSaved: (product: Record<string, unknown>) => void
     onClose: () => void
   } = $props()
 
   const isEdit = $derived(product != null)
+  // Kategorie-Herkunft lokal spiegeln, damit der Reset-Button sofort verschwindet (G32).
+  // svelte-ignore state_referenced_locally
+  let catSource = $state<'off' | 'globus' | 'manual' | undefined>(fieldSources.category)
+  let catSourceResetting = $state(false)
   // Non-Breaking-Spaces fuer sichtbare <option>-Einrueckung (normale Spaces
   // kollabiert HTML in <option>) — G27-2.
   const catIndent = (depth: number) => (depth > 0 ? String.fromCharCode(160).repeat(depth * 4) : '')
@@ -85,8 +92,27 @@
     fImageUrl = product?.imageUrl ?? ''
     fUnit = product?.defaultUnit ?? 'piece'
     fDescription = product?.description ?? ''
+    catSource = fieldSources.category
     error = null
   })
+
+  async function resetCategorySource() {
+    if (!product?.id) return
+    catSourceResetting = true
+    try {
+      const res = await fetch(`/api/products/${product.id}/sources?field=category`, { method: 'DELETE' })
+      if (!res.ok && res.status !== 204) {
+        toast.error(`Fehler ${res.status}`)
+        return
+      }
+      catSource = undefined // Button sofort ausblenden
+      toast.success('Kategorie-Herkunft zurückgesetzt — wieder für Regeln empfänglich')
+    } catch {
+      toast.error('Netzwerkfehler.')
+    } finally {
+      catSourceResetting = false
+    }
+  }
 
   async function save() {
     const name = fName.trim()
@@ -171,7 +197,7 @@
         </label>
 
         <label class="pf-field">
-          <span class="pf-label">Kategorie</span>
+          <span class="pf-label">Kategorie {#if isEdit && catSource === 'manual'}<button class="pf-reset-src" type="button" disabled={catSourceResetting} title="Setzt die manuelle Herkunft zurück — die Kategorie bleibt, wird aber wieder für Zuordnungs-Regeln empfänglich." onclick={resetCategorySource}>Herkunft zurücksetzen</button>{/if}</span>
           <select class="pf-input" bind:value={fCategoryId}>
             <option value="">— keine —</option>
             {#each categoryTree as cat (cat.id)}
@@ -274,6 +300,20 @@
     font-weight: 600;
     color: var(--color-text-secondary);
   }
+  .pf-reset-src {
+    margin-left: var(--space-2);
+    padding: 0 6px;
+    height: 18px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-full);
+    background: transparent;
+    color: var(--color-primary);
+    font-size: 10px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .pf-reset-src:hover:not(:disabled) { background: var(--color-primary-subtle); border-color: var(--color-primary); }
+  .pf-reset-src:disabled { opacity: 0.5; cursor: not-allowed; }
   .pf-input {
     height: 40px;
     padding: 0 var(--space-3);

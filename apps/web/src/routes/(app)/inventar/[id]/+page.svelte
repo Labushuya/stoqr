@@ -1477,6 +1477,7 @@
   {categories}
   units={units}
   showUnit={false}
+  {fieldSources}
   onSaved={onProductSaved}
   onClose={() => (editProductOpen = false)}
 />

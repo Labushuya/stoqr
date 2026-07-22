@@ -38,6 +38,9 @@
   // Gemeinsame Artikel-Bearbeitung (G11): null-product = Anlegen.
   let formOpen = $state(false)
   let formProduct = $state<Product | null>(null)
+  // Feld-Herkunft des bearbeiteten Artikels (G32) — lazy beim Edit-Oeffnen geladen,
+  // fuer den "Herkunft zuruecksetzen"-Button in ProductForm.
+  let formFieldSources = $state<Record<string, 'off' | 'globus' | 'manual'>>({})
 
   // Delete
   let deleting = $state<string | null>(null)
@@ -59,10 +62,17 @@
 
   function openEdit(p: Product) {
     formProduct = p
+    formFieldSources = {}
     formOpen = true
+    // Herkunft nachladen (fuer den "Herkunft zuruecksetzen"-Button, G32).
+    fetch(`/api/products/${p.id}/sources`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((b) => { if (b?.sources) formFieldSources = b.sources })
+      .catch(() => {})
   }
   function openAdd() {
     formProduct = null
+    formFieldSources = {}
     formOpen = true
   }
   function closeForm() {
@@ -254,6 +264,7 @@
   product={formProduct}
   {categories}
   {units}
+  fieldSources={formFieldSources}
   onSaved={onFormSaved}
   onClose={closeForm}
 />

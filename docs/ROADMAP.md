@@ -3,7 +3,7 @@
 > Kanonisches Datenmodell und Entwicklungsplan. Diese Datei ist führend für Absicht,
 > Logik und Ziel von stoqr. Bei Widersprüchen zwischen Code und dieser Datei gilt diese Datei.
 
-Letzte Aktualisierung: 2026-07-22 (G31: Mapping-Regel ordnet beim Übernehmen auch bestehende (nicht-manuelle) Artikel-Kategorien neu zu — Overwrite-Guard behoben, manuell bleibt geschützt; „Sichern vs. Übernehmen" klargestellt; Test auf Pi ausstehend)
+Letzte Aktualisierung: 2026-07-23 (G32: manueller Kategorie-Herkunfts-Schutz zurücksetzbar — „Herkunft zurücksetzen"-Button in ProductForm (Detailseite + Artikel-Katalog), macht die Kategorie wieder regel-/auto-empfänglich; Test auf Pi ausstehend)
 
 ---
 

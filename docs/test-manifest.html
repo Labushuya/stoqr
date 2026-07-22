@@ -108,7 +108,7 @@
 <div class="wrap">
   <header class="top">
     <h1>stoqr — Test-Manifest</h1>
-    <p class="subtitle">Blöcke A–E + F/F2 + G/G6/G7/G8/G10/G11/G12/G13/G15/G16/G17/G18/G19/G20/G21/G22/G24/G25/G26/G27/G28/G29/G30/G31 · logisch aufbauender Durchlauf · Stand nach G31 (Regel-Overwrite bestehender Artikel)</p>
+    <p class="subtitle">Blöcke A–E + F/F2 + G/G6/G7/G8/G10/G11/G12/G13/G15/G16/G17/G18/G19/G20/G21/G22/G24/G25/G26/G27/G28/G29/G30/G31/G32 · logisch aufbauender Durchlauf · Stand nach G32 (Kategorie-Herkunft zurücksetzbar)</p>
 
     <div class="pre">
       <h2>Voraussetzung (kein Testschritt)</h2>
@@ -560,6 +560,17 @@ const BLOCKS = [
         expect: 'Die manuell gesetzte Kategorie bleibt erhalten (Regel ueberschreibt manuelle NICHT). Nur mit bewusst gesetztem Kategorie-Haken laesst sie sich ueberschreiben.' },
       { id: 'G31-3', title: 'Sichern vs. Uebernehmen ist erklaert', steps: ['Katalog-Spiegel oeffnen, die Legende ueber den Diff-Zeilen lesen.'],
         expect: 'Die Legende stellt klar: „Katalog sichern" holt nur Vorschlaege; die Zuordnung (auch per Regel) greift erst beim „Uebernehmen".' },
+    ]
+  },
+  {
+    tag: 'G32', name: 'Manuellen Kategorie-Schutz zuruecksetzen', desc: 'Eine manuell gesetzte Kategorie laesst sich wieder regel-empfaenglich machen (Herkunft zuruecksetzen), ohne den Artikel neu anzulegen.',
+    items: [
+      { id: 'G32-1', title: 'Herkunft-zuruecksetzen-Button bei manueller Kategorie', steps: ['Einen Artikel mit MANUELL gesetzter Kategorie bearbeiten (Detailseite ODER Artikel-Katalog in Einstellungen).', 'Beim Kategorie-Feld nach dem kleinen Button „Herkunft zuruecksetzen" schauen.', 'Klicken.'],
+        expect: 'Der Button erscheint NUR wenn die Kategorie-Herkunft „manuell" ist. Nach dem Klick verschwindet er (Toast), die Kategorie-WERT bleibt; auf der Detailseite wird das Herkunfts-Badge zu „?" (nicht erfasst).' },
+      { id: 'G32-2', title: 'Danach greift die Regel wieder', steps: ['Fuer den Artikel aus G32-1 (Herkunft zurueckgesetzt) existiert/erstelle eine Mapping-Regel fuer sein Globus-Segment.', 'Katalog-Spiegel: beim Artikel Uebernehmen.'],
+        expect: 'Die Kategorie wird jetzt wieder per Regel neu zugeordnet — der fruehere manuelle Schutz ist aufgehoben. (Genau der G31-2-Wunsch.)' },
+      { id: 'G32-3', title: 'Button fehlt, wenn nicht manuell', steps: ['Einen Artikel mit Herkunft OFF/Globus oder ohne erfasste Herkunft (?) bearbeiten.'],
+        expect: 'Der „Herkunft zuruecksetzen"-Button ist NICHT sichtbar (es gibt keinen manuellen Schutz zum Aufheben).' },
     ]
   },
   {

@@ -5,6 +5,29 @@ Neueste Einträge oben. Jeder Eintrag nennt den Commit-Kontext, damit andere LLM
 
 ---
 
+## [Unreleased] — G32: Manuellen Kategorie-Herkunfts-Schutz zurücksetzbar (wieder regel-empfänglich) (implementiert, Test auf Pi ausstehend)
+
+Aus dem G31-Test (Folgewunsch): Eine Kategorie mit Herkunft `manual` war dauerhaft vor Mapping-Regeln geschützt —
+es fehlte ein Weg, das aufzuheben, ohne den Artikel neu anzulegen.
+
+- **Server:** neue `clearFieldSource(productId, field)` (löscht die `product_field_sources`-Zeile) + **DELETE**
+  `/api/products/[id]/sources?field=category` (Feld gegen die 5 erlaubten Werte validiert). Danach gilt die Herkunft
+  als „nicht erfasst" → der G31-Guard (`srcs.category !== 'manual'`) lässt Regeln/Auto-Match wieder zu. Der
+  Kategorie-**Wert bleibt** unberührt.
+- **UI:** `ProductForm` bekam ein optionales `fieldSources`-Prop und zeigt beim Kategorie-Feld — nur im Bearbeiten-
+  Modus UND wenn die Herkunft `manual` ist — einen kleinen **„Herkunft zurücksetzen"**-Button (Tooltip erklärt:
+  Wert bleibt, wird wieder regel-empfänglich). Klick → DELETE, Button verschwindet sofort, Toast.
+- **Überall verdrahtet:** Detailseite reicht `data.fieldSources` an ProductForm; der Artikel-Katalog lädt die
+  Herkunft **lazy** beim Öffnen des Edit-Modals (`GET …/sources`) — kein N+1 im Listen-Load. Damit ist der Button an
+  allen Kategorie-Bearbeitungsstellen verfügbar (die alle über ProductForm laufen).
+
+Gates: typecheck 0, lint 0/33, build ✓, vitest 137/137. Keine Migration. Manifest: neuer G32-Block.
+
+### Commits
+G32 (dieser Commit) — clearFieldSource + DELETE-Endpoint, ProductForm „Herkunft zurücksetzen"-Button, überall verdrahtet. Exakter Hash: siehe `git log`.
+
+---
+
 ## [Unreleased] — G31: Mapping-Regel ordnet auch bestehende Artikel neu zu (Overwrite-Guard) (implementiert, Test auf Pi ausstehend)
 
 Aus dem G29-Test: die Regel wirkte nur bei NEU angelegten Artikeln, nicht bei bestehenden mit schon gesetzter

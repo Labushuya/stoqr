@@ -557,6 +557,18 @@ export async function setFieldSources(
 	}
 }
 
+/**
+ * Entfernt die Feld-Herkunft eines einzelnen Feldes (loescht die Zeile). Danach
+ * gilt die Herkunft als 'nicht erfasst' → SourceBadge zeigt '?' und ein manueller
+ * Schutz (source 'manual') faellt weg, sodass Mapping-Regeln/Auto-Match wieder
+ * greifen (G32). Der Feld-WERT am Artikel bleibt unveraendert.
+ */
+export async function clearFieldSource(productId: string, field: ProductField): Promise<void> {
+	await db
+		.delete(productFieldSources)
+		.where(and(eq(productFieldSources.productId, productId), eq(productFieldSources.field, field)));
+}
+
 /** Liefert die Herkunft je Feld als Map (fehlende Felder bleiben undefined). */
 export async function getFieldSources(
 	productId: string
