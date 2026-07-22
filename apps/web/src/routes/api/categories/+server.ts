@@ -22,11 +22,11 @@ export const POST: RequestHandler = async ({ locals, request }) => {
   if (!locals.user) return json({ error: 'Unauthorized' }, { status: 401 })
   const householdId = await requireHouseholdId(locals.user.id)
 
-  const body = (await request.json().catch(() => ({}))) as { name?: string; icon?: string | null }
+  const body = (await request.json().catch(() => ({}))) as { name?: string; icon?: string | null; parentId?: string | null }
   const name = (body.name ?? '').trim()
   if (!name) return json({ error: 'Name erforderlich' }, { status: 400 })
 
-  const row = await createCategory({ name, icon: body.icon ?? null })
+  const row = await createCategory({ name, icon: body.icon ?? null, parentId: body.parentId ?? null })
 
   await writeAudit({
     householdId,
@@ -34,7 +34,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
     action: 'INSERT',
     tableName: 'categories',
     recordId: row.id,
-    newValues: { name: row.name, slug: row.slug, icon: row.icon },
+    newValues: { name: row.name, slug: row.slug, icon: row.icon, parentId: row.parentId },
   })
 
   return json(row, { status: 201 })

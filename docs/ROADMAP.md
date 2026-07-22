@@ -3,7 +3,7 @@
 > Kanonisches Datenmodell und Entwicklungsplan. Diese Datei ist führend für Absicht,
 > Logik und Ziel von stoqr. Bei Widersprüchen zwischen Code und dieser Datei gilt diese Datei.
 
-Letzte Aktualisierung: 2026-07-22 (G26: Räume/Lagerorte-Verwaltung vereinheitlicht — geteilter Emoji-Picker mit kontextabhängigen Vorschlägen, Fächer-Icon ergänzt, Toast vereinheitlicht; Test auf Pi ausstehend)
+Letzte Aktualisierung: 2026-07-22 (G27: verschachtelte Kategorien — Stufe 2 des Kategorie-Ausbaus; parentId aktiviert, beliebig tief mit Zyklus-Schutz, eingerückte Dropdowns + ↳-Symbol; Test auf Pi ausstehend)
 
 ---
 
@@ -223,10 +223,10 @@ Kein Text-/Pipe-Export (existiert so in Bring! nicht).
   Auto-Mapping (nur wenige Katalog-Pfade treffen die 9 flachen Seed-Kategorien) wird gelöst, indem der Nutzer das
   Kategorie-System selbst pflegt. **Stufe 1 (G24, erledigt): Kategorie-CRUD** — Einstellungen → Kategorien: anlegen/
   umbenennen/löschen; Seed-Kategorien löschgeschützt; in-use-409 bei zugeordneten Artikeln/Unterkategorien.
-  **Stufe 2 (geplant): Nesting** — `parent_id` aktivieren, beliebig tief mit Rekursionsschutz, Baum-Anzeige in allen
-  Kategorie-Dropdowns. **Stufe 3 (geplant): Mapping-Regeln** — Tabelle `category_mappings` (OFF-Tag/Globus-Segment →
-  Kategorie, household-scoped), greift automatisch bei Scan + Sync vor dem Code-Fallback. Manuelles Überschreiben pro
-  Artikel bleibt (G20-2/G22-1).
+  **Stufe 2 (G27, erledigt): Nesting** — `parent_id` aktiviert, beliebig tief mit Zyklus-Schutz (isDescendant),
+  eingerückte Baum-Dropdowns + ↳-Symbol bei Unterkategorie-Werten. **Stufe 3 (geplant): Mapping-Regeln** — Tabelle
+  `category_mappings` (OFF-Tag/Globus-Segment → Kategorie, household-scoped), greift automatisch bei Scan + Sync vor
+  dem Code-Fallback. Manuelles Überschreiben pro Artikel bleibt (G20-2/G22-1).
 - **Design-Schuld — categories global:** `categories` hat kein `household_id` (9 Seed-Kategorien global, `slug` unique).
   Kategorie-CRUD (G24) wirkt daher haushaltsübergreifend. Bei einem Haushalt unkritisch; bei Multi-Household später auf
   household-scoped Kategorien umstellen (analog [[stoqr-ean-global-unique]]).

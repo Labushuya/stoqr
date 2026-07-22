@@ -17,7 +17,11 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
   if (!locals.user) return json({ error: 'Unauthorized' }, { status: 401 })
   const householdId = await requireHouseholdId(locals.user.id)
 
-  const body = (await request.json().catch(() => ({}))) as { name?: string; icon?: string | null }
+  const body = (await request.json().catch(() => ({}))) as {
+    name?: string
+    icon?: string | null
+    parentId?: string | null
+  }
   if (body.name !== undefined && body.name.trim() === '') {
     return json({ error: 'Name darf nicht leer sein' }, { status: 400 })
   }
@@ -25,8 +29,12 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
   const before = await getCategoryById(params.id)
   if (!before) return json({ error: 'Not found' }, { status: 404 })
 
-  const updated = await updateCategory(params.id, { name: body.name, icon: body.icon })
-  if (!updated) return json({ error: 'Not found' }, { status: 404 })
+  const res = await updateCategory(params.id, { name: body.name, icon: body.icon, parentId: body.parentId })
+  if (!res.ok) {
+    if (res.reason === 'cycle') return json({ error: res.detail ?? 'Ungültige Verschachtelung.' }, { status: 409 })
+    return json({ error: 'Not found' }, { status: 404 })
+  }
+  const updated = res.row
 
   await writeAudit({
     householdId,
@@ -34,8 +42,8 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
     action: 'UPDATE',
     tableName: 'categories',
     recordId: params.id,
-    oldValues: { name: before.name, icon: before.icon },
-    newValues: { name: updated.name, icon: updated.icon },
+    oldValues: { name: before.name, icon: before.icon, parentId: before.parentId },
+    newValues: { name: updated.name, icon: updated.icon, parentId: updated.parentId },
   })
 
   return json(updated)

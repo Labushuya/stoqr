@@ -2,6 +2,7 @@ import { db } from '$lib/server/db'
 import { categories, products } from '@stoqr/db'
 import { eq, asc, sql } from 'drizzle-orm'
 import { isSeedCategorySlug, slugify } from './category-slug'
+import { isDescendant, type CatNode } from '$lib/utils/category-tree'
 
 // ---------------------------------------------------------------------------
 // Kategorie-Verwaltung (Stufe 1: CRUD). categories ist GLOBAL (kein household_id) —
@@ -39,34 +40,66 @@ export function listCategories(): Promise<CategoryRow[]> {
 export async function createCategory(input: {
   name: string
   icon?: string | null
+  parentId?: string | null
 }): Promise<CategoryRow> {
   const name = input.name.trim()
   const slug = await uniqueSlug(slugify(name))
   const [{ max }] = await db
     .select({ max: sql<number>`coalesce(max(${categories.sortOrder}), 0)` })
     .from(categories)
+  // parentId nur setzen, wenn er auf eine existierende Kategorie zeigt (sonst Wurzel).
+  let parentId: string | null = null
+  if (input.parentId) {
+    const parent = await getCategoryById(input.parentId)
+    parentId = parent ? input.parentId : null
+  }
   const [row] = await db
     .insert(categories)
     .values({
       name,
       slug,
       icon: input.icon?.trim() || null,
+      parentId,
       sortOrder: Number(max) + 1,
     })
     .returning()
   return row
 }
 
+export type UpdateResult =
+  | { ok: true; row: CategoryRow }
+  | { ok: false; reason: 'not-found' | 'cycle'; detail?: string }
+
 export async function updateCategory(
   id: string,
-  input: { name?: string; icon?: string | null }
-): Promise<CategoryRow | null> {
-  const patch: Partial<{ name: string; icon: string | null }> = {}
+  input: { name?: string; icon?: string | null; parentId?: string | null }
+): Promise<UpdateResult> {
+  const patch: Partial<{ name: string; icon: string | null; parentId: string | null }> = {}
   if (input.name !== undefined) patch.name = input.name.trim()
   if (input.icon !== undefined) patch.icon = input.icon?.trim() || null
-  if (Object.keys(patch).length === 0) return (await getCategoryById(id)) ?? null
+
+  if (input.parentId !== undefined) {
+    const newParent = input.parentId || null
+    if (newParent) {
+      // Zyklus-Schutz: neuer Parent darf nicht die Kategorie selbst oder einer
+      // ihrer Nachkommen sein. Ueber die gesamte (flache) Liste pruefen.
+      const all = await listCategories()
+      const nodes: CatNode[] = all.map((c) => ({
+        id: c.id, name: c.name, icon: c.icon, parentId: c.parentId, sortOrder: c.sortOrder,
+      }))
+      if (isDescendant(nodes, newParent, id)) {
+        return { ok: false, reason: 'cycle', detail: 'Kategorie kann nicht ihrer eigenen Unterkategorie untergeordnet werden.' }
+      }
+    }
+    patch.parentId = newParent
+  }
+
+  if (Object.keys(patch).length === 0) {
+    const existing = await getCategoryById(id)
+    return existing ? { ok: true, row: existing } : { ok: false, reason: 'not-found' }
+  }
   const [row] = await db.update(categories).set(patch).where(eq(categories.id, id)).returning()
-  return row ?? null
+  return row ? { ok: true, row } : { ok: false, reason: 'not-found' }
 }
 
 export function getCategoryById(id: string): Promise<CategoryRow | undefined> {

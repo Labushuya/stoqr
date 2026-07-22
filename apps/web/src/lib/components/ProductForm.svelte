@@ -1,5 +1,6 @@
 <script lang="ts">
   import { toast } from '$lib/stores/toast'
+  import { buildCategoryTree } from '$lib/utils/category-tree'
 
   // ---------------------------------------------------------------------------
   // ProductForm — EINE vollstaendige Artikel-Stammdaten-Bearbeitung (G11).
@@ -12,7 +13,7 @@
   // onSaved(product) liefert das gespeicherte/angelegte Produkt zurueck.
   // ---------------------------------------------------------------------------
 
-  type Category = { id: string; name: string }
+  type Category = { id: string; name: string; parentId?: string | null; icon?: string | null; sortOrder?: number }
   type UnitOption = { symbol: string; name: string }
   type ProductInput = {
     id: string
@@ -45,6 +46,16 @@
   } = $props()
 
   const isEdit = $derived(product != null)
+  // Kategorien als Baum (eingerueckte Optionen, G27). parentId/sortOrder sind optional
+  // im Prop-Typ → defensiv normalisieren.
+  const categoryTree = $derived(
+    buildCategoryTree(
+      categories.map((c) => ({
+        id: c.id, name: c.name, icon: c.icon ?? null,
+        parentId: c.parentId ?? null, sortOrder: c.sortOrder ?? 0,
+      }))
+    )
+  )
 
   // Draft-Felder, aus product geseedet (bzw. leer beim Anlegen).
   let fName = $state('')
@@ -160,8 +171,8 @@
           <span class="pf-label">Kategorie</span>
           <select class="pf-input" bind:value={fCategoryId}>
             <option value="">— keine —</option>
-            {#each categories as cat (cat.id)}
-              <option value={cat.id}>{cat.name}</option>
+            {#each categoryTree as cat (cat.id)}
+              <option value={cat.id}>{'  '.repeat(cat.depth)}{cat.name}</option>
             {/each}
           </select>
         </label>

@@ -2,11 +2,21 @@
   import { enhance } from '$app/forms'
   import { invalidateAll } from '$app/navigation'
   import { toast } from '$lib/stores/toast'
+  import { buildCategoryTree } from '$lib/utils/category-tree'
   import type { PageData, ActionData } from './$types'
 
   // ── Props ──────────────────────────────────────────────────────────────────
 
   let { data, form }: { data: PageData; form: ActionData } = $props()
+
+  // Kategorien als Baum (eingerueckte Optionen im Katalog-Spiegel-Select, G27).
+  const categoryTree = $derived(
+    buildCategoryTree(
+      (data.categories as { id: string; name: string; icon: string | null; parentId: string | null; sortOrder: number }[]).map((c) => ({
+        id: c.id, name: c.name, icon: c.icon, parentId: c.parentId, sortOrder: c.sortOrder,
+      }))
+    )
+  )
 
   // ── Global tolerance state ─────────────────────────────────────────────────
 
@@ -178,6 +188,8 @@
     name: string
     slug: string
     icon: string | null
+    parentId: string | null
+    sortOrder: number
     defaultExpiryToleranceDays: number
   }
 
@@ -609,7 +621,7 @@
                     {#if (snap.category?.length ?? 0) > 0}<span class="snap-cat-raw" title="Globus-Kategorie-Pfad">{snap.category?.join(' › ')}</span>{/if}
                     <select class="input snap-cat-select" value={snapCategoryFor(snap.id, snap.catalogCategoryId, r.product.categoryId)} onchange={(e) => setSnapCategory(snap.id, e.currentTarget.value)} aria-label="Kategorie manuell zuordnen">
                       <option value="">— Kategorie wählen —</option>
-                      {#each data.categories as c (c.id)}<option value={c.id}>{c.name}</option>{/each}
+                      {#each categoryTree as c (c.id)}<option value={c.id}>{'  '.repeat(c.depth)}{c.name}</option>{/each}
                     </select>
                   </span>
                 </label>

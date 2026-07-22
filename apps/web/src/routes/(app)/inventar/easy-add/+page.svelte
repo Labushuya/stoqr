@@ -11,6 +11,7 @@
     name: string
     icon: string | null
     slug: string
+    parentId?: string | null
   }
 
   type ProductResult = {
@@ -594,7 +595,7 @@
             <span class="selected-brand">{selectedProduct.brand}</span>
           {/if}
           {#if selectedProduct.category}
-            <span class="selected-cat">{selectedProduct.category.icon ? selectedProduct.category.icon + ' ' : ''}{selectedProduct.category.name} <SourceBadge source={selectedSources.category} /></span>
+            <span class="selected-cat">{#if selectedProduct.category.parentId}<span class="cat-sub" title="Unterkategorie" aria-hidden="true">↳ </span>{/if}{selectedProduct.category.icon ? selectedProduct.category.icon + ' ' : ''}{selectedProduct.category.name} <SourceBadge source={selectedSources.category} /></span>
           {:else}
             <span class="selected-cat selected-cat--none">Keine Kategorie</span>
           {/if}
@@ -1570,6 +1571,7 @@
     flex-wrap: wrap;
   }
   .selected-cat--none { color: var(--color-text-muted); font-style: italic; }
+  .selected-cat .cat-sub { color: var(--color-text-muted); }
 
   .selected-clear {
     display: flex;

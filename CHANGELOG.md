@@ -5,6 +5,34 @@ Neueste Einträge oben. Jeder Eintrag nennt den Commit-Kontext, damit andere LLM
 
 ---
 
+## [Unreleased] — G27: Verschachtelte Kategorien (Nesting) — Stufe 2 des Kategorie-Ausbaus (implementiert, Test auf Pi ausstehend)
+
+Stufe 2 des gestuften Kategorie-Ausbaus (Stufe 1 CRUD = G24/G25). Kategorien lassen sich jetzt **beliebig tief
+verschachteln** (z.B. Getränke → Wasser → Sprudel). Keine Migration nötig — `categories.parentId` + Relations
+existierten bereits, waren nur ungenutzt.
+
+- **Baum-Helfer (neu, DB-frei):** `lib/utils/category-tree.ts` — `buildCategoryTree` (DFS → flache Liste mit `depth`,
+  robust gegen verwaiste/zyklische Einträge), `isDescendant` (Zyklus-Schutz mit Besuchsschutz), `categoryDepth`.
+  +11 Vitest.
+- **Query/API:** `createCategory`/`updateCategory` + POST/PATCH nehmen jetzt `parentId`. `updateCategory` hat einen
+  **Zyklus-Schutz** (eine Kategorie kann nicht sich selbst oder einem Nachkommen untergeordnet werden) → PATCH gibt
+  **409** mit Klartext. `writeAudit` protokolliert `parentId`.
+- **Kategorie-Verwaltung:** Liste als **eingerückter Baum**; Add- UND Edit-Formular haben ein
+  **„Unterkategorie von …"-Dropdown** (Default: Oberkategorie). Beim Bearbeiten werden die Kategorie selbst + ihre
+  Nachkommen aus dem Eltern-Dropdown ausgeschlossen (Client-Zyklus-Schutz zusätzlich zum Server-409).
+- **Eingerückte Selects:** Der Kategorie-Select im Artikel-Formular (`ProductForm`) und im Katalog-Spiegel
+  (Einstellungen) zeigt Unterkategorien eingerückt in Baum-Reihenfolge.
+- **Wert-Anzeige:** wo eine Kategorie als Wert steht (Artikel-Detailseite, easy-add-Pill), signalisiert bei
+  Unterkategorien ein vorangestelltes **↳** die Verschachtelung (nur Symbol + Name, kein voller Pfad).
+- Löschschutz unverändert: Kategorie mit Unterkategorien → weiterhin 409. `categories` bleibt global (Design-Schuld).
+
+Gates: typecheck 0, lint 0/33, build ✓, vitest 131/131 (+11). Manifest: neuer G27-Block.
+
+### Commits
+G27 (dieser Commit) — Baum-Helfer, parentId in Query/API + Zyklus-Schutz, Baum-UI + eingerückte Selects + ↳-Symbol. Exakter Hash: siehe `git log`.
+
+---
+
 ## [Unreleased] — G26: Räume/Lagerorte-Verwaltung vereinheitlicht (geteilter Emoji-Picker, Fächer-Icon, Toast) (implementiert, Test auf Pi ausstehend)
 
 Aus dem G25-Test: die `/orte`-Seite soll dieselben Bausteine wie die Kategorie-Verwaltung nutzen — uniforme

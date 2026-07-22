@@ -3,6 +3,7 @@
   import { toast } from '$lib/stores/toast'
   import ConfirmModal from '$lib/components/ConfirmModal.svelte'
   import EmojiPicker from '$lib/components/EmojiPicker.svelte'
+  import { buildCategoryTree, isDescendant, type CatNode } from '$lib/utils/category-tree'
 
   let { data }: { data: PageData } = $props()
 
@@ -30,9 +31,23 @@
   ])
   const isSeed = (c: Category) => SEED_SLUGS.has(c.slug)
 
+  // Baum-Reihenfolge (DFS) mit Tiefe je Zeile — Anzeige eingerueckt (G27).
+  const asNodes = (list: Category[]): CatNode[] =>
+    list.map((c) => ({ id: c.id, name: c.name, icon: c.icon, parentId: c.parentId, sortOrder: c.sortOrder }))
+  const tree = $derived(buildCategoryTree(asNodes(rows)))
+  // Karte id → Category fuer schnellen Zugriff in der Baum-Zeile.
+  const byId = $derived(new Map(rows.map((c) => [c.id, c])))
+
+  // Eltern-Optionen fuer ein Formular: alle Kategorien als Baum; beim Bearbeiten
+  // die Kategorie selbst + ihre Nachkommen ausschliessen (Client-Zyklus-Schutz).
+  function parentOptions(excludeId: string | null) {
+    return tree.filter((n) => !excludeId || !isDescendant(asNodes(rows), n.id, excludeId))
+  }
+
   // ── Add form ──────────────────────────────────────────────────────────────
   let newName = $state('')
   let newIcon = $state('')
+  let newParentId = $state('')
   let adding = $state(false)
   let addError = $state<string | null>(null)
 
@@ -40,6 +55,7 @@
   let editingId = $state<string | null>(null)
   let editName = $state('')
   let editIcon = $state('')
+  let editParentId = $state('')
   let editSaving = $state(false)
   let rowErrors = $state<Record<string, string>>({})
 
@@ -63,6 +79,7 @@
     editingId = c.id
     editName = c.name
     editIcon = c.icon ?? ''
+    editParentId = c.parentId ?? ''
     rowErrors = { ...rowErrors, [c.id]: '' }
   }
   function cancelEdit() { editingId = null }
@@ -76,7 +93,7 @@
       const res = await fetch(`/api/categories/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, icon: editIcon.trim() || null }),
+        body: JSON.stringify({ name, icon: editIcon.trim() || null, parentId: editParentId || null }),
       })
       const body = await res.json().catch(() => ({}))
       if (!res.ok) { rowErrors = { ...rowErrors, [id]: body.error ?? `Fehler ${res.status}` }; return }
@@ -98,13 +115,14 @@
       const res = await fetch('/api/categories', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, icon: newIcon.trim() || null }),
+        body: JSON.stringify({ name, icon: newIcon.trim() || null, parentId: newParentId || null }),
       })
       const body = await res.json().catch(() => ({}))
       if (!res.ok) { addError = body.error ?? `Fehler ${res.status}`; return }
       rows = [...rows, body as Category]
       newName = ''
       newIcon = ''
+      newParentId = ''
       toast.success('Kategorie angelegt')
     } catch {
       addError = 'Netzwerkfehler.'
@@ -174,14 +192,25 @@
     <div class="section-header"><h2 class="section-title">Meine Kategorien</h2></div>
 
     <div class="cat-list" role="list">
-      {#each rows as cat (cat.id)}
-        <div class="cat-row" role="listitem">
+      {#each tree as node (node.id)}
+        {@const cat = byId.get(node.id)}
+        {#if cat}
+        <div class="cat-row" role="listitem" style="padding-left: calc(var(--space-4) + {node.depth} * var(--space-5));">
           {#if editingId === cat.id}
             <div class="cat-edit">
               <div class="edit-fields">
                 <button class="icon-btn" type="button" onclick={() => (emojiPickerFor = 'edit')} aria-label="Icon wählen" title="Icon wählen">{editIcon || '🏷️'}</button>
                 <input class="input" type="text" bind:value={editName} placeholder="Name" maxlength="128" aria-label="Name" />
               </div>
+              <label class="parent-field">
+                <span class="parent-label">Unterkategorie von</span>
+                <select class="input" bind:value={editParentId} aria-label="Unterkategorie von">
+                  <option value="">— keine (Oberkategorie) —</option>
+                  {#each parentOptions(cat.id) as opt (opt.id)}
+                    <option value={opt.id}>{'  '.repeat(opt.depth)}{opt.icon ? opt.icon + ' ' : ''}{opt.name}</option>
+                  {/each}
+                </select>
+              </label>
               {#if rowErrors[cat.id]}<p class="field-error">{rowErrors[cat.id]}</p>{/if}
               <div class="edit-actions">
                 <button class="btn-save-inline" type="button" disabled={editSaving} onclick={() => saveEdit(cat.id)}>Speichern</button>
@@ -193,6 +222,7 @@
             </div>
           {:else}
             <div class="cat-info">
+              {#if node.depth > 0}<span class="cat-sub" aria-hidden="true" title="Unterkategorie">↳</span>{/if}
               <span class="cat-icon" aria-hidden="true">{cat.icon || '🏷️'}</span>
               <span class="cat-name">{cat.name}</span>
               {#if isSeed(cat)}<span class="system-badge">Basis</span>{/if}
@@ -205,6 +235,7 @@
             </div>
           {/if}
         </div>
+        {/if}
       {/each}
     </div>
   </section>
@@ -218,6 +249,15 @@
         <button class="icon-btn" type="button" onclick={() => (emojiPickerFor = 'add')} aria-label="Icon wählen" title="Icon wählen">{newIcon || '🏷️'}</button>
         <input class="input" type="text" bind:value={newName} placeholder="Name — z.B. Tiefkühlkost" maxlength="128" aria-label="Name" />
       </div>
+      <label class="parent-field">
+        <span class="parent-label">Unterkategorie von (optional)</span>
+        <select class="input" bind:value={newParentId} aria-label="Unterkategorie von">
+          <option value="">— keine (Oberkategorie) —</option>
+          {#each parentOptions(null) as opt (opt.id)}
+            <option value={opt.id}>{'  '.repeat(opt.depth)}{opt.icon ? opt.icon + ' ' : ''}{opt.name}</option>
+          {/each}
+        </select>
+      </label>
       <div class="add-footer">
         <button class="btn-primary" type="button" disabled={adding} onclick={addCategory}>Anlegen</button>
       </div>
@@ -265,6 +305,7 @@
   .cat-row { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--color-border-subtle); background-color: var(--color-surface); min-height: 52px; }
   .cat-row:last-child { border-bottom: none; }
   .cat-info { display: flex; align-items: center; gap: var(--space-2); flex: 1; min-width: 0; }
+  .cat-sub { color: var(--color-text-muted); font-size: var(--text-sm); }
   .cat-icon { font-size: var(--text-lg); line-height: 1; }
   .cat-name { font-size: var(--text-sm); font-weight: 600; color: var(--color-text-primary); }
   .system-badge { display: inline-flex; align-items: center; height: 20px; padding: 0 var(--space-2); border-radius: var(--radius-full); background: var(--color-surface-sunken); color: var(--color-text-muted); font-size: 11px; font-weight: 600; }
@@ -276,6 +317,8 @@
   .field-error { font-size: var(--text-xs); color: var(--color-danger, #dc2626); margin: 0; }
 
   .add-form { display: flex; flex-direction: column; gap: var(--space-4); }
+  .parent-field { display: flex; flex-direction: column; gap: var(--space-1); }
+  .parent-label { font-size: var(--text-xs); color: var(--color-text-muted); }
   .add-footer { display: flex; }
 
   .input { flex: 1 1 200px; min-width: 0; height: 40px; padding: 0 var(--space-3); border-radius: var(--radius-md); border: 1px solid var(--color-border); background-color: var(--color-surface); color: var(--color-text-primary); font-family: var(--font-body); font-size: var(--text-base); outline: none; box-sizing: border-box; }

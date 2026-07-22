@@ -25,6 +25,8 @@ export const load: PageServerLoad = async ({ locals }) => {
         name: true,
         slug: true,
         icon: true,
+        parentId: true,
+        sortOrder: true,
         defaultExpiryToleranceDays: true,
       },
     }),

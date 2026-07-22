@@ -108,7 +108,7 @@
 <div class="wrap">
   <header class="top">
     <h1>stoqr — Test-Manifest</h1>
-    <p class="subtitle">Blöcke A–E + F/F2 + G/G6/G7/G8/G10/G11/G12/G13/G15/G16/G17/G18/G19/G20/G21/G22/G24/G25/G26 · logisch aufbauender Durchlauf · Stand nach G26 (Räume/Orte vereinheitlicht)</p>
+    <p class="subtitle">Blöcke A–E + F/F2 + G/G6/G7/G8/G10/G11/G12/G13/G15/G16/G17/G18/G19/G20/G21/G22/G24/G25/G26/G27 · logisch aufbauender Durchlauf · Stand nach G27 (verschachtelte Kategorien)</p>
 
     <div class="pre">
       <h2>Voraussetzung (kein Testschritt)</h2>
@@ -501,6 +501,19 @@ const BLOCKS = [
         expect: 'Fach-Anlegen und -Bearbeiten haben einen Icon-Button (vorher gar kein Icon-Feld). Das gewaehlte Icon erscheint am Fach-Chip und bleibt nach Reload erhalten.' },
       { id: 'G26-3', title: 'Einheitliche Toasts + unveraendertes Accordion', steps: ['Auf /orte etwas anlegen/loeschen und die Toast-Meldung beobachten.', 'Raeume/Lagerorte auf-/zuklappen.'],
         expect: 'Toast-Meldungen erscheinen im gewohnten globalen Stil (wie ueberall sonst), nicht mehr im alten Orte-eigenen Stil. Das Auf-/Zuklappen (Accordion) funktioniert unveraendert.' },
+    ]
+  },
+  {
+    tag: 'G27', name: 'Verschachtelte Kategorien (Nesting)', desc: 'Kategorien beliebig tief verschachtelbar mit Zyklus-Schutz; eingerueckte Dropdowns; Unterkategorie-Symbol bei der Wert-Anzeige.',
+    items: [
+      { id: 'G27-1', title: 'Unterkategorie anlegen (erscheint eingerueckt)', steps: ['Einstellungen -> Kategorien.', 'Neue Kategorie anlegen: Name z.B. Wasser, Unterkategorie von = Getraenke.', 'Die Liste betrachten.'],
+        expect: 'Wasser erscheint EINGERUECKT unter Getraenke (mit ↳-Symbol). Beliebig tief moeglich (z.B. Wasser -> Sprudel als weitere Ebene).' },
+      { id: 'G27-2', title: 'Kategorie-Dropdowns zeigen den Baum eingerueckt', steps: ['Einen Artikel bearbeiten -> Kategorie-Dropdown oeffnen.', '(Optional) Im Katalog-Spiegel (Einstellungen) das Kategorie-Dropdown oeffnen.'],
+        expect: 'Die Dropdowns zeigen Oberkategorien und darunter eingerueckt die Unterkategorien (Baum-Reihenfolge). Eine Unterkategorie ist waehlbar und wird korrekt gespeichert.' },
+      { id: 'G27-3', title: 'Unterkategorie-Symbol bei der Anzeige', steps: ['Einem Artikel eine Unterkategorie (z.B. Wasser) zuordnen.', 'Artikel-Detailseite und den easy-add-Auswahl-Pill betrachten.'],
+        expect: 'Bei einer Unterkategorie steht ein vorangestelltes ↳ vor dem Namen (signalisiert Unterkategorie) — nur Symbol + Name, kein voller Pfad.' },
+      { id: 'G27-4', title: 'Zyklus-Schutz beim Verschachteln', steps: ['Eine Kategorie mit Unterkategorie bearbeiten (z.B. Getraenke, hat Kind Wasser).', 'Im Unterkategorie-von-Dropdown versuchen, das eigene Kind (Wasser) als Eltern zu waehlen.'],
+        expect: 'Das eigene Kind/Nachkommen erscheinen NICHT als waehlbare Eltern-Option (Client-Schutz). Selbst wenn erzwungen, lehnt der Server mit einer Meldung ab (409). Eine Kategorie mit Unterkategorien bleibt zudem nicht loeschbar.' },
     ]
   },
   {
