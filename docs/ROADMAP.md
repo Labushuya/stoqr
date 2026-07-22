@@ -3,7 +3,7 @@
 > Kanonisches Datenmodell und Entwicklungsplan. Diese Datei ist führend für Absicht,
 > Logik und Ziel von stoqr. Bei Widersprüchen zwischen Code und dieser Datei gilt diese Datei.
 
-Letzte Aktualisierung: 2026-07-22 (G28: Kategorie-Nesting-Feinschliff — sichtbare Dropdown-Einrückung via NBSP, Select-Höhe-Fix, Tooltip aufs ganze Feld; Test auf Pi ausstehend)
+Letzte Aktualisierung: 2026-07-22 (G29: automatische Kategorie-Mapping-Regeln — Stufe 3, Kategorie-Ausbau abgeschlossen; category_mappings/Migration 0019, Regeln greifen bei Scan+Sync vor dem Code-Fallback, Verwaltungsseite + Schnell-Regel; Test auf Pi ausstehend)
 
 ---
 
@@ -224,9 +224,11 @@ Kein Text-/Pipe-Export (existiert so in Bring! nicht).
   Kategorie-System selbst pflegt. **Stufe 1 (G24, erledigt): Kategorie-CRUD** — Einstellungen → Kategorien: anlegen/
   umbenennen/löschen; Seed-Kategorien löschgeschützt; in-use-409 bei zugeordneten Artikeln/Unterkategorien.
   **Stufe 2 (G27, erledigt): Nesting** — `parent_id` aktiviert, beliebig tief mit Zyklus-Schutz (isDescendant),
-  eingerückte Baum-Dropdowns + ↳-Symbol bei Unterkategorie-Werten. **Stufe 3 (geplant): Mapping-Regeln** — Tabelle
-  `category_mappings` (OFF-Tag/Globus-Segment → Kategorie, household-scoped), greift automatisch bei Scan + Sync vor
-  dem Code-Fallback. Manuelles Überschreiben pro Artikel bleibt (G20-2/G22-1).
+  eingerückte Baum-Dropdowns + ↳-Symbol bei Unterkategorie-Werten. **Stufe 3 (G29, erledigt): Mapping-Regeln** —
+  Tabelle `category_mappings` (OFF-Tag/Globus-Segment → Kategorie, household-scoped, Migration 0019), greift
+  automatisch bei Scan + Sync vor dem Code-Fallback; Verwaltungsseite `Einstellungen → Kategorie-Zuordnung` +
+  Schnell-Regel im Katalog-Spiegel. Vorrang: manuell (G20-2) > Regel > Code-Fallback. **Kategorie-Ausbau abgeschlossen.**
+  Manuelles Überschreiben pro Artikel bleibt (G20-2/G22-1).
 - **Design-Schuld — categories global:** `categories` hat kein `household_id` (9 Seed-Kategorien global, `slug` unique).
   Kategorie-CRUD (G24) wirkt daher haushaltsübergreifend. Bei einem Haushalt unkritisch; bei Multi-Household später auf
   household-scoped Kategorien umstellen (analog [[stoqr-ean-global-unique]]).

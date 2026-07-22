@@ -155,6 +155,30 @@
     return snapCategoryChoice[id] ?? stored ?? autoMatch ?? ''
   }
 
+  // Schnell-Regel (G29): aus dem spezifischsten (letzten) Globus-Pfad-Segment +
+  // der aktuell gewaehlten Kategorie eine dauerhafte 'globus'-Mapping-Regel anlegen.
+  let ruleBusy = $state<string | null>(null)
+  async function createRuleFromSnapshot(snapId: string, path: string[] | null, categoryId: string) {
+    const token = (path && path.length > 0 ? path[path.length - 1] : '').trim()
+    if (!token) { toast.error('Kein Katalog-Segment für die Regel vorhanden.'); return }
+    if (!categoryId) { toast.error('Bitte zuerst eine Zielkategorie wählen.'); return }
+    ruleBusy = snapId
+    try {
+      const res = await fetch('/api/category-mappings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ source: 'globus', token, categoryId }),
+      })
+      const b = await res.json().catch(() => ({}))
+      if (!res.ok) { toast.error(String(b?.error ?? `Fehler ${res.status}`)); return }
+      toast.success(`Regel angelegt: „${token}" → Kategorie`)
+    } catch {
+      toast.error('Netzwerkfehler.')
+    } finally {
+      ruleBusy = null
+    }
+  }
+
   async function reviewSnapshot(id: string, action: 'confirm' | 'reject', allFields = false) {
     snapshotBusy = id
     try {
@@ -314,6 +338,12 @@
     <div class="section-body">
       <a href="/einstellungen/kategorien" class="members-link">
         <span>Kategorien verwalten</span>
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+          <path d="M6 3l5 5-5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </a>
+      <a href="/einstellungen/kategorie-zuordnung" class="members-link">
+        <span>Kategorie-Zuordnung (Regeln)</span>
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
           <path d="M6 3l5 5-5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
@@ -624,6 +654,11 @@
                       <option value="">— Kategorie wählen —</option>
                       {#each categoryTree as c (c.id)}<option value={c.id}>{catIndent(c.depth)}{c.name}</option>{/each}
                     </select>
+                    {#if (snap.category?.length ?? 0) > 0 && snapCategoryFor(snap.id, snap.catalogCategoryId, r.product.categoryId)}
+                      <button class="btn-rule" type="button" disabled={ruleBusy === snap.id}
+                        title="Dauerregel: dieses Katalog-Segment kuenftig automatisch dieser Kategorie zuordnen"
+                        onclick={() => createRuleFromSnapshot(snap.id, snap.category, snapCategoryFor(snap.id, snap.catalogCategoryId, r.product.categoryId))}>+ Regel</button>
+                    {/if}
                   </span>
                 </label>
 
@@ -954,6 +989,9 @@
   .snap-cat-pick { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; }
   .snap-cat-raw { color: var(--color-text-muted); font-size: var(--text-xs); }
   .snap-cat-select { height: 28px; padding: 0 6px; font-size: var(--text-xs); min-width: 150px; }
+  .btn-rule { height: 28px; padding: 0 8px; border-radius: var(--radius-md); border: 1px solid var(--color-border); background: transparent; color: var(--color-primary); font-size: var(--text-xs); font-weight: 600; cursor: pointer; white-space: nowrap; }
+  .btn-rule:hover:not(:disabled) { border-color: var(--color-primary); background: var(--color-primary-subtle); }
+  .btn-rule:disabled { opacity: 0.5; cursor: not-allowed; }
   .snap-diff-old { color: var(--color-text-muted); }
   .snap-diff-row--diff .snap-diff-old { text-decoration: line-through; }
   .snap-diff-arrow { color: var(--color-text-muted); }

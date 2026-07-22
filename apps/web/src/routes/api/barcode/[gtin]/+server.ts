@@ -5,6 +5,8 @@ import { products, categories, productNutrients } from '@stoqr/db'
 import { eq, sql } from 'drizzle-orm'
 import { extractOffNutrients, type OffNutrient } from '$lib/utils/off-nutrients'
 import { setFieldSources, type ProductField } from '$lib/server/queries/products'
+import { requireHouseholdId } from '$lib/server/queries/households'
+import { resolveMappedCategory } from '$lib/server/queries/category-mapping'
 
 // ---------------------------------------------------------------------------
 // OFF category tag → stoqr category slug. WICHTIG: die Ziel-Slugs muessen den
@@ -121,8 +123,15 @@ function parseQuantity(raw: string | undefined): {
 // Resolve stoqr categoryId from an OFF product (categories_tags array)
 // ---------------------------------------------------------------------------
 
-async function resolveCategoryId(categoriesTags: string[] | undefined): Promise<string | null> {
+async function resolveCategoryId(
+  categoriesTags: string[] | undefined,
+  householdId: string
+): Promise<string | null> {
   if (!categoriesTags?.length) return null
+
+  // 0. Nutzer-Mapping-Regeln haben Vorrang vor dem Code-Fallback (G29).
+  const mapped = await resolveMappedCategory('off', categoriesTags, householdId)
+  if (mapped) return mapped
 
   // 1. Exakter Map-Treffer (zuverlaessigste Zuordnung).
   for (const tag of categoriesTags) {
@@ -223,6 +232,7 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
   if (!locals.user) {
     return json({ error: 'Unauthorized' }, { status: 401 })
   }
+  const householdId = await requireHouseholdId(locals.user.id)
 
   const { gtin } = params
   // ?refresh=nutrients erzwingt einen frischen OFF-Abruf (Cache-Bypass) und
@@ -329,7 +339,7 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
   const { unit, defaultWeightG, defaultVolumeML } = parseQuantity(
     p.quantity as string | undefined
   )
-  const categoryId    = await resolveCategoryId(categoriesTags)
+  const categoryId    = await resolveCategoryId(categoriesTags, householdId)
   const nutrients     = extractOffNutrients(nutriments)
 
   // ------------------------------------------------------------------

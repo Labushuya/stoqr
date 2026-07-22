@@ -5,6 +5,33 @@ Neueste Einträge oben. Jeder Eintrag nennt den Commit-Kontext, damit andere LLM
 
 ---
 
+## [Unreleased] — G29: Automatische Kategorie-Mapping-Regeln — Stufe 3 (Kategorie-Ausbau abgeschlossen) (implementiert, Test auf Pi ausstehend)
+
+Letzte Stufe des Kategorie-Ausbaus (Stufe 1 CRUD G24/G25, Stufe 2 Nesting G27/G28). Löst den ursprünglichen
+G17-2-Schmerz („~1 von 100 mappt automatisch"): der Nutzer pflegt **editierbare Mapping-Regeln**, die beim
+Barcode-Scan UND Katalog-Sync automatisch greifen.
+
+- **Neue Tabelle `category_mappings`** (Migration 0019, household-scoped): `source ('off'|'globus')`, `token`
+  (lowercase-normalisiert), `categoryId`; unique je (household, source, token). Kein Snapshot-File (wie 0017/0018).
+- **Regel-Matching** (reiner Helfer `category-mapping-match.ts`, +6 Vitest): Match = **ganzer OFF-Tag / ganzes
+  Globus-Pfad-Segment**, case-insensitiv (kein Substring). Globus-Segmente spezifischste-zuerst.
+- **Automatisch, mit Vorrang manuell > Regel > Code-Fallback:** `resolveMappedCategory` greift in `resolveCategoryId`
+  (OFF, barcode-Endpoint — jetzt mit householdId) und in `matchCategoryId` (Globus) **vor** dem eingebauten
+  Map/Name-Slug-Fallback. Der manuelle Übernahme-Zweig aus G20-2 bleibt unangetastet Vorrang.
+- **Verwaltung:** neue Seite `Einstellungen → Kategorie-Zuordnung` (Regeln anlegen/löschen, Quelle-Badge, Token →
+  Zielkategorie mit Baum-Einrückung) + API `api/category-mappings` (GET/POST/DELETE, Auth, writeAudit, 409 bei Dup).
+- **Schnell-Regel im Katalog-Spiegel:** bei einem Globus-Pfad einen „+ Regel"-Button, der aus dem spezifischsten
+  Segment + der gewählten Kategorie direkt eine dauerhafte `globus`-Regel anlegt.
+
+Gates: typecheck 0, lint 0/33, build ✓, vitest 137/137 (+6). **Migration 0019 in CI scharf.** Manifest: neuer G29-Block.
+
+Damit ist der Kategorie-Ausbau abgeschlossen (CRUD → Nesting → Mapping-Regeln).
+
+### Commits
+G29 (dieser Commit) — category_mappings (Migration 0019), Regel-Matcher + Lookup, OFF/Globus-Einhängung, Verwaltungsseite + Schnell-Regel. Exakter Hash: siehe `git log`.
+
+---
+
 ## [Unreleased] — G28: Kategorie-Nesting-Feinschliff (Dropdown-Einrückung, Select-Höhe, Tooltip) (implementiert, Test auf Pi ausstehend)
 
 Aus dem G27-Test: drei optische Nachbesserungen.

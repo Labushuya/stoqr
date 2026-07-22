@@ -5,6 +5,7 @@ import { snapshotDiffers, type SnapshotComparable } from '$lib/utils/snapshot-di
 import { computeMirrorDiff, type MirrorDiff } from '$lib/utils/mirror-diff'
 import { updateProduct, createProduct, suggestStockUnitForProduct, setFieldSources, type ProductField } from '$lib/server/queries/products'
 import { recordProposedPrice } from '$lib/server/queries/prices'
+import { resolveMappedCategory } from '$lib/server/queries/category-mapping'
 
 export { snapshotDiffers }
 
@@ -196,7 +197,7 @@ export async function listCatalogMirror(householdId: string): Promise<CatalogMir
   for (const p of prods) {
     const snap = latestByGtin.get(p.gtin!) ?? null
     // Katalog-Kategorie best-effort auf stoqr-categoryId mappen (fuer den Diff).
-    const catalogCategoryId = snap ? await matchCategoryId(snap.category) : null
+    const catalogCategoryId = snap ? await matchCategoryId(snap.category, householdId) : null
     const diff = computeMirrorDiff(
       { name: p.name, imageUrl: p.imageUrl, categoryId: p.categoryId },
       snap
@@ -341,7 +342,7 @@ export async function applySnapshotToProduct(
     }
   }
   if (patch.categoryId === undefined && Array.isArray(snap.category) && snap.category.length > 0) {
-    const catId = await matchCategoryId(snap.category)
+    const catId = await matchCategoryId(snap.category, householdId)
     if (catId && (fields.category || !product.categoryId)) {
       patch.categoryId = catId
       categorySource = 'globus'
@@ -398,8 +399,16 @@ export async function applySnapshotToProduct(
  * Ergibt sich KEIN Treffer, wird null zurueckgegeben (→ "nicht zuordenbar" in der UI),
  * NICHT stillschweigend eine Default-Kategorie.
  */
-async function matchCategoryId(category: string[] | null | undefined): Promise<string | null> {
+async function matchCategoryId(
+  category: string[] | null | undefined,
+  householdId: string
+): Promise<string | null> {
   if (!Array.isArray(category) || category.length === 0) return null
+
+  // 0. Nutzer-Mapping-Regeln haben Vorrang vor dem Name/Slug-Fallback (G29).
+  const mapped = await resolveMappedCategory('globus', category, householdId)
+  if (mapped) return mapped
+
   const cats = await db
     .select({ id: categories.id, name: categories.name, slug: categories.slug })
     .from(categories)
@@ -431,7 +440,7 @@ export async function materializeSnapshotToProduct(
   })
   if (!snap) return null
 
-  const categoryId = await matchCategoryId(snap.category)
+  const categoryId = await matchCategoryId(snap.category, householdId)
   const imageUrl = snap.localImagePath ? `/media/${snap.localImagePath}` : undefined
 
   const productId = await createProduct({

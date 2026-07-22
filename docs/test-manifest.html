@@ -108,7 +108,7 @@
 <div class="wrap">
   <header class="top">
     <h1>stoqr — Test-Manifest</h1>
-    <p class="subtitle">Blöcke A–E + F/F2 + G/G6/G7/G8/G10/G11/G12/G13/G15/G16/G17/G18/G19/G20/G21/G22/G24/G25/G26/G27/G28 · logisch aufbauender Durchlauf · Stand nach G28 (Kategorie-Nesting + Feinschliff)</p>
+    <p class="subtitle">Blöcke A–E + F/F2 + G/G6/G7/G8/G10/G11/G12/G13/G15/G16/G17/G18/G19/G20/G21/G22/G24/G25/G26/G27/G28/G29 · logisch aufbauender Durchlauf · Stand nach G29 (Kategorie-Mapping-Regeln)</p>
 
     <div class="pre">
       <h2>Voraussetzung (kein Testschritt)</h2>
@@ -525,6 +525,21 @@ const BLOCKS = [
         expect: 'Das Auswahlfeld ist so hoch wie die anderen Felder (~40px), nicht mehr ueberhoch (~200px).' },
       { id: 'G28-3', title: 'Unterkategorie-Tooltip auf ganzem Feld', steps: ['Einen Artikel mit Unterkategorie oeffnen (Detailseite/easy-add).', 'Mit der Maus irgendwo ueber das Kategorie-Feld fahren (nicht nur ueber das ↳).'],
         expect: 'Der Tooltip Unterkategorie erscheint beim Hovern ueber das GESAMTE Kategorie-Feld, nicht nur exakt ueber dem ↳-Symbol.' },
+    ]
+  },
+  {
+    tag: 'G29', name: 'Automatische Kategorie-Mapping-Regeln', desc: 'Eigene Regeln (OFF-Tag / Globus-Segment -> Kategorie), die beim Scan und Sync automatisch greifen. Voraussetzung: Migration 0019 gelaufen.',
+    items: [
+      { id: 'G29-1', title: 'Regel anlegen (Verwaltungsseite)', steps: ['Einstellungen -> Kategorie-Zuordnung.', 'Neue Regel: Quelle Globus-Katalog, Token z.B. Kuehlregal, Zielkategorie z.B. Milchprodukte, Anlegen.'],
+        expect: 'Die Regel erscheint in der Liste (Quelle-Badge + Token -> Kategorie). Doppelte Regel (gleiche Quelle+Token) wird mit Fehlermeldung abgelehnt.' },
+      { id: 'G29-2', title: 'Regel greift beim Katalog-Sync automatisch', steps: ['Eine Globus-Regel wie in G29-1 anlegen (Token = ein Segment, das im Globus-Pfad eines Artikels vorkommt).', 'Katalog sichern.', 'Den betreffenden Artikel im Spiegel / auf der Detailseite betrachten.'],
+        expect: 'Die Kategorie wird jetzt AUTOMATISCH gemaess Regel gesetzt (vorher evtl. nicht zuordenbar). Analog beim Barcode-Scan mit passendem OFF-Tag (Quelle OpenFoodFacts).' },
+      { id: 'G29-3', title: 'Vorrang: manuell schlaegt Regel', steps: ['Einem Artikel manuell eine Kategorie zuweisen (Katalog-Spiegel manuell ODER Artikel bearbeiten).', 'Katalog erneut sichern.'],
+        expect: 'Die manuell gesetzte Kategorie bleibt erhalten — eine Mapping-Regel ueberschreibt sie NICHT (Reihenfolge manuell > Regel > Code-Fallback).' },
+      { id: 'G29-4', title: 'Schnell-Regel aus dem Katalog-Spiegel', steps: ['Im Katalog-Spiegel bei einem Artikel eine Zielkategorie im Dropdown waehlen.', 'Auf + Regel tippen.', 'Danach Einstellungen -> Kategorie-Zuordnung oeffnen.'],
+        expect: 'Aus dem spezifischsten Globus-Segment + der gewaehlten Kategorie wird eine dauerhafte Globus-Regel angelegt (Toast). Sie erscheint auf der Verwaltungsseite und greift beim naechsten Sync.' },
+      { id: 'G29-5', title: 'Regel loeschen', steps: ['Auf der Verwaltungsseite eine Regel loeschen (bestaetigen).', 'Katalog erneut sichern.'],
+        expect: 'Die Regel ist weg; die Zuordnung faellt fuer betroffene Artikel wieder auf die eingebaute Erkennung (Code-Fallback) zurueck.' },
     ]
   },
   {

@@ -466,6 +466,46 @@ export const productFieldSourcesRelations = relations(productFieldSources, ({ on
 }));
 
 // ---------------------------------------------------------------------------
+// category_mappings (G29): household-scoped Regeln, die einen OFF-Tag bzw. ein
+// Globus-Pfad-Segment (token, lowercase) auf eine stoqr-Kategorie mappen.
+// Greifen beim Barcode-Scan (source 'off') und Katalog-Sync (source 'globus')
+// automatisch, VOR dem Code-Fallback. Manuelle Wahl (G20-2) bleibt Vorrang.
+// ---------------------------------------------------------------------------
+export const categoryMappings = pgTable(
+  'category_mappings',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    householdId: text('household_id')
+      .notNull()
+      .references(() => households.id, { onDelete: 'cascade' }),
+    source: varchar('source', { length: 8 }).notNull().$type<'off' | 'globus'>(),
+    token: text('token').notNull(),
+    categoryId: uuid('category_id')
+      .notNull()
+      .references(() => categories.id, { onDelete: 'cascade' }),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+  },
+  (table) => ({
+    categoryMappingsUniq: uniqueIndex('category_mappings_uniq').on(
+      table.householdId,
+      table.source,
+      table.token
+    ),
+  })
+);
+
+export const categoryMappingsRelations = relations(categoryMappings, ({ one }) => ({
+  household: one(households, {
+    fields: [categoryMappings.householdId],
+    references: [households.id],
+  }),
+  category: one(categories, {
+    fields: [categoryMappings.categoryId],
+    references: [categories.id],
+  }),
+}));
+
+// ---------------------------------------------------------------------------
 // stores  (declared before inventory_items / stock_targets / shopping_list_items
 //          to avoid forward-reference issues)
 // ---------------------------------------------------------------------------
