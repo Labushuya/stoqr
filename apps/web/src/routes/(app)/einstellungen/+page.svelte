@@ -621,7 +621,7 @@
             {#if r.snapshot}
               {@const snap = r.snapshot}
               <div class="snap-diff">
-                <p class="snap-diff-legend">Artikel-Wert → <strong>Globus-Katalog</strong> · abweichende Felder sind markiert; ankreuzen zum Übernehmen.</p>
+                <p class="snap-diff-legend">Artikel-Wert → <strong>Globus-Katalog</strong> · abweichende Felder sind markiert; ankreuzen zum Übernehmen. <em>„Katalog sichern" holt nur neue Vorschläge — die Zuordnung (auch per Regel) greift erst beim <strong>Übernehmen</strong>.</em></p>
 
                 <!-- Name -->
                 <label class="snap-diff-row" class:snap-diff-row--diff={r.diff.name.differs}>

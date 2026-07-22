@@ -108,7 +108,7 @@
 <div class="wrap">
   <header class="top">
     <h1>stoqr — Test-Manifest</h1>
-    <p class="subtitle">Blöcke A–E + F/F2 + G/G6/G7/G8/G10/G11/G12/G13/G15/G16/G17/G18/G19/G20/G21/G22/G24/G25/G26/G27/G28/G29/G30 · logisch aufbauender Durchlauf · Stand nach G30 (Mapping-Regeln nachgebessert)</p>
+    <p class="subtitle">Blöcke A–E + F/F2 + G/G6/G7/G8/G10/G11/G12/G13/G15/G16/G17/G18/G19/G20/G21/G22/G24/G25/G26/G27/G28/G29/G30/G31 · logisch aufbauender Durchlauf · Stand nach G31 (Regel-Overwrite bestehender Artikel)</p>
 
     <div class="pre">
       <h2>Voraussetzung (kein Testschritt)</h2>
@@ -532,10 +532,10 @@ const BLOCKS = [
     items: [
       { id: 'G29-1', title: 'Regel anlegen (Verwaltungsseite)', steps: ['Einstellungen -> Kategorie-Zuordnung.', 'Quelle Globus-Katalog waehlen; ins Token-Feld tippen/klicken -> die Vorschlagsliste (datalist) zeigt real vorkommende Katalog-Segmente; eines waehlen.', 'Zielkategorie z.B. Milchprodukte waehlen, Anlegen.'],
         expect: 'Die Regel erscheint SOFORT korrekt in der Liste: Quelle-Badge + Token -> KATEGORIE-NAME (nicht mehr (geloescht), G30-1). Der Token muss nicht geraten werden — die Liste schlaegt echte Segmente vor (G30-2); Freitext bleibt moeglich. Doppelte Regel -> Fehlermeldung.' },
-      { id: 'G29-2', title: 'Regel greift beim Katalog-Sync automatisch', steps: ['Eine Globus-Regel wie in G29-1 anlegen (Token = ein Segment, das im Globus-Pfad eines Artikels vorkommt).', 'Katalog sichern.', 'Den betreffenden Artikel im Spiegel / auf der Detailseite betrachten.'],
-        expect: 'Die Kategorie wird jetzt AUTOMATISCH gemaess Regel gesetzt (vorher evtl. nicht zuordenbar). Analog beim Barcode-Scan mit passendem OFF-Tag (Quelle OpenFoodFacts).' },
-      { id: 'G29-3', title: 'Vorrang: manuell schlaegt Regel', steps: ['Einem Artikel manuell eine Kategorie zuweisen (Katalog-Spiegel manuell ODER Artikel bearbeiten).', 'Katalog erneut sichern.'],
-        expect: 'Die manuell gesetzte Kategorie bleibt erhalten — eine Mapping-Regel ueberschreibt sie NICHT (Reihenfolge manuell > Regel > Code-Fallback).' },
+      { id: 'G29-2', title: 'Regel greift bei der Uebernahme automatisch', steps: ['Eine Globus-Regel wie in G29-1 anlegen (Token = ein Segment aus dem Globus-Pfad eines Artikels).', 'Katalog sichern (holt Vorschlaege).', 'Im Katalog-Spiegel beim Artikel Uebernehmen (bzw. Alles uebernehmen) druecken.', 'Artikel-Detailseite betrachten.'],
+        expect: 'Nach dem UEBERNEHMEN ist die Kategorie gemaess Regel gesetzt — bei neuen UND bei bestehenden Artikeln (G31). Analog beim Barcode-Scan mit passendem OFF-Tag. Hinweis: reines „Katalog sichern" ordnet noch nicht zu (siehe Legende), erst „Uebernehmen".' },
+      { id: 'G29-3', title: 'Vorrang: manuell schlaegt Regel', steps: ['Einem Artikel manuell eine Kategorie zuweisen (Detailseite bearbeiten ODER im Spiegel manuell + Uebernehmen).', 'Eine Regel anlegen, die etwas anderes vorschlaegt, und im Spiegel Uebernehmen.'],
+        expect: 'Die manuell gesetzte Kategorie (Herkunft manuell) bleibt erhalten — eine Mapping-Regel ueberschreibt sie NICHT (manuell > Regel > Code-Fallback). Nur eine per Regel/Auto gesetzte (nicht-manuelle) Kategorie wird von einer Regel neu zugeordnet.' },
       { id: 'G29-4', title: 'Schnell-Regel aus dem Katalog-Spiegel', steps: ['Im Katalog-Spiegel bei einem Artikel eine Zielkategorie im Dropdown waehlen.', 'Auf + Regel tippen.', 'Danach Einstellungen -> Kategorie-Zuordnung oeffnen.'],
         expect: 'Aus dem spezifischsten Globus-Segment + der gewaehlten Kategorie wird eine dauerhafte Globus-Regel angelegt (Toast). Sie erscheint auf der Verwaltungsseite und greift beim naechsten Sync.' },
       { id: 'G29-5', title: 'Regel loeschen', steps: ['Auf der Verwaltungsseite eine Regel loeschen (bestaetigen).', 'Katalog erneut sichern.'],
@@ -549,6 +549,17 @@ const BLOCKS = [
         expect: 'Die neue Regel zeigt sofort den Kategorie-NAMEN als Ziel — nicht mehr (geloescht). (Auch nach Reload korrekt.)' },
       { id: 'G30-2', title: 'Token-Auswahl aus echten Werten', steps: ['Quelle Globus-Katalog: ins Token-Feld klicken -> Vorschlagsliste zeigt real vorkommende Katalog-Segmente aus deinen Sicherungen.', 'Quelle OpenFoodFacts: Vorschlagsliste zeigt gaengige en:-Tags.', 'Ein Segment/Tag waehlen ODER frei tippen.'],
         expect: 'Das Token-Feld bietet eine Auswahl echter Werte (Globus: Segmente aus den Snapshots; OFF: kuratierte en:-Tags) — kein blindes Raten mehr. Ein Hinweistext erklaert, dass ein Token ein Pfad-Segment (Globus) bzw. ein en:-Tag (OFF) ist. Freie Eingabe bleibt moeglich.' },
+    ]
+  },
+  {
+    tag: 'G31', name: 'Regel ordnet auch bestehende Artikel neu zu', desc: 'Eine Mapping-Regel wirkt jetzt beim Uebernehmen auch auf bestehende Artikel mit schon gesetzter (nicht-manueller) Kategorie.',
+    items: [
+      { id: 'G31-1', title: 'Regel greift bei bestehendem Artikel (nicht nur neuem)', steps: ['Einen bestehenden Artikel mit bereits gesetzter Kategorie (z.B. aus OFF/Auto) waehlen, dessen Globus-Pfad ein Segment enthaelt.', 'Fuer dieses Segment eine Regel auf eine ANDERE Zielkategorie anlegen.', 'Im Katalog-Spiegel bei dem Artikel Uebernehmen (bzw. Alles uebernehmen).', 'Detailseite betrachten.'],
+        expect: 'Die Kategorie wird jetzt gemaess Regel NEU zugeordnet — auch obwohl der Artikel schon eine (nicht-manuelle) Kategorie hatte. Frueher blieb die alte Kategorie stehen.' },
+      { id: 'G31-2', title: 'Manuelle Kategorie bleibt vor Regel geschuetzt', steps: ['Einem Artikel manuell eine Kategorie setzen (Detailseite bearbeiten -> Herkunft manuell).', 'Eine abweichende Regel fuer sein Globus-Segment anlegen, im Spiegel Uebernehmen (ohne Kategorie-Haken).'],
+        expect: 'Die manuell gesetzte Kategorie bleibt erhalten (Regel ueberschreibt manuelle NICHT). Nur mit bewusst gesetztem Kategorie-Haken laesst sie sich ueberschreiben.' },
+      { id: 'G31-3', title: 'Sichern vs. Uebernehmen ist erklaert', steps: ['Katalog-Spiegel oeffnen, die Legende ueber den Diff-Zeilen lesen.'],
+        expect: 'Die Legende stellt klar: „Katalog sichern" holt nur Vorschlaege; die Zuordnung (auch per Regel) greift erst beim „Uebernehmen".' },
     ]
   },
   {

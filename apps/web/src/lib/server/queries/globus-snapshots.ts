@@ -3,7 +3,7 @@ import { globusSnapshots, products, categories, inventoryItems, productStores } 
 import { and, eq, desc } from 'drizzle-orm'
 import { snapshotDiffers, type SnapshotComparable } from '$lib/utils/snapshot-diff'
 import { computeMirrorDiff, type MirrorDiff } from '$lib/utils/mirror-diff'
-import { updateProduct, createProduct, suggestStockUnitForProduct, setFieldSources, type ProductField } from '$lib/server/queries/products'
+import { updateProduct, createProduct, suggestStockUnitForProduct, setFieldSources, getFieldSources, type ProductField } from '$lib/server/queries/products'
 import { recordProposedPrice } from '$lib/server/queries/prices'
 import { resolveMappedCategory } from '$lib/server/queries/category-mapping'
 
@@ -342,10 +342,21 @@ export async function applySnapshotToProduct(
     }
   }
   if (patch.categoryId === undefined && Array.isArray(snap.category) && snap.category.length > 0) {
-    const catId = await matchCategoryId(snap.category, householdId)
-    if (catId && (fields.category || !product.categoryId)) {
-      patch.categoryId = catId
-      categorySource = 'globus'
+    const { id: catId, fromRule } = await matchCategoryWithSource(snap.category, householdId)
+    if (catId) {
+      // Standard: schreiben, wenn angekreuzt ODER Artikel hat noch keine Kategorie.
+      let mayWrite = fields.category || !product.categoryId
+      // G31: Ein NUTZER-REGEL-Treffer darf auch eine bestehende Kategorie neu
+      // zuordnen — AUSSER sie wurde manuell gesetzt (Herkunft 'manual' bleibt
+      // geschuetzt). So wirkt eine Regel rueckwirkend, respektiert aber manuell > Regel.
+      if (!mayWrite && fromRule && product.categoryId) {
+        const srcs = await getFieldSources(product.id)
+        if (srcs.category !== 'manual') mayWrite = true
+      }
+      if (mayWrite) {
+        patch.categoryId = catId
+        categorySource = 'globus'
+      }
     }
   }
 
@@ -403,11 +414,24 @@ async function matchCategoryId(
   category: string[] | null | undefined,
   householdId: string
 ): Promise<string | null> {
-  if (!Array.isArray(category) || category.length === 0) return null
+  return (await matchCategoryWithSource(category, householdId)).id
+}
+
+/**
+ * Wie matchCategoryId, liefert aber zusaetzlich fromRule: true, wenn der Treffer
+ * aus einer NUTZER-MAPPING-REGEL (resolveMappedCategory) stammt — false beim
+ * reinen Name/Slug-Fallback. Genutzt in applySnapshotToProduct, um zu entscheiden,
+ * ob auch eine BESTEHENDE (nicht-manuelle) Kategorie neu zugeordnet werden darf (G31).
+ */
+async function matchCategoryWithSource(
+  category: string[] | null | undefined,
+  householdId: string
+): Promise<{ id: string | null; fromRule: boolean }> {
+  if (!Array.isArray(category) || category.length === 0) return { id: null, fromRule: false }
 
   // 0. Nutzer-Mapping-Regeln haben Vorrang vor dem Name/Slug-Fallback (G29).
   const mapped = await resolveMappedCategory('globus', category, householdId)
-  if (mapped) return mapped
+  if (mapped) return { id: mapped, fromRule: true }
 
   const cats = await db
     .select({ id: categories.id, name: categories.name, slug: categories.slug })
@@ -419,9 +443,9 @@ async function matchCategoryId(
     const seg = norm(category[i] ?? '')
     if (seg === '') continue
     const hit = cats.find((c) => norm(c.name) === seg || norm(c.slug) === seg)
-    if (hit) return hit.id
+    if (hit) return { id: hit.id, fromRule: false }
   }
-  return null
+  return { id: null, fromRule: false }
 }
 
 /**

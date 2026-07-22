@@ -5,6 +5,30 @@ Neueste Einträge oben. Jeder Eintrag nennt den Commit-Kontext, damit andere LLM
 
 ---
 
+## [Unreleased] — G31: Mapping-Regel ordnet auch bestehende Artikel neu zu (Overwrite-Guard) (implementiert, Test auf Pi ausstehend)
+
+Aus dem G29-Test: die Regel wirkte nur bei NEU angelegten Artikeln, nicht bei bestehenden mit schon gesetzter
+Kategorie; „auf leer zurücksetzen + Katalog sichern" hatte keinen Effekt. Diagnose (Workflow):
+
+- **Root-Cause:** Der Overwrite-Guard beim „Übernehmen" (`applySnapshotToProduct`) war
+  `catId && (fields.category || !product.categoryId)`. Bei einem bestehenden Artikel mit Kategorie ist
+  `!product.categoryId` = false → es hing allein am Kategorie-Haken, der standardmäßig aus ist → Regel/Auto-Match
+  schrieb nie. Bei neuem Artikel (leere Kategorie) griff der Zweig, daher funktionierte es dort.
+- **Fix (Vorrang manuell > Regel > Fallback bleibt exakt):** `matchCategoryId` unterscheidet jetzt via
+  `matchCategoryWithSource`, ob der Treffer aus einer **Nutzer-Regel** stammt (`fromRule`). Ein Regel-Treffer darf
+  auch eine **bestehende** Kategorie neu zuordnen — **außer** deren Herkunft ist `manual` (dann geschützt, via
+  `getFieldSources`). Reiner Name/Slug-Fallback verhält sich unverändert (nur bei leerer Kategorie / mit Haken).
+- **Klarstellung (kein Verhaltens-Umbau):** „Katalog sichern" sammelt nur Vorschläge (`recordSnapshot`) — die
+  Zuordnung (auch per Regel) greift erst beim **Übernehmen**. Ein Hinweis in der Spiegel-Legende sagt das jetzt klar.
+  (Der Nutzer hatte erwartet, dass „Sichern" schon zuordnet.)
+
+Gates: typecheck 0, lint 0/33, build ✓, vitest 137/137. Keine Migration. Manifest: G29-2/3/5 präzisiert, G31-Verweis.
+
+### Commits
+G31 (dieser Commit) — Regel überschreibt bestehende (nicht-manuelle) Kategorie beim Übernehmen; Sichern-vs-Übernehmen-Hinweis. Exakter Hash: siehe `git log`.
+
+---
+
 ## [Unreleased] — G30: Kategorie-Regeln nachgebessert (Ziel-Anzeige + Token-Auswahl statt Raten) (implementiert, Test auf Pi ausstehend)
 
 Aus dem G29-Test: die frisch angelegte Regel zeigte als Ziel „(gelöscht)", und der Token war blindes Freitext-Raten.
