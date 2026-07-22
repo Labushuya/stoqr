@@ -3,7 +3,7 @@
 > Kanonisches Datenmodell und Entwicklungsplan. Diese Datei ist führend für Absicht,
 > Logik und Ziel von stoqr. Bei Widersprüchen zwischen Code und dieser Datei gilt diese Datei.
 
-Letzte Aktualisierung: 2026-07-22 (G27: verschachtelte Kategorien — Stufe 2 des Kategorie-Ausbaus; parentId aktiviert, beliebig tief mit Zyklus-Schutz, eingerückte Dropdowns + ↳-Symbol; Test auf Pi ausstehend)
+Letzte Aktualisierung: 2026-07-22 (G28: Kategorie-Nesting-Feinschliff — sichtbare Dropdown-Einrückung via NBSP, Select-Höhe-Fix, Tooltip aufs ganze Feld; Test auf Pi ausstehend)
 
 ---
 

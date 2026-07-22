@@ -38,6 +38,11 @@
   // Karte id → Category fuer schnellen Zugriff in der Baum-Zeile.
   const byId = $derived(new Map(rows.map((c) => [c.id, c])))
 
+  // Sichtbare Einrueckung fuer <option>-Labels: HTML kollabiert fuehrende
+  // Leerzeichen in <option>, daher Non-Breaking-Spaces (G27-2).
+  const NBSP = String.fromCharCode(160)
+  const optionIndent = (depth: number) => (depth > 0 ? NBSP.repeat(depth * 4) : '')
+
   // Eltern-Optionen fuer ein Formular: alle Kategorien als Baum; beim Bearbeiten
   // die Kategorie selbst + ihre Nachkommen ausschliessen (Client-Zyklus-Schutz).
   function parentOptions(excludeId: string | null) {
@@ -207,7 +212,7 @@
                 <select class="input" bind:value={editParentId} aria-label="Unterkategorie von">
                   <option value="">— keine (Oberkategorie) —</option>
                   {#each parentOptions(cat.id) as opt (opt.id)}
-                    <option value={opt.id}>{'  '.repeat(opt.depth)}{opt.icon ? opt.icon + ' ' : ''}{opt.name}</option>
+                    <option value={opt.id}>{optionIndent(opt.depth)}{opt.icon ? opt.icon + ' ' : ''}{opt.name}</option>
                   {/each}
                 </select>
               </label>
@@ -254,7 +259,7 @@
         <select class="input" bind:value={newParentId} aria-label="Unterkategorie von">
           <option value="">— keine (Oberkategorie) —</option>
           {#each parentOptions(null) as opt (opt.id)}
-            <option value={opt.id}>{'  '.repeat(opt.depth)}{opt.icon ? opt.icon + ' ' : ''}{opt.name}</option>
+            <option value={opt.id}>{optionIndent(opt.depth)}{opt.icon ? opt.icon + ' ' : ''}{opt.name}</option>
           {/each}
         </select>
       </label>
@@ -319,6 +324,8 @@
   .add-form { display: flex; flex-direction: column; gap: var(--space-4); }
   .parent-field { display: flex; flex-direction: column; gap: var(--space-1); }
   .parent-label { font-size: var(--text-xs); color: var(--color-text-muted); }
+  /* Im Spalten-Flex wuerde flex-basis:200px der .input zur HOEHE → Select fixieren. */
+  .parent-field .input { flex: 0 0 auto; height: 40px; }
   .add-footer { display: flex; }
 
   .input { flex: 1 1 200px; min-width: 0; height: 40px; padding: 0 var(--space-3); border-radius: var(--radius-md); border: 1px solid var(--color-border); background-color: var(--color-surface); color: var(--color-text-primary); font-family: var(--font-body); font-size: var(--text-base); outline: none; box-sizing: border-box; }

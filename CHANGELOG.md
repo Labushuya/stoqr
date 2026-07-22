@@ -5,6 +5,26 @@ Neueste Einträge oben. Jeder Eintrag nennt den Commit-Kontext, damit andere LLM
 
 ---
 
+## [Unreleased] — G28: Kategorie-Nesting-Feinschliff (Dropdown-Einrückung, Select-Höhe, Tooltip) (implementiert, Test auf Pi ausstehend)
+
+Aus dem G27-Test: drei optische Nachbesserungen.
+
+- **G28-1 (Dropdown-Einrückung sichtbar):** In den Kategorie-Dropdowns (Artikel-Formular, Katalog-Spiegel,
+  Eltern-Auswahl) erschienen alle Optionen gleich — HTML **kollabiert führende Leerzeichen in `<option>`**. Fix:
+  Einrückung jetzt mit **Non-Breaking-Spaces** (helper `optionIndent`/`catIndent`) → Unterkategorien sind sichtbar
+  eingerückt (wie in der Verwaltungsliste, die per CSS einrückt).
+- **G28-2 (Select-Höhe):** Das „Unterkategorie von"-`<select>` war ~200px hoch statt 40px — im Spalten-Flex
+  (`.parent-field`) wurde `flex-basis: 200px` der geteilten `.input`-Regel zur **Höhe**. Fix: `.parent-field .input { flex: 0 0 auto; height: 40px }`.
+- **G28-3 (Tooltip):** Der „Unterkategorie"-Tooltip hing nur am `↳`-Symbol → jetzt auf dem ganzen Kategorie-Feld
+  (`title` am umschließenden Span, Detailseite + easy-add).
+
+Gates: typecheck 0, lint 0/33, build ✓, vitest 131/131. Manifest: G27-1/G27-2 präzisiert, G28-Verweis.
+
+### Commits
+G28 (dieser Commit) — NBSP-Einrückung in Kategorie-Selects, Select-Höhe-Fix, Tooltip aufs Feld. Exakter Hash: siehe `git log`.
+
+---
+
 ## [Unreleased] — G27: Verschachtelte Kategorien (Nesting) — Stufe 2 des Kategorie-Ausbaus (implementiert, Test auf Pi ausstehend)
 
 Stufe 2 des gestuften Kategorie-Ausbaus (Stufe 1 CRUD = G24/G25). Kategorien lassen sich jetzt **beliebig tief

@@ -10,6 +10,7 @@
   let { data, form }: { data: PageData; form: ActionData } = $props()
 
   // Kategorien als Baum (eingerueckte Optionen im Katalog-Spiegel-Select, G27).
+  const catIndent = (depth: number) => (depth > 0 ? String.fromCharCode(160).repeat(depth * 4) : '')
   const categoryTree = $derived(
     buildCategoryTree(
       (data.categories as { id: string; name: string; icon: string | null; parentId: string | null; sortOrder: number }[]).map((c) => ({
@@ -621,7 +622,7 @@
                     {#if (snap.category?.length ?? 0) > 0}<span class="snap-cat-raw" title="Globus-Kategorie-Pfad">{snap.category?.join(' › ')}</span>{/if}
                     <select class="input snap-cat-select" value={snapCategoryFor(snap.id, snap.catalogCategoryId, r.product.categoryId)} onchange={(e) => setSnapCategory(snap.id, e.currentTarget.value)} aria-label="Kategorie manuell zuordnen">
                       <option value="">— Kategorie wählen —</option>
-                      {#each categoryTree as c (c.id)}<option value={c.id}>{'  '.repeat(c.depth)}{c.name}</option>{/each}
+                      {#each categoryTree as c (c.id)}<option value={c.id}>{catIndent(c.depth)}{c.name}</option>{/each}
                     </select>
                   </span>
                 </label>

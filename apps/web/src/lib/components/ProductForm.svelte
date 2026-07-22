@@ -46,6 +46,9 @@
   } = $props()
 
   const isEdit = $derived(product != null)
+  // Non-Breaking-Spaces fuer sichtbare <option>-Einrueckung (normale Spaces
+  // kollabiert HTML in <option>) — G27-2.
+  const catIndent = (depth: number) => (depth > 0 ? String.fromCharCode(160).repeat(depth * 4) : '')
   // Kategorien als Baum (eingerueckte Optionen, G27). parentId/sortOrder sind optional
   // im Prop-Typ → defensiv normalisieren.
   const categoryTree = $derived(
@@ -172,7 +175,7 @@
           <select class="pf-input" bind:value={fCategoryId}>
             <option value="">— keine —</option>
             {#each categoryTree as cat (cat.id)}
-              <option value={cat.id}>{'  '.repeat(cat.depth)}{cat.name}</option>
+              <option value={cat.id}>{catIndent(cat.depth)}{cat.name}</option>
             {/each}
           </select>
         </label>

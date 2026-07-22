@@ -108,7 +108,7 @@
 <div class="wrap">
   <header class="top">
     <h1>stoqr — Test-Manifest</h1>
-    <p class="subtitle">Blöcke A–E + F/F2 + G/G6/G7/G8/G10/G11/G12/G13/G15/G16/G17/G18/G19/G20/G21/G22/G24/G25/G26/G27 · logisch aufbauender Durchlauf · Stand nach G27 (verschachtelte Kategorien)</p>
+    <p class="subtitle">Blöcke A–E + F/F2 + G/G6/G7/G8/G10/G11/G12/G13/G15/G16/G17/G18/G19/G20/G21/G22/G24/G25/G26/G27/G28 · logisch aufbauender Durchlauf · Stand nach G28 (Kategorie-Nesting + Feinschliff)</p>
 
     <div class="pre">
       <h2>Voraussetzung (kein Testschritt)</h2>
@@ -514,6 +514,17 @@ const BLOCKS = [
         expect: 'Bei einer Unterkategorie steht ein vorangestelltes ↳ vor dem Namen (signalisiert Unterkategorie) — nur Symbol + Name, kein voller Pfad.' },
       { id: 'G27-4', title: 'Zyklus-Schutz beim Verschachteln', steps: ['Eine Kategorie mit Unterkategorie bearbeiten (z.B. Getraenke, hat Kind Wasser).', 'Im Unterkategorie-von-Dropdown versuchen, das eigene Kind (Wasser) als Eltern zu waehlen.'],
         expect: 'Das eigene Kind/Nachkommen erscheinen NICHT als waehlbare Eltern-Option (Client-Schutz). Selbst wenn erzwungen, lehnt der Server mit einer Meldung ab (409). Eine Kategorie mit Unterkategorien bleibt zudem nicht loeschbar.' },
+    ]
+  },
+  {
+    tag: 'G28', name: 'Kategorie-Nesting-Feinschliff (Einrueckung, Hoehe, Tooltip)', desc: 'Optische Nachbesserungen aus dem G27-Test: sichtbare Dropdown-Einrueckung, normale Select-Hoehe, Tooltip auf ganzem Feld.',
+    items: [
+      { id: 'G28-1', title: 'Dropdown-Optionen sind sichtbar eingerueckt', steps: ['Artikel bearbeiten -> Kategorie-Dropdown; und im Kategorien-Formular das Unterkategorie-von-Dropdown; und Katalog-Spiegel-Kategorie-Dropdown.'],
+        expect: 'Unterkategorien sind in ALLEN Kategorie-Dropdowns sichtbar eingerueckt (nicht mehr alle Optionen buendig). Vorher kollabierten die fuehrenden Leerzeichen.' },
+      { id: 'G28-2', title: 'Unterkategorie-von-Feld hat normale Hoehe', steps: ['Kategorie anlegen/bearbeiten -> das Unterkategorie-von-Auswahlfeld betrachten.'],
+        expect: 'Das Auswahlfeld ist so hoch wie die anderen Felder (~40px), nicht mehr ueberhoch (~200px).' },
+      { id: 'G28-3', title: 'Unterkategorie-Tooltip auf ganzem Feld', steps: ['Einen Artikel mit Unterkategorie oeffnen (Detailseite/easy-add).', 'Mit der Maus irgendwo ueber das Kategorie-Feld fahren (nicht nur ueber das ↳).'],
+        expect: 'Der Tooltip Unterkategorie erscheint beim Hovern ueber das GESAMTE Kategorie-Feld, nicht nur exakt ueber dem ↳-Symbol.' },
     ]
   },
   {

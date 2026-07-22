@@ -595,7 +595,7 @@
             <span class="selected-brand">{selectedProduct.brand}</span>
           {/if}
           {#if selectedProduct.category}
-            <span class="selected-cat">{#if selectedProduct.category.parentId}<span class="cat-sub" title="Unterkategorie" aria-hidden="true">↳ </span>{/if}{selectedProduct.category.icon ? selectedProduct.category.icon + ' ' : ''}{selectedProduct.category.name} <SourceBadge source={selectedSources.category} /></span>
+            <span class="selected-cat" title={selectedProduct.category.parentId ? 'Unterkategorie' : undefined}>{#if selectedProduct.category.parentId}<span class="cat-sub" aria-hidden="true">↳ </span>{/if}{selectedProduct.category.icon ? selectedProduct.category.icon + ' ' : ''}{selectedProduct.category.name} <SourceBadge source={selectedSources.category} /></span>
           {:else}
             <span class="selected-cat selected-cat--none">Keine Kategorie</span>
           {/if}

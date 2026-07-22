@@ -953,7 +953,7 @@
       <div class="product-info">
         <h1 class="product-name">{product.name} <SourceBadge source={fieldSources.name} /></h1>
         {#if product.brand}<span class="product-brand">{product.brand} <SourceBadge source={fieldSources.brand} /></span>{/if}
-        {#if product.category}<span class="product-category">{#if product.category.parentId}<span class="cat-sub" title="Unterkategorie" aria-hidden="true">↳ </span>{/if}{product.category.name} <SourceBadge source={fieldSources.category} /></span>{/if}
+        {#if product.category}<span class="product-category" title={product.category.parentId ? 'Unterkategorie' : undefined}>{#if product.category.parentId}<span class="cat-sub" aria-hidden="true">↳ </span>{/if}{product.category.name} <SourceBadge source={fieldSources.category} /></span>{/if}
         {#if product.imageUrl}<span class="product-img-source">Bild: <SourceBadge source={fieldSources.image} /></span>{/if}
         {#if product.gtin}
           <span class="product-ean" title="EAN / Barcode">
