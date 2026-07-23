@@ -35,6 +35,7 @@
     fieldSources = {},
     onSaved,
     onClose,
+    onReset,
   }: {
     open: boolean
     product?: ProductInput | null
@@ -46,6 +47,9 @@
     fieldSources?: Partial<Record<'name' | 'brand' | 'image' | 'category' | 'unit', 'off' | 'globus' | 'manual'>>
     onSaved: (product: Record<string, unknown>) => void
     onClose: () => void
+    // Callback nach erfolgreichem Herkunft-Reset (G35) — Aufrufer kann seinen
+    // lokalen fieldSources-State aktualisieren, damit er nicht stale bleibt.
+    onReset?: (field: 'name' | 'brand' | 'image' | 'category' | 'unit') => void
   } = $props()
 
   const isEdit = $derived(product != null)
@@ -108,7 +112,8 @@
         return
       }
       catSourceReset = true // Button sofort ausblenden
-      toast.success('Kategorie-Herkunft zurückgesetzt — wieder für Regeln empfänglich')
+      onReset?.('category')
+      toast.success('Herkunft zurückgesetzt. Die Kategorie wird beim nächsten Katalog-Abgleich (Artikel-Sicherung → Übernehmen) neu per Regel zugeordnet.')
     } catch {
       toast.error('Netzwerkfehler.')
     } finally {

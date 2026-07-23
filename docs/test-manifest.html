@@ -108,7 +108,7 @@
 <div class="wrap">
   <header class="top">
     <h1>stoqr — Test-Manifest</h1>
-    <p class="subtitle">Blöcke A–E + F/F2 + G/G6/G7/G8/G10/G11/G12/G13/G15/G16/G17/G18/G19/G20/G21/G22/G24/G25/G26/G27/G28/G29/G30/G31/G32/G33/G34 · logisch aufbauender Durchlauf · Stand nach G34 (Spiegel-Regel-Vorschlag + Reset im Spiegel)</p>
+    <p class="subtitle">Blöcke A–E + F/F2 + G/G6/G7/G8/G10/G11/G12/G13/G15/G16/G17/G18/G19/G20/G21/G22/G24/G25/G26/G27/G28/G29/G30/G31/G32/G33/G34/G35 · logisch aufbauender Durchlauf · Stand nach G35 (Reset-UX klargestellt)</p>
 
     <div class="pre">
       <h2>Voraussetzung (kein Testschritt)</h2>
@@ -589,6 +589,15 @@ const BLOCKS = [
         expect: 'Die Kategorie-Zeile zeigt jetzt SOFORT den frischen Regel-Vorschlag (B) mit Tag „Regel-Vorschlag" — nicht mehr die alte gespeicherte Kategorie (A/test), erst nach Uebernehmen. „Uebernehmen" schreibt dann B (Herkunft Globus).' },
       { id: 'G34-2', title: 'Herkunft zuruecksetzen direkt im Spiegel', steps: ['Einen Artikel im Spiegel, dessen Kategorie MANUELL gesetzt ist (Tag/Herkunft manuell).', 'In der Kategorie-Zeile den kleinen Button „Herkunft zuruecksetzen" klicken.'],
         expect: 'Der Button erscheint bei manueller Kategorie-Herkunft direkt in der Spiegel-Zeile (artikelspezifisch). Nach dem Klick ist der manuelle Schutz weg (Toast, Liste aktualisiert); beim naechsten Uebernehmen greift die Regel wieder.' },
+    ]
+  },
+  {
+    tag: 'G35', name: 'Herkunft-Reset: klareres Feedback + zwei-Schritt-Ablauf', desc: 'Klarstellung/UX: der Reset macht nur regel-empfaenglich; die Neuzuordnung passiert beim Uebernehmen. Kein Server-Bug.',
+    items: [
+      { id: 'G35-1', title: 'Reset-Toast erklaert den naechsten Schritt', steps: ['Bei einem Artikel „Herkunft zuruecksetzen" (egal ob Detailseite, Artikel-Katalog oder Spiegel).', 'Die Toast-Meldung lesen.'],
+        expect: 'Der Toast sagt klar, dass die Kategorie beim naechsten Katalog-Abgleich (Artikel-Sicherung → Uebernehmen) neu per Regel zugeordnet wird — der Reset selbst macht nur empfaenglich.' },
+      { id: 'G35-2', title: 'Zwei-Schritt-Ablauf funktioniert (Reset -> Sichern -> Uebernehmen)', steps: ['Herkunft eines Artikels zuruecksetzen.', 'Katalog jetzt sichern.', 'Im Katalog-Spiegel den Artikel Uebernehmen.'],
+        expect: 'Nach diesem Ablauf ist die per Regel gewuenschte Kategorie gesetzt. (Der Reset im Artikel-Katalog wirkt serverseitig identisch zum Spiegel — dort sieht man nur keine unmittelbare Aenderung, weil der Katalog keine Herkunft/keinen Uebernehmen-Flow zeigt.)' },
     ]
   },
   {

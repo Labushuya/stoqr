@@ -265,6 +265,7 @@
   {categories}
   {units}
   fieldSources={formFieldSources}
+  onReset={(field) => { const next = { ...formFieldSources }; delete next[field]; formFieldSources = next }}
   onSaved={onFormSaved}
   onClose={closeForm}
 />

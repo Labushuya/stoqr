@@ -5,6 +5,29 @@ Neueste Einträge oben. Jeder Eintrag nennt den Commit-Kontext, damit andere LLM
 
 ---
 
+## [Unreleased] — G35: Herkunft-Reset — klareres Feedback + Caller-State (kein Server-Bug) (implementiert, Test auf Pi ausstehend)
+
+Aus dem G32/G33-Test: „Herkunft zurücksetzen" schien im Artikel-Katalog nicht zu wirken, und ein erneutes
+„Katalog sichern" war nötig. Diagnose (Workflow): **kein Server-Bug** — der DELETE wirkt view-unabhängig
+vollständig (löscht die `product_field_sources`-Zeile). Es war eine **Erwartungslücke**:
+
+- Reset macht die Kategorie nur wieder **regel-empfänglich** — die eigentliche Neuzuordnung passiert erst beim
+  **Übernehmen im Katalog-Spiegel** (G31-Pfad). Der Artikel-Katalog zeigt keine Herkunft und hat keinen
+  Übernehmen-Flow, also *kann* sich dort nichts sichtbar ändern (auch nach Reload) — obwohl der Reset erfolgt ist.
+- **Fix (rein UX, kein Datenpfad):** (1) Der Toast ist jetzt eindeutig: „Herkunft zurückgesetzt. Die Kategorie wird
+  beim nächsten Katalog-Abgleich (Artikel-Sicherung → Übernehmen) neu per Regel zugeordnet." (2) `ProductForm` ruft
+  nach dem Reset einen neuen `onReset`-Callback; der Artikel-Katalog nutzt ihn, um sein lokales `fieldSources`
+  konsistent zu halten (Button bleibt aus, keine stale Herkunft im offenen Modal).
+- **Erwartetes Verhalten (G32-2):** dass nach dem Reset ein „Katalog sichern" + „Übernehmen" folgt, ist inhärent —
+  Sichern ≠ Zuordnen (wie in G31/G33 geklärt).
+
+Gates: typecheck 0, lint 0/33, build ✓, vitest 137/137. Keine Migration. Manifest: G32-2/G33-1-Notiz + G35-Klarstellung.
+
+### Commits
+G35 (dieser Commit) — Reset-Toast präzisiert, onReset-Callback für Caller-State. Exakter Hash: siehe `git log`.
+
+---
+
 ## [Unreleased] — G34: Katalog-Spiegel zeigt frischen Regel-Vorschlag + „Herkunft zurücksetzen" auch im Spiegel (implementiert, Test auf Pi ausstehend)
 
 Aus dem G32/G33-Test (Klarstellung des Nutzers: „ich schaue in Artikel-Sicherung"): der Reset-Button und der
