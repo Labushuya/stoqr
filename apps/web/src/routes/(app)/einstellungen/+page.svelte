@@ -3,6 +3,7 @@
   import { invalidateAll } from '$app/navigation'
   import { toast } from '$lib/stores/toast'
   import { buildCategoryTree } from '$lib/utils/category-tree'
+  import { resolveMirrorCategory, mirrorCategoryTag, canTakeMirrorPrice, defaultSnapFields, mirrorSubmitCategoryId } from '$lib/utils/mirror-category'
   import type { PageData, ActionData } from './$types'
 
   // ── Props ──────────────────────────────────────────────────────────────────
@@ -103,7 +104,7 @@
 
   // Preis nur uebernehmbar, wenn der Snapshot einen Preis UND einen Markt-Bezug
   // hat (product_prices ist markt-gebunden) — G13-2.
-  const canTakePrice = (r: MirrorRow) => r.snapshot?.priceCt != null && r.snapshot?.storeId != null
+  const canTakePrice = (r: MirrorRow) => canTakeMirrorPrice({ priceCt: r.snapshot?.priceCt ?? null, storeId: r.snapshot?.storeId ?? null })
   // Angekreuzte Uebernahme-Felder je Snapshot. Als $derived DIREKT aus dem Spiegel
   // aufgebaut — dadurch ist der Eintrag bereits beim ERSTEN Render vorhanden (kein
   // $effect-Race, der frueher Badge und Panel auseinanderlaufen liess, G14-3).
@@ -115,12 +116,13 @@
     const out: Record<string, { image: boolean; name: boolean; category: boolean; price: boolean }> = {}
     for (const r of catalogMirror) {
       if (!r.snapshot) continue
-      out[r.snapshot.id] = snapFieldOverrides[r.snapshot.id] ?? {
-        image: r.diff.image.differs,
-        name: r.diff.name.differs,
-        category: r.diff.category.differs,
-        price: canTakePrice(r),
-      }
+      out[r.snapshot.id] = snapFieldOverrides[r.snapshot.id] ?? defaultSnapFields({
+        imageDiffers: r.diff.image.differs,
+        nameDiffers: r.diff.name.differs,
+        categoryDiffers: r.diff.category.differs,
+        priceCt: r.snapshot.priceCt,
+        storeId: r.snapshot.storeId,
+      })
     }
     return out
   })
@@ -145,15 +147,8 @@
     if (cur && categoryId) snapFieldOverrides[id] = { ...cur, category: true }
     catalogMirrorTick++
   }
-  // Effektiv anzuzeigende Kategorie im Spiegel-Select. Reihenfolge (G22-1/G34/G37):
-  //  1. manuelle Session-Wahl (snapCategoryChoice) — waehrend der Bearbeitung
-  //  2. MANUELL gespeicherte Kategorie gewinnt vor dem Regel-Vorschlag (G37) —
-  //     eine bewusst gesetzte manuelle Kategorie darf nicht vom Regel-Vorschlag
-  //     verdeckt werden (Vorrang manuell > Regel)
-  //  3. frischer Regel-/Auto-Vorschlag bei Abweichung (differs) — nur fuer
-  //     NICHT-manuelle Kategorien, damit neue/geaenderte Regeln sofort sichtbar sind (G34)
-  //  4. gespeicherte Kategorie (bleibt nach Uebernahme/Reload sichtbar — G22-1)
-  //  5. best-effort autoMatch, 6. leer
+  // Duenner Wrapper um den reinen resolveMirrorCategory-Helfer (G38, getestet):
+  // reicht die einzige State-Eingabe snapCategoryChoice[id] als sessionChoice hinein.
   function snapCategoryFor(
     id: string,
     autoMatch: string | null,
@@ -161,10 +156,7 @@
     differs = false,
     categorySource: 'off' | 'globus' | 'manual' | null = null
   ): string {
-    if (snapCategoryChoice[id]) return snapCategoryChoice[id]
-    if (categorySource === 'manual' && stored) return stored
-    if (differs && autoMatch) return autoMatch
-    return stored ?? autoMatch ?? ''
+    return resolveMirrorCategory({ sessionChoice: snapCategoryChoice[id], autoMatch, stored, differs, categorySource })
   }
 
   // Schnell-Regel (G29): aus dem spezifischsten (letzten) Globus-Pfad-Segment +
@@ -219,7 +211,7 @@
       // frischer Regel-/Auto-Vorschlag wird NICHT hier mitgegeben — der Server loest
       // ihn beim Uebernehmen selbst via matchCategoryId auf und schreibt Herkunft
       // 'globus' (Vorrang manuell > Regel > Fallback bleibt sauber, G34).
-      const categoryId = fields.category ? (snapCategoryChoice[id] ?? undefined) : undefined
+      const categoryId = mirrorSubmitCategoryId({ categorySelected: fields.category, sessionChoice: snapCategoryChoice[id] })
       const payload =
         action === 'confirm' ? { action, fields, ...(categoryId ? { categoryId } : {}) } : { action }
       const res = await fetch(`/api/catalog/snapshots/${id}`, {
@@ -663,6 +655,7 @@
 
             {#if r.snapshot}
               {@const snap = r.snapshot}
+              {@const catTag = mirrorCategoryTag({ sessionChoice: snapCategoryChoice[snap.id], categorySource: r.product.categorySource, differs: r.diff.category.differs, autoMatch: snap.catalogCategoryId, stored: r.product.categoryId, rawCategoryLen: snap.category?.length ?? 0 })}
               <div class="snap-diff">
                 <p class="snap-diff-legend">Artikel-Wert → <strong>Globus-Katalog</strong> · abweichende Felder sind markiert; ankreuzen zum Übernehmen. <em>„Katalog sichern" holt nur neue Vorschläge — die Zuordnung (auch per Regel) greift erst beim <strong>Übernehmen</strong>.</em></p>
 
@@ -688,7 +681,7 @@
                      manuelle Zuordnung (G20-2/G22-1/G34). -->
                 <label class="snap-diff-row" class:snap-diff-row--diff={r.diff.category.differs}>
                   <input type="checkbox" disabled={!snapCategoryFor(snap.id, snap.catalogCategoryId, r.product.categoryId, r.diff.category.differs, r.product.categorySource)} checked={snapFields[snap.id]?.category} onchange={() => toggleSnapField(snap.id, 'category')} />
-                  <span class="snap-diff-field">Kategorie {#if snapCategoryChoice[snap.id] || r.product.categorySource === 'manual'}<span class="snap-diff-tag snap-diff-tag--ok">manuell</span>{:else if r.diff.category.differs && snap.catalogCategoryId}<span class="snap-diff-tag">Regel-Vorschlag</span>{:else if r.product.categoryId && !r.diff.category.differs}<span class="snap-diff-tag snap-diff-tag--ok">gesetzt</span>{:else if (snap.category?.length ?? 0) > 0 && !snap.catalogCategoryId}<span class="snap-diff-tag snap-diff-tag--warn">nicht zuordenbar</span>{:else if r.diff.category.differs}<span class="snap-diff-tag">abweichend</span>{:else}<span class="snap-diff-tag snap-diff-tag--ok">gleich</span>{/if}{#if r.product.categorySource === 'manual'}<button class="btn-src-reset" type="button" disabled={catResetBusy === r.product.id} title="Manuelle Herkunft zurücksetzen — Kategorie bleibt, wird aber wieder für Regeln empfänglich." onclick={() => resetCategorySource(r.product.id)}>Herkunft zurücksetzen</button>{/if}</span>
+                  <span class="snap-diff-field">Kategorie <span class="snap-diff-tag" class:snap-diff-tag--ok={catTag.variant === 'ok'} class:snap-diff-tag--warn={catTag.variant === 'warn'}>{catTag.label}</span>{#if r.product.categorySource === 'manual'}<button class="btn-src-reset" type="button" disabled={catResetBusy === r.product.id} title="Manuelle Herkunft zurücksetzen — Kategorie bleibt, wird aber wieder für Regeln empfänglich." onclick={() => resetCategorySource(r.product.id)}>Herkunft zurücksetzen</button>{/if}</span>
                   <span class="snap-diff-old">{r.product.categoryName || '(leer)'}</span>
                   <span class="snap-diff-arrow" aria-hidden="true">→</span>
                   <span class="snap-diff-new snap-cat-pick">

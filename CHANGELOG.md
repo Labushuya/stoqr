@@ -5,6 +5,28 @@ Neueste Einträge oben. Jeder Eintrag nennt den Commit-Kontext, damit andere LLM
 
 ---
 
+## [Unreleased] — G38: Katalog-Spiegel-Entscheidungslogik in getestete reine Helfer extrahiert (Härtung, kein Verhaltenswechsel) (implementiert, Test auf Pi ausstehend)
+
+Die über G20/G22/G34/G36/G37 gewachsene Kategorie-Vorrang-/Anzeige-Logik des Katalog-Spiegels war nur inline im
+`einstellungen/+page.svelte` und nicht testbar — jeder Eckfall kostete einen Deploy-Zyklus. Refactor **ohne
+Verhaltensänderung**:
+
+- **Neu `lib/utils/mirror-category.ts`** (DB-/Svelte-frei) mit 5 reinen Funktionen: `resolveMirrorCategory`
+  (Kategorie-Vorrang: Session → manuell → Regel-bei-Abweichung → gespeichert → auto), `mirrorCategoryTag`
+  (Status-Tag-Kaskade → Label + Variante), `canTakeMirrorPrice`, `defaultSnapFields`, `mirrorSubmitCategoryId`.
+- **`einstellungen/+page.svelte`** ruft die Helfer nur noch auf: `snapCategoryFor` ist ein dünner Wrapper
+  (`sessionChoice = snapCategoryChoice[id]`), die Status-Tag-`{#if}`-Kaskade ist durch `{@const catTag = mirrorCategoryTag(...)}`
+  + eine Tag-Span mit `class:`-Direktiven ersetzt (eine Wahrheitsquelle).
+- **16 Unit-Tests** (`mirror-category.test.ts`) pinnen genau die Eckfälle fest, die die Regressionen verursacht haben
+  (manuell schlägt Regel-Vorschlag, Regel-Vorschlag nur nicht-manuell, priceCt=0 gültig, Tag-Zweige, Submit-Wahl).
+
+Gates: typecheck 0, lint 0/33, build ✓, vitest 153/153 (+16). Keine Migration. Manifest: G38-Block (interne Härtung).
+
+### Commits
+G38 (dieser Commit) — mirror-category.ts + Tests, Callsites/Tag-Markup auf Helfer umgestellt. Exakter Hash: siehe `git log`.
+
+---
+
 ## [Unreleased] — G37: Regression behoben — manuelle Kategorie schlägt Regel-Vorschlag in der Spiegel-Anzeige (implementiert, Test auf Pi ausstehend)
 
 Aus dem G36-Test: nach dem G36-Fix ließ sich die Kategorie im Spiegel **nicht mehr manuell setzen** — jeder
