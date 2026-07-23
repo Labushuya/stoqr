@@ -108,7 +108,7 @@
 <div class="wrap">
   <header class="top">
     <h1>stoqr — Test-Manifest</h1>
-    <p class="subtitle">Blöcke A–E + F/F2 + G/G6/G7/G8/G10/G11/G12/G13/G15/G16/G17/G18/G19/G20/G21/G22/G24/G25/G26/G27/G28/G29/G30/G31/G32 · logisch aufbauender Durchlauf · Stand nach G32 (Kategorie-Herkunft zurücksetzbar)</p>
+    <p class="subtitle">Blöcke A–E + F/F2 + G/G6/G7/G8/G10/G11/G12/G13/G15/G16/G17/G18/G19/G20/G21/G22/G24/G25/G26/G27/G28/G29/G30/G31/G32/G33 · logisch aufbauender Durchlauf · Stand nach G33 (Herkunft-Reset-Button reaktiv)</p>
 
     <div class="pre">
       <h2>Voraussetzung (kein Testschritt)</h2>
@@ -571,6 +571,15 @@ const BLOCKS = [
         expect: 'Die Kategorie wird jetzt wieder per Regel neu zugeordnet — der fruehere manuelle Schutz ist aufgehoben. (Genau der G31-2-Wunsch.)' },
       { id: 'G32-3', title: 'Button fehlt, wenn nicht manuell', steps: ['Einen Artikel mit Herkunft OFF/Globus oder ohne erfasste Herkunft (?) bearbeiten.'],
         expect: 'Der „Herkunft zuruecksetzen"-Button ist NICHT sichtbar (es gibt keinen manuellen Schutz zum Aufheben).' },
+    ]
+  },
+  {
+    tag: 'G33', name: 'Herkunft-Reset-Button erscheint zuverlaessig', desc: 'Behebt den G32-Test: der Button erschien nie, weil die Sichtbarkeit an einem stale gespiegelten State hing statt reaktiv am Prop.',
+    items: [
+      { id: 'G33-1', title: 'Button erscheint auch im Artikel-Katalog (lazy geladene Herkunft)', steps: ['Einstellungen -> Artikel: einen Artikel mit MANUELL gesetzter Kategorie bearbeiten (dort wird die Herkunft erst beim Oeffnen nachgeladen).', 'Kurz warten, dann das Kategorie-Feld betrachten.'],
+        expect: 'Der „Herkunft zuruecksetzen"-Button erscheint jetzt zuverlaessig (auch wenn die Herkunft erst nach dem Oeffnen geladen wird). Klick -> Button verschwindet sofort, Toast; danach ist die Kategorie wieder regel-empfaenglich (vgl. G32-2).' },
+      { id: 'G33-2', title: 'Klarstellung: Sichern ordnet neue Artikel nicht zu', steps: ['Einen NEUEN Artikel + Regel anlegen, dann nur „Katalog sichern".'],
+        expect: 'Erwartetes Verhalten (kein Bug): „Sichern" sammelt nur Vorschlaege; die Regel-Zuordnung passiert beim „Uebernehmen" eines im Katalog-Spiegel gelisteten Artikels. Ein Artikel ohne Bestand/Markt-Zuordnung erscheint dort nicht — erst mit Bestand/Markt wird er ein Uebernahme-Kandidat.' },
     ]
   },
   {

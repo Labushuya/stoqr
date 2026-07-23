@@ -5,6 +5,29 @@ Neueste Einträge oben. Jeder Eintrag nennt den Commit-Kontext, damit andere LLM
 
 ---
 
+## [Unreleased] — G33: „Herkunft zurücksetzen"-Button erscheint jetzt zuverlässig (Reaktivitäts-Fix) (implementiert, Test auf Pi ausstehend)
+
+Aus dem G32-Test: der Button erschien **nie**. Diagnose (Workflow):
+
+- **Root-Cause (mein G32-Fehler):** Ich hatte die Kategorie-Herkunft in ein lokales `$state` (`catSource`)
+  gespiegelt, das ein Seed-`$effect` nur bei `open`/`product.id`-Wechsel setzt — **nicht** an `fieldSources`
+  gebunden. Der Artikel-Katalog liefert `fieldSources` aber **lazy per fetch** NACH dem Öffnen; das späte
+  `category='manual'` erreichte den Effect nie → `catSource` blieb undefined → Bedingung nie erfüllt.
+  (Die Detailseite hatte `fieldSources` synchron aus dem Load — dort hätte er erschienen.)
+- **Fix:** Kein Prop-Spiegel mehr. Die Sichtbarkeit prüft jetzt **direkt reaktiv** `fieldSources.category === 'manual'`
+  im Markup; der lokale State ist nur noch ein „nach Reset ausblenden"-Flag (`catSourceReset`). Damit erscheint der
+  Button, sobald die (auch lazy geladene) Herkunft `manual` ist, und verschwindet sofort nach dem Reset.
+- **Klarstellung (kein Bug):** Der zweite Test-Punkt — Regel greift bei einem NEUEN Artikel nach bloßem
+  „Katalog **sichern**" nicht — ist erwartetes Verhalten: „Sichern" wendet nie etwas auf Artikel an (nur
+  „Übernehmen"), und ein Artikel ohne Bestand/Markt-Zuordnung erscheint gar nicht als Übernahme-Kandidat im Spiegel.
+
+Gates: typecheck 0, lint 0/33, build ✓, vitest 137/137. Keine Migration. Manifest: G32-Items präzisiert, G33-Verweis.
+
+### Commits
+G33 (dieser Commit) — Button-Sichtbarkeit reaktiv aufs fieldSources-Prop (statt gespiegeltem $state). Exakter Hash: siehe `git log`.
+
+---
+
 ## [Unreleased] — G32: Manuellen Kategorie-Herkunfts-Schutz zurücksetzbar (wieder regel-empfänglich) (implementiert, Test auf Pi ausstehend)
 
 Aus dem G31-Test (Folgewunsch): Eine Kategorie mit Herkunft `manual` war dauerhaft vor Mapping-Regeln geschützt —

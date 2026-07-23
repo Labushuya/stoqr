@@ -3,7 +3,7 @@
 > Kanonisches Datenmodell und Entwicklungsplan. Diese Datei ist führend für Absicht,
 > Logik und Ziel von stoqr. Bei Widersprüchen zwischen Code und dieser Datei gilt diese Datei.
 
-Letzte Aktualisierung: 2026-07-23 (G32: manueller Kategorie-Herkunfts-Schutz zurücksetzbar — „Herkunft zurücksetzen"-Button in ProductForm (Detailseite + Artikel-Katalog), macht die Kategorie wieder regel-/auto-empfänglich; Test auf Pi ausstehend)
+Letzte Aktualisierung: 2026-07-23 (G33: „Herkunft zurücksetzen"-Button erscheint zuverlässig — Sichtbarkeit reaktiv aufs fieldSources-Prop statt gespiegeltem $state (lazy-Load-Race behoben); Test auf Pi ausstehend)
 
 ---
 

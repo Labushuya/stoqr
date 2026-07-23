@@ -49,9 +49,11 @@
   } = $props()
 
   const isEdit = $derived(product != null)
-  // Kategorie-Herkunft lokal spiegeln, damit der Reset-Button sofort verschwindet (G32).
-  // svelte-ignore state_referenced_locally
-  let catSource = $state<'off' | 'globus' | 'manual' | undefined>(fieldSources.category)
+  // Kategorie-Herkunfts-Schutz: NICHT das Prop spiegeln (fieldSources kommt bei
+  // manchen Aufrufern lazy per fetch NACH dem Oeffnen — ein einmaliger $effect-Seed
+  // wuerde die spaetere Aenderung verpassen, G33). Stattdessen im Markup direkt
+  // reaktiv aufs Prop pruefen; dieses Flag blendet den Button nur nach dem Reset aus.
+  let catSourceReset = $state(false)
   let catSourceResetting = $state(false)
   // Non-Breaking-Spaces fuer sichtbare <option>-Einrueckung (normale Spaces
   // kollabiert HTML in <option>) — G27-2.
@@ -92,7 +94,7 @@
     fImageUrl = product?.imageUrl ?? ''
     fUnit = product?.defaultUnit ?? 'piece'
     fDescription = product?.description ?? ''
-    catSource = fieldSources.category
+    catSourceReset = false
     error = null
   })
 
@@ -105,7 +107,7 @@
         toast.error(`Fehler ${res.status}`)
         return
       }
-      catSource = undefined // Button sofort ausblenden
+      catSourceReset = true // Button sofort ausblenden
       toast.success('Kategorie-Herkunft zurückgesetzt — wieder für Regeln empfänglich')
     } catch {
       toast.error('Netzwerkfehler.')
@@ -197,7 +199,7 @@
         </label>
 
         <label class="pf-field">
-          <span class="pf-label">Kategorie {#if isEdit && catSource === 'manual'}<button class="pf-reset-src" type="button" disabled={catSourceResetting} title="Setzt die manuelle Herkunft zurück — die Kategorie bleibt, wird aber wieder für Zuordnungs-Regeln empfänglich." onclick={resetCategorySource}>Herkunft zurücksetzen</button>{/if}</span>
+          <span class="pf-label">Kategorie {#if isEdit && fieldSources.category === 'manual' && !catSourceReset}<button class="pf-reset-src" type="button" disabled={catSourceResetting} title="Setzt die manuelle Herkunft zurück — die Kategorie bleibt, wird aber wieder für Zuordnungs-Regeln empfänglich." onclick={resetCategorySource}>Herkunft zurücksetzen</button>{/if}</span>
           <select class="pf-input" bind:value={fCategoryId}>
             <option value="">— keine —</option>
             {#each categoryTree as cat (cat.id)}
