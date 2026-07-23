@@ -138,6 +138,9 @@ export type CatalogMirrorRow = {
     imageUrl: string | null
     categoryId: string | null
     categoryName: string | null
+    // Herkunft der gespeicherten Kategorie (G34) — fuer den "Herkunft zuruecksetzen"-
+    // Button im Spiegel. null = nicht erfasst.
+    categorySource: 'off' | 'globus' | 'manual' | null
   }
   snapshot: {
     id: string
@@ -193,6 +196,13 @@ export async function listCatalogMirror(householdId: string): Promise<CatalogMir
     if (!latestByGtin.has(s.gtin)) latestByGtin.set(s.gtin, s) // erster = neuester (orderBy)
   }
 
+  // Kategorie-Herkunft aller Artikel in EINEM Query laden (kein N+1, G34).
+  const catSrcRows = await db.query.productFieldSources.findMany({
+    where: (fs, { and, eq, inArray }) => and(inArray(fs.productId, productIds), eq(fs.field, 'category')),
+    columns: { productId: true, source: true },
+  })
+  const catSourceByProduct = new Map(catSrcRows.map((r) => [r.productId, r.source]))
+
   const rows: CatalogMirrorRow[] = []
   for (const p of prods) {
     const snap = latestByGtin.get(p.gtin!) ?? null
@@ -212,6 +222,7 @@ export async function listCatalogMirror(householdId: string): Promise<CatalogMir
         imageUrl: p.imageUrl,
         categoryId: p.categoryId,
         categoryName: p.category?.name ?? null,
+        categorySource: (catSourceByProduct.get(p.id) ?? null) as 'off' | 'globus' | 'manual' | null,
       },
       snapshot: snap
         ? {

@@ -5,6 +5,29 @@ Neueste Einträge oben. Jeder Eintrag nennt den Commit-Kontext, damit andere LLM
 
 ---
 
+## [Unreleased] — G34: Katalog-Spiegel zeigt frischen Regel-Vorschlag + „Herkunft zurücksetzen" auch im Spiegel (implementiert, Test auf Pi ausstehend)
+
+Aus dem G32/G33-Test (Klarstellung des Nutzers: „ich schaue in Artikel-Sicherung"): der Reset-Button und der
+Regel-Vorschlag wurden im **Katalog-Spiegel** erwartet — dort, wo der Nutzer arbeitet. Diagnose (Workflow):
+
+- **G34-1 (stale Vorschlag):** Der Spiegel-Select zeigte die alte **gespeicherte** Kategorie statt des frischen
+  Regel-Vorschlags — `snapCategoryFor` hatte die Reihenfolge `manuell → stored → autoMatch`, also verdeckte die
+  gespeicherte Kategorie den neuen Vorschlag (test blieb, obwohl die Regel schon Obst sagte; erst „Übernehmen"
+  machte es sichtbar). Fix: Reihenfolge jetzt **manuell → Regel-Vorschlag bei Abweichung (`differs`) → gespeichert
+  → autoMatch**. Der Select zeigt den frischen Vorschlag sofort; ein neuer Tag **„Regel-Vorschlag"** kennzeichnet ihn.
+  Beim Übernehmen schreibt der Server den Vorschlag mit Herkunft `globus` (manuelle Wahl weiterhin `manual`).
+- **G34-2 (Reset-Button im Spiegel):** Der G32-Button steckte nur in `ProductForm` (Detailseite/Artikel-Katalog),
+  nicht im Spiegel. Jetzt trägt die Spiegel-Zeile die **Kategorie-Herkunft** (neu `CatalogMirrorRow.product.categorySource`,
+  in `listCatalogMirror` per **Batch-Query** geladen — kein N+1); bei Herkunft `manual` erscheint ein
+  **„Herkunft zurücksetzen"**-Button (DELETE `…/sources?field=category` + `invalidateAll`). Danach greifen Regeln wieder.
+
+Gates: typecheck 0, lint 0/33, build ✓, vitest 137/137. Keine Migration. Manifest: G32/G33-Verweis, neuer G34-Block.
+
+### Commits
+G34 (dieser Commit) — Spiegel zeigt Regel-Vorschlag bei Abweichung, Herkunft-Reset-Button im Spiegel (categorySource batch-geladen). Exakter Hash: siehe `git log`.
+
+---
+
 ## [Unreleased] — G33: „Herkunft zurücksetzen"-Button erscheint jetzt zuverlässig (Reaktivitäts-Fix) (implementiert, Test auf Pi ausstehend)
 
 Aus dem G32-Test: der Button erschien **nie**. Diagnose (Workflow):

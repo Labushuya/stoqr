@@ -44,6 +44,7 @@
       imageUrl: string | null
       categoryId: string | null
       categoryName: string | null
+      categorySource: 'off' | 'globus' | 'manual' | null
     }
     snapshot: {
       id: string
@@ -144,15 +145,17 @@
     if (cur && categoryId) snapFieldOverrides[id] = { ...cur, category: true }
     catalogMirrorTick++
   }
-  // Effektiv anzuzeigende Kategorie im Spiegel-Select. Reihenfolge (G22-1):
+  // Effektiv anzuzeigende Kategorie im Spiegel-Select. Reihenfolge (G22-1/G34):
   //  1. manuelle Session-Wahl (snapCategoryChoice)
-  //  2. bereits am Artikel GESPEICHERTE Kategorie (stored = r.product.categoryId) —
-  //     damit die uebernommene Wahl nach Reload sichtbar bleibt (frueher fehlte das
-  //     → Select fiel faelschlich auf "— Kategorie wählen —" zurueck)
-  //  3. Auto-Match des Katalog-Pfads (autoMatch = snap.catalogCategoryId) als Vorschlag
-  //  4. leer
-  function snapCategoryFor(id: string, autoMatch: string | null, stored: string | null): string {
-    return snapCategoryChoice[id] ?? stored ?? autoMatch ?? ''
+  //  2. frischer Regel-/Auto-Vorschlag, WENN er von der gespeicherten Kategorie
+  //     abweicht (differs) — so wird eine neue/geaenderte Regel sofort sichtbar,
+  //     statt bis "Uebernehmen" die alte gespeicherte Kategorie zu zeigen (G34)
+  //  3. gespeicherte Kategorie (bleibt nach Uebernahme/Reload sichtbar — G22-1)
+  //  4. best-effort autoMatch, 5. leer
+  function snapCategoryFor(id: string, autoMatch: string | null, stored: string | null, differs = false): string {
+    if (snapCategoryChoice[id]) return snapCategoryChoice[id]
+    if (differs && autoMatch) return autoMatch
+    return stored ?? autoMatch ?? ''
   }
 
   // Schnell-Regel (G29): aus dem spezifischsten (letzten) Globus-Pfad-Segment +
@@ -179,13 +182,34 @@
     }
   }
 
+  // G34: Herkunft der Artikel-Kategorie im Spiegel zuruecksetzen (loescht die
+  // manuell-Herkunft) → wieder regel-empfaenglich. Spiegel ist $derived(data),
+  // daher nach invalidateAll automatisch aktuell (kein lokaler Reset-State noetig).
+  let catResetBusy = $state<string | null>(null)
+  async function resetCategorySource(productId: string) {
+    catResetBusy = productId
+    try {
+      const res = await fetch(`/api/products/${productId}/sources?field=category`, { method: 'DELETE' })
+      if (!res.ok && res.status !== 204) { toast.error(`Fehler ${res.status}`); return }
+      toast.success('Kategorie-Herkunft zurückgesetzt — wieder für Regeln empfänglich')
+      await invalidateAll()
+    } catch {
+      toast.error('Netzwerkfehler.')
+    } finally {
+      catResetBusy = null
+    }
+  }
+
   async function reviewSnapshot(id: string, action: 'confirm' | 'reject', allFields = false) {
     snapshotBusy = id
     try {
       const fields = allFields
         ? { image: true, name: true, category: true, price: true }
         : (snapFields[id] ?? { image: true, name: false, category: false, price: false })
-      // Bei Kategorie-Uebernahme die (ggf. manuell) gewaehlte Ziel-Kategorie mitsenden (G20-2).
+      // Nur eine MANUELLE Wahl wird als categoryId (Herkunft 'manual') gesendet. Ein
+      // frischer Regel-/Auto-Vorschlag wird NICHT hier mitgegeben — der Server loest
+      // ihn beim Uebernehmen selbst via matchCategoryId auf und schreibt Herkunft
+      // 'globus' (Vorrang manuell > Regel > Fallback bleibt sauber, G34).
       const categoryId = fields.category ? (snapCategoryChoice[id] ?? undefined) : undefined
       const payload =
         action === 'confirm' ? { action, fields, ...(categoryId ? { categoryId } : {}) } : { action }
@@ -641,23 +665,23 @@
                   <span class="snap-diff-new">{snap.localImagePath ? 'Katalog-Bild' : '(Katalog: kein Bild)'}</span>
                 </label>
 
-                <!-- Kategorie: Auto-Match, gespeicherte Kategorie ODER manuelle Zuordnung
-                     (G20-2/G22-1). Checkbox aktiv, sobald eine Ziel-Kategorie waehlbar ist. -->
+                <!-- Kategorie: Auto-Match/Regel-Vorschlag, gespeicherte Kategorie ODER
+                     manuelle Zuordnung (G20-2/G22-1/G34). -->
                 <label class="snap-diff-row" class:snap-diff-row--diff={r.diff.category.differs}>
-                  <input type="checkbox" disabled={!snapCategoryFor(snap.id, snap.catalogCategoryId, r.product.categoryId)} checked={snapFields[snap.id]?.category} onchange={() => toggleSnapField(snap.id, 'category')} />
-                  <span class="snap-diff-field">Kategorie {#if snapCategoryChoice[snap.id]}<span class="snap-diff-tag snap-diff-tag--ok">manuell</span>{:else if r.product.categoryId && !r.diff.category.differs}<span class="snap-diff-tag snap-diff-tag--ok">gesetzt</span>{:else if (snap.category?.length ?? 0) > 0 && !snap.catalogCategoryId}<span class="snap-diff-tag snap-diff-tag--warn">nicht zuordenbar</span>{:else if r.diff.category.differs}<span class="snap-diff-tag">abweichend</span>{:else}<span class="snap-diff-tag snap-diff-tag--ok">gleich</span>{/if}</span>
+                  <input type="checkbox" disabled={!snapCategoryFor(snap.id, snap.catalogCategoryId, r.product.categoryId, r.diff.category.differs)} checked={snapFields[snap.id]?.category} onchange={() => toggleSnapField(snap.id, 'category')} />
+                  <span class="snap-diff-field">Kategorie {#if snapCategoryChoice[snap.id]}<span class="snap-diff-tag snap-diff-tag--ok">manuell</span>{:else if r.diff.category.differs && snap.catalogCategoryId}<span class="snap-diff-tag">Regel-Vorschlag</span>{:else if r.product.categoryId && !r.diff.category.differs}<span class="snap-diff-tag snap-diff-tag--ok">gesetzt</span>{:else if (snap.category?.length ?? 0) > 0 && !snap.catalogCategoryId}<span class="snap-diff-tag snap-diff-tag--warn">nicht zuordenbar</span>{:else if r.diff.category.differs}<span class="snap-diff-tag">abweichend</span>{:else}<span class="snap-diff-tag snap-diff-tag--ok">gleich</span>{/if}{#if r.product.categorySource === 'manual'}<button class="btn-src-reset" type="button" disabled={catResetBusy === r.product.id} title="Manuelle Herkunft zurücksetzen — Kategorie bleibt, wird aber wieder für Regeln empfänglich." onclick={() => resetCategorySource(r.product.id)}>Herkunft zurücksetzen</button>{/if}</span>
                   <span class="snap-diff-old">{r.product.categoryName || '(leer)'}</span>
                   <span class="snap-diff-arrow" aria-hidden="true">→</span>
                   <span class="snap-diff-new snap-cat-pick">
                     {#if (snap.category?.length ?? 0) > 0}<span class="snap-cat-raw" title="Globus-Kategorie-Pfad">{snap.category?.join(' › ')}</span>{/if}
-                    <select class="input snap-cat-select" value={snapCategoryFor(snap.id, snap.catalogCategoryId, r.product.categoryId)} onchange={(e) => setSnapCategory(snap.id, e.currentTarget.value)} aria-label="Kategorie manuell zuordnen">
+                    <select class="input snap-cat-select" value={snapCategoryFor(snap.id, snap.catalogCategoryId, r.product.categoryId, r.diff.category.differs)} onchange={(e) => setSnapCategory(snap.id, e.currentTarget.value)} aria-label="Kategorie manuell zuordnen">
                       <option value="">— Kategorie wählen —</option>
                       {#each categoryTree as c (c.id)}<option value={c.id}>{catIndent(c.depth)}{c.name}</option>{/each}
                     </select>
-                    {#if (snap.category?.length ?? 0) > 0 && snapCategoryFor(snap.id, snap.catalogCategoryId, r.product.categoryId)}
+                    {#if (snap.category?.length ?? 0) > 0 && snapCategoryFor(snap.id, snap.catalogCategoryId, r.product.categoryId, r.diff.category.differs)}
                       <button class="btn-rule" type="button" disabled={ruleBusy === snap.id}
                         title="Dauerregel: dieses Katalog-Segment kuenftig automatisch dieser Kategorie zuordnen"
-                        onclick={() => createRuleFromSnapshot(snap.id, snap.category, snapCategoryFor(snap.id, snap.catalogCategoryId, r.product.categoryId))}>+ Regel</button>
+                        onclick={() => createRuleFromSnapshot(snap.id, snap.category, snapCategoryFor(snap.id, snap.catalogCategoryId, r.product.categoryId, r.diff.category.differs))}>+ Regel</button>
                     {/if}
                   </span>
                 </label>
@@ -990,6 +1014,9 @@
   .snap-cat-raw { color: var(--color-text-muted); font-size: var(--text-xs); }
   .snap-cat-select { height: 28px; padding: 0 6px; font-size: var(--text-xs); min-width: 150px; }
   .btn-rule { height: 28px; padding: 0 8px; border-radius: var(--radius-md); border: 1px solid var(--color-border); background: transparent; color: var(--color-primary); font-size: var(--text-xs); font-weight: 600; cursor: pointer; white-space: nowrap; }
+  .btn-src-reset { margin-left: var(--space-2); padding: 0 6px; height: 18px; border: 1px solid var(--color-border); border-radius: var(--radius-full); background: transparent; color: var(--color-primary); font-size: 10px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+  .btn-src-reset:hover:not(:disabled) { background: var(--color-primary-subtle); border-color: var(--color-primary); }
+  .btn-src-reset:disabled { opacity: 0.5; cursor: not-allowed; }
   .btn-rule:hover:not(:disabled) { border-color: var(--color-primary); background: var(--color-primary-subtle); }
   .btn-rule:disabled { opacity: 0.5; cursor: not-allowed; }
   .snap-diff-old { color: var(--color-text-muted); }
