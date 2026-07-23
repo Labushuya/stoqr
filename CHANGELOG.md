@@ -33,6 +33,10 @@ Gates: typecheck 0, lint 0/33, build ✓, vitest 163/163 (+10). Manifest: G39-Bl
 ### Commits
 G39 (dieser Commit) — inventory-group.ts + Tests, Loader/Query-Ergänzung, /inventar Umschalter + Artikel-Accordion +
 MHD auf expirySettings. Exakter Hash: siehe `git log`.
+G39-fix — SSR-Crash behoben (`[500] displayCount(...) is not a function`): `displayCount` war als Wert-`$derived`
+statt als aufrufbares `$derived(() => …)` geschrieben, im Markup aber als `displayCount()` aufgerufen. Der lokale
+Gate (typecheck/build) rendert kein SSR → erst auf dem Pi sichtbar. Callable-vs-Wert-Falle
+([[stoqr-svelte5-stale-derived-reseed]]-Umfeld).
 
 ---
 

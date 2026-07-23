@@ -166,7 +166,8 @@
   const productGroups = $derived(() => groupInventoryByProduct(filteredItems(), unitMetaMap))
 
   // Anzeige-Zähler: im Artikel-Modus echte Artikelzahl, sonst Bestandszahl.
-  const displayCount = $derived(
+  // Callable-$derived (wie filteredItems/productGroups), im Markup als displayCount() aufgerufen.
+  const displayCount = $derived(() =>
     viewMode === 'product' ? productGroups().length : filteredItems().length
   )
 
