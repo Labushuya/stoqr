@@ -5,6 +5,37 @@ Neueste Einträge oben. Jeder Eintrag nennt den Commit-Kontext, damit andere LLM
 
 ---
 
+## [Unreleased] — G39: Inventar-Ansicht „nach Artikel" (Bestände je Artikel aggregiert) (implementiert, Test auf Pi ausstehend)
+
+Die `/inventar`-Übersicht zeigte bisher **einzelne Bestände** (`inventory_items`) flach — ein Artikel mit mehreren
+Beständen erschien mehrfach. Neu (ROADMAP): eine **Artikel-Ansicht**, die Bestände je Artikel aggregiert (auf-/
+zuklappbar), plus ein Umschalter zur bisherigen Einzelbestands-Liste.
+
+- **Umschalter** Artikel ↔ Einzelbestände; **Default = Artikel-Ansicht**, Wahl in `localStorage`
+  (`stoqr:inventar:viewMode`) gemerkt (SSR-sicher: Default vor `onMount`, echter Wert erst clientseitig).
+- **Artikel-Karte** (Accordion, Muster aus `/orte`): Icon + Name + aggregierte **Gesamtmenge**
+  (`formatStockTotal`, Gebinde dual „3 Flasche (4,5 l)"), **Anzahl verfügbarer Bestände** (Badge) + frühestes
+  **MHD** (Ampel). Aufklappen → die einzelnen Bestände als Zeilen (Link auf `/inventar/{bestand-id}`).
+- **Gesamtmenge = nur verfügbare** Bestände (konsistent zur Detailseite; `aggregateStock` filtert `available`).
+  `availableCount` + `earliestBestBefore` nutzen dieselbe Teilmenge.
+- **Bestehende Filter** (Suche, Ort, „nur verfügbare") greifen auch hier: Artikel erscheint nur, wenn ein Bestand
+  durchkommt; 0-verfügbar fällt bei „nur verfügbare" automatisch weg. Header-Zähler zeigt „N Artikel" bzw. „N Bestände".
+- **Neu `lib/utils/inventory-group.ts`** (rein, DB-frei) `groupInventoryByProduct(items, unitMetaMap)` — bucketiert
+  nach `product.id`, aggregiert je Bucket über `aggregateStock`/`buildPackSize`, sortiert nach frühestem MHD → Name.
+  **10 Unit-Tests**.
+- **MHD-Ampel vereinheitlicht:** nutzt jetzt die Haushalts-Einstellungen (`data.expirySettings`) statt der Hardcodes
+  (7/2) — in Bestands- UND Artikel-Ansicht.
+- **Loader/Query:** `inventar/+page.server.ts` lädt zusätzlich `expirySettings`; `getInventoryItems` liefert am
+  Produkt zusätzlich `defaultVolumeMl`/`defaultWeightG` (für `buildPackSize`). **Keine Migration.**
+
+Gates: typecheck 0, lint 0/33, build ✓, vitest 163/163 (+10). Manifest: G39-Block.
+
+### Commits
+G39 (dieser Commit) — inventory-group.ts + Tests, Loader/Query-Ergänzung, /inventar Umschalter + Artikel-Accordion +
+MHD auf expirySettings. Exakter Hash: siehe `git log`.
+
+---
+
 ## [Unreleased] — G38: Katalog-Spiegel-Entscheidungslogik in getestete reine Helfer extrahiert (Härtung, kein Verhaltenswechsel) (implementiert, Test auf Pi ausstehend)
 
 Die über G20/G22/G34/G36/G37 gewachsene Kategorie-Vorrang-/Anzeige-Logik des Katalog-Spiegels war nur inline im

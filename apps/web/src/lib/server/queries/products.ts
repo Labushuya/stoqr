@@ -41,6 +41,10 @@ export async function getInventoryItems(
 					imageUrl: true,
 					defaultUnit: true,
 					defaultQuantity: true,
+					// Gebinde-Größe (Einheiten v2): fuer buildPackSize in der Artikel-Ansicht,
+					// damit count-Gebinde (z.B. "Flasche") korrekt auf Volumen/Masse aggregieren.
+					defaultVolumeMl: true,
+					defaultWeightG: true,
 					gtin: true,
 					categoryId: true,
 				},

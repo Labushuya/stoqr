@@ -194,9 +194,11 @@ Kein Text-/Pipe-Export (existiert so in Bring! nicht).
   ggf. Leergut-Verknüpfung.)
 - **Einkäufe umbenennen** (klein): `shopping_trips.name` existiert und ist beim Anlegen setzbar — es fehlt nur ein
   Umbenennen eines laufenden Runs in der UI (updateTrip-Route existiert bereits, PATCH name).
-- **Inventar-Ansicht „Artikel" (Toggle)** (geplant): Übersicht zeigt derzeit einzelne Bestände. Toggle „Bestand ↔ Artikel":
-  Artikel-Ansicht aggregiert Bestände je Artikel (auf-/zuklappbar, darunter die zugehörigen Bestände). Aggregation existiert
-  bereits auf der Detailseite (aggregateStock) — wiederverwendbar.
+- **Inventar-Ansicht „Artikel" (Toggle)** (**erledigt G39, Test auf Pi ausstehend**): `/inventar` hat jetzt einen
+  Umschalter „Nach Artikel ↔ Einzelbestände" (Default = Artikel, in localStorage gemerkt). Die Artikel-Ansicht
+  aggregiert Bestände je Artikel (Accordion: Icon + Name + Gesamtmenge + Anzahl + frühestes MHD; aufgeklappt die
+  einzelnen Bestände). Reiner Helfer `lib/utils/inventory-group.ts` über `aggregateStock`/`buildPackSize`. Bestehende
+  Filter greifen; MHD-Ampel nutzt jetzt `expirySettings` statt Hardcodes.
 - **„Verbraucht"-Handling + Wiederherstellen** (geplant, enthält kleinen Bug-Fix): verbrauchte Bestände werden aktuell
   serverseitig gar nicht geladen → der „Nur verfügbare"-Toggle ist wirkungslos. Zu klären: wie lange/ob verbrauchte
   Bestände sichtbar bleiben (Zeitfenster?) + „Wiederherstellen" (status zurück auf available, consumedAt nullen).

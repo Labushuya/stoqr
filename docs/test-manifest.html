@@ -108,7 +108,7 @@
 <div class="wrap">
   <header class="top">
     <h1>stoqr — Test-Manifest</h1>
-    <p class="subtitle">Blöcke A–E + F/F2 + G/G6/G7/G8/G10/G11/G12/G13/G15/G16/G17/G18/G19/G20/G21/G22/G24/G25/G26/G27/G28/G29/G30/G31/G32/G33/G34/G35/G36/G37 · logisch aufbauender Durchlauf · Stand nach G38 (Spiegel-Logik intern gehärtet, kein Verhaltenswechsel)</p>
+    <p class="subtitle">Blöcke A–E + F/F2 + G/G6/G7/G8/G10/G11/G12/G13/G15/G16/G17/G18/G19/G20/G21/G22/G24/G25/G26/G27/G28/G29/G30/G31/G32/G33/G34/G35/G36/G37/G39 · logisch aufbauender Durchlauf · Stand nach G39 (Inventar-Ansicht „nach Artikel")</p>
 
     <div class="pre">
       <h2>Voraussetzung (kein Testschritt)</h2>
@@ -614,6 +614,23 @@ const BLOCKS = [
         expect: 'Die manuell gewaehlte Kategorie wird gesetzt und BLEIBT angezeigt (Tag „manuell") — die Anzeige springt NICHT mehr auf die Regel-Kategorie zurueck. Die manuelle Wahl gewinnt vor dem Regel-Vorschlag (Vorrang manuell > Regel).' },
       { id: 'G37-2', title: 'Regel-Vorschlag weiterhin bei nicht-manuellen Kategorien', steps: ['Einen Artikel mit nicht-manueller Kategorie (OFF/Globus/keine) + abweichender Regel.', 'Spiegel betrachten.'],
         expect: 'Fuer NICHT-manuelle Kategorien wird weiterhin der abweichende Regel-Vorschlag gezeigt (Tag „Regel-Vorschlag", G34) — nur manuell gesetzte Kategorien sind geschuetzt. Nach „Herkunft zuruecksetzen" wird auch eine ehemals manuelle Kategorie wieder regel-empfaenglich.' },
+    ]
+  },
+  {
+    tag: 'G39', name: 'Inventar-Ansicht „nach Artikel" (Bestaende je Artikel aggregiert)', desc: 'Neue Uebersicht: /inventar buendelt Bestaende je Artikel (auf-/zuklappbar) statt einzelner Bestandszeilen; Umschalter zur bisherigen Einzelbestands-Liste.',
+    items: [
+      { id: 'G39-1', title: 'Umschalter + Standard = Artikel-Ansicht, bleibt nach Reload', steps: ['/inventar oeffnen (mit einigen Bestaenden).', 'Auf den Umschalter oben achten (Nach Artikel / Einzelbestaende).', 'Auf „Einzelbestaende" wechseln, dann Seite neu laden.', 'Erneut auf „Nach Artikel" wechseln, neu laden.'],
+        expect: 'Beim ersten Oeffnen ist „Nach Artikel" aktiv (Default). Die gewaehlte Ansicht wird gemerkt (localStorage) und bleibt nach dem Reload erhalten. „Einzelbestaende" zeigt die bisherige flache Karten-Liste unveraendert.' },
+      { id: 'G39-2', title: 'Ein Artikel mit mehreren Bestaenden erscheint EINMAL mit korrekter Gesamtmenge', steps: ['Einen Artikel mit >1 Bestand (z.B. 2 Packung + 1 Packung, oder Gebinde „3 Flasche" bei hinterlegtem Gebinde 1,5 l).', 'In der Artikel-Ansicht die Zeile betrachten.'],
+        expect: 'Der Artikel erscheint als EINE Zeile mit aggregierter Gesamtmenge (z.B. „3 Packung", bei Gebinde dual „3 Flasche (4,5 l)"). Ein Badge zeigt die Anzahl verfuegbarer Bestaende (z.B. „3×"). Die MHD-Ampel zeigt das FRUEHESTE MHD der verfuegbaren Bestaende.' },
+      { id: 'G39-3', title: 'Aufklappen zeigt die einzelnen Bestaende', steps: ['Eine Artikel-Zeile anklappen (Chevron/Klick auf die Zeile).'],
+        expect: 'Darunter erscheinen die einzelnen Bestaende (Menge + MHD-Ampel + Lagerort). Jede Zeile verlinkt auf die Bestands-Detailseite (/inventar/<bestand-id>) — kein 404.' },
+      { id: 'G39-4', title: 'Filter greifen auch in der Artikel-Ansicht', steps: ['In der Artikel-Ansicht die Suche nutzen (Produktname).', 'Einen Lagerplatz-Filter setzen.', '„Nur verfuegbare" umschalten.'],
+        expect: 'Ein Artikel erscheint nur, wenn mind. einer seiner Bestaende durch den Filter kommt; aufgeklappt sind nur die passenden Bestaende zu sehen. Der Kopf-Zaehler zeigt „N Artikel" (nicht Bestaende).' },
+      { id: 'G39-5', title: '0-verfuegbar-Artikel bei „nur verfuegbare" ausgeblendet', steps: ['Einen Artikel, dessen Bestaende alle verbraucht/gespendet/entsorgt sind.', 'Mit aktivem „Nur verfuegbare" die Artikel-Ansicht betrachten, dann Toggle ausschalten.'],
+        expect: 'Bei „Nur verfuegbare" (Default an) ist der komplett verbrauchte Artikel NICHT sichtbar. Nach Ausschalten erscheint er (Gesamtmenge „—", Badge „0×").' },
+      { id: 'G39-6', title: 'MHD-Ampel nutzt die echten Einstellungen', steps: ['In Einstellungen die MHD-Schwellen (gelb/rot) auf ungewoehnliche Werte setzen (z.B. gelb 30 / rot 10).', '/inventar betrachten (beide Ansichten).'],
+        expect: 'Die MHD-Ampeln (Bestands- UND Artikel-Ansicht) folgen den eingestellten Schwellen, nicht mehr fix 7/2 Tage.' },
     ]
   },
   {

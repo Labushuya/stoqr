@@ -8,6 +8,10 @@
     getExpiryLabel,
     EXPIRY_CLASS,
   } from '$lib/utils/expiry'
+  import { onMount } from 'svelte'
+  import { buildUnitMetaMap } from '$lib/utils/stock'
+  import { groupInventoryByProduct } from '$lib/utils/inventory-group'
+  import { formatStockTotal } from '$lib/utils/format'
 
   // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -48,6 +52,9 @@
       imageUrl: string | null
       categoryId: string | null
       category: Category | null
+      defaultUnit: string | null
+      defaultVolumeMl: string | null
+      defaultWeightG: string | null
     }
   }
 
@@ -75,6 +82,19 @@
   let searchQuery = $state('')
   let filterPlaceId = $state('')
   let filterAvailableOnly = $state(true)
+
+  // Ansichts-Umschalter: 'product' = Bestände je Artikel aggregiert (Default, G39),
+  // 'item' = flache Liste einzelner Bestände (bisheriges Verhalten). SSR-sicher mit
+  // Default initialisieren, echten localStorage-Wert erst in onMount lesen (kein
+  // Hydration-Mismatch). Bei Änderung persistieren.
+  let viewMode = $state<'product' | 'item'>('product')
+
+  // Aufgeklappte Artikel-Gruppen (Accordion, Muster aus /orte).
+  let openProductIds = $state<Set<string>>(new Set())
+
+  // Einheiten-Meta für die Aggregation (Symbol → UnitMeta). Aus data.units abgeleitet.
+  // svelte-ignore state_referenced_locally
+  const unitMetaMap = buildUnitMetaMap((data.units as import('$lib/utils/stock').UnitRow[]) ?? [])
 
   let showSheet = $state(false)
 
@@ -108,10 +128,11 @@
   // svelte-ignore state_referenced_locally
   const unitOptions = (data.units as { id: string; name: string; symbol: string }[]) ?? []
 
-  // Expiry config defaults (fallback values — ideally server-loaded)
-  const YELLOW_DAYS = 7
-  const RED_DAYS = 2
-  const TOLERANCE_DAYS = 0
+  // Expiry-Schwellen aus den Haushalts-Einstellungen (statt Hardcodes) — G39.
+  // $derived, damit ein invalidateAll die Schwellen mitzieht (reaktivitätssicher).
+  const YELLOW_DAYS = $derived(data.expirySettings?.yellowDaysBefore ?? 7)
+  const RED_DAYS = $derived(data.expirySettings?.redDaysBefore ?? 2)
+  const TOLERANCE_DAYS = $derived(data.expirySettings?.graceDaysAfter ?? 0)
 
   // ── Derived ────────────────────────────────────────────────────────────────
 
@@ -138,6 +159,17 @@
     return result
   })
 
+  // Artikel-Gruppen (Ansicht 'product'): auf Basis der bereits gefilterten Bestände,
+  // damit Suche/Ort/„nur verfügbare" auch hier greifen. Ein Artikel erscheint nur,
+  // wenn mind. ein Bestand durch den Filter kam; bei „nur verfügbare" fallen 0-Bestand-
+  // Artikel automatisch weg (kein Bestand übrig). Aus data-abgeleiteten `items` → $derived.
+  const productGroups = $derived(() => groupInventoryByProduct(filteredItems(), unitMetaMap))
+
+  // Anzeige-Zähler: im Artikel-Modus echte Artikelzahl, sonst Bestandszahl.
+  const displayCount = $derived(
+    viewMode === 'product' ? productGroups().length : filteredItems().length
+  )
+
   // All places flat list for filter dropdown
   const allPlaces = $derived(() => {
     const list: { id: string; label: string }[] = []
@@ -163,15 +195,15 @@
 
   // ── Expiry helpers ─────────────────────────────────────────────────────────
 
-  function expiryInfo(item: InventoryItem): {
+  function expiryFromDate(bestBeforeDate: string | null): {
     cssClass: string
     label: string
     hasDate: boolean
   } {
-    if (!item.bestBeforeDate) {
+    if (!bestBeforeDate) {
       return { cssClass: 'mhd-none', label: '⚠ Kein MHD', hasDate: false }
     }
-    const date = new Date(item.bestBeforeDate)
+    const date = new Date(bestBeforeDate)
     const status = getExpiryStatus(date, TOLERANCE_DAYS, {
       yellowDaysBefore: YELLOW_DAYS,
       redDaysBefore: RED_DAYS,
@@ -179,6 +211,14 @@
     const days = getDaysRemaining(date, TOLERANCE_DAYS)
     const label = getExpiryLabel(status, days)
     return { cssClass: EXPIRY_CLASS[status], label, hasDate: true }
+  }
+
+  function expiryInfo(item: InventoryItem): {
+    cssClass: string
+    label: string
+    hasDate: boolean
+  } {
+    return expiryFromDate(item.bestBeforeDate)
   }
 
   // ── Location breadcrumb ────────────────────────────────────────────────────
@@ -225,8 +265,13 @@
   }
 
   function categoryIcon(item: InventoryItem): string {
-    if (item.product.category?.icon) return item.product.category.icon
-    const slug = item.product.category?.slug ?? ''
+    return categoryIconForProduct(item.product)
+  }
+
+  // Icon aus einem Produkt (für die Artikel-Karte, die kein Item hat).
+  function categoryIconForProduct(product: { category: Category | null }): string {
+    if (product.category?.icon) return product.category.icon
+    const slug = product.category?.slug ?? ''
     for (const [key, icon] of Object.entries(CATEGORY_ICONS)) {
       if (slug.includes(key)) return icon
     }
@@ -329,6 +374,32 @@ Das Produkt bleibt im Katalog.`,
     openMenuId = null
     menuPosition = null
   }
+
+  // ── Ansichts-Umschalter + Accordion (G39) ───────────────────────────────────
+
+  const VIEW_STORAGE_KEY = 'stoqr:inventar:viewMode'
+
+  onMount(() => {
+    // Gemerkte Ansicht erst clientseitig laden (SSR-Default bleibt 'product').
+    const stored = localStorage.getItem(VIEW_STORAGE_KEY)
+    if (stored === 'product' || stored === 'item') viewMode = stored
+  })
+
+  function setViewMode(mode: 'product' | 'item') {
+    viewMode = mode
+    try {
+      localStorage.setItem(VIEW_STORAGE_KEY, mode)
+    } catch {
+      // localStorage kann in Privatmodus fehlen — Wahl gilt dann nur für die Session.
+    }
+  }
+
+  function toggleProduct(id: string) {
+    const next = new Set(openProductIds)
+    if (next.has(id)) next.delete(id)
+    else next.add(id)
+    openProductIds = next
+  }
 </script>
 
 <!-- Click outside / scroll to close menus -->
@@ -340,7 +411,29 @@ Das Produkt bleibt im Katalog.`,
   <!-- Header -->
   <div class="page-header">
     <h1 class="page-title">Inventar</h1>
-    <span class="item-count">{filteredItems().length} Artikel</span>
+    <span class="item-count">{displayCount()} {viewMode === 'product' ? 'Artikel' : 'Bestände'}</span>
+  </div>
+
+  <!-- Ansichts-Umschalter (Artikel ↔ Bestände) -->
+  <div class="view-toggle" role="group" aria-label="Ansicht wählen">
+    <button
+      type="button"
+      class="view-toggle-btn"
+      class:active={viewMode === 'product'}
+      aria-pressed={viewMode === 'product'}
+      onclick={() => setViewMode('product')}
+    >
+      Nach Artikel
+    </button>
+    <button
+      type="button"
+      class="view-toggle-btn"
+      class:active={viewMode === 'item'}
+      aria-pressed={viewMode === 'item'}
+      onclick={() => setViewMode('item')}
+    >
+      Einzelbestände
+    </button>
   </div>
 
   <!-- Search bar -->
@@ -385,7 +478,7 @@ Das Produkt bleibt im Katalog.`,
   </div>
 
   <!-- Item grid / empty state -->
-  {#if filteredItems().length === 0}
+  {#if displayCount() === 0}
     <div class="empty-state">
       <div class="empty-icon" aria-hidden="true">
         <svg width="72" height="72" viewBox="0 0 72 72" fill="none">
@@ -414,7 +507,7 @@ Das Produkt bleibt im Katalog.`,
         </button>
       {/if}
     </div>
-  {:else}
+  {:else if viewMode === 'item'}
     <ul class="item-grid" role="list">
       {#each filteredItems() as item (item.id)}
         {@const expiry = expiryInfo(item)}
@@ -494,6 +587,87 @@ Das Produkt bleibt im Katalog.`,
               {/if}
             </div>
           </div>
+        </li>
+      {/each}
+    </ul>
+  {:else}
+    <!-- Artikel-Ansicht: Bestände je Artikel aggregiert (Accordion) -->
+    <ul class="product-list" role="list">
+      {#each productGroups() as group (group.product.id)}
+        {@const open = openProductIds.has(group.product.id)}
+        {@const icon = categoryIconForProduct(group.product)}
+        {@const mhd = expiryFromDate(group.earliestBestBefore)}
+        <li class="product-card">
+          <button
+            class="accordion-toggle"
+            type="button"
+            aria-expanded={open}
+            onclick={() => toggleProduct(group.product.id)}
+          >
+            <span class="product-thumb" aria-hidden="true">
+              {#if group.product.imageUrl}
+                <img
+                  src={group.product.imageUrl}
+                  alt=""
+                  class="product-thumb-img"
+                  loading="lazy"
+                  onerror={(e) => ((e.currentTarget as HTMLImageElement).style.display = 'none')}
+                />
+              {:else}
+                <span class="product-cat-icon">{icon}</span>
+              {/if}
+            </span>
+            <span class="product-main">
+              <span class="product-name">{group.product.name}</span>
+              <span class="product-meta">
+                <span class="product-total">{formatStockTotal(group.totals)}</span>
+                <span class="product-badge" title="Anzahl Bestände">{group.availableCount}×</span>
+                {#if mhd.hasDate}
+                  <span class="mhd-badge {mhd.cssClass}">{mhd.label}</span>
+                {/if}
+              </span>
+            </span>
+            <svg
+              class="chevron"
+              class:open
+              width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"
+            >
+              <path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
+
+          {#if open}
+            <ul class="product-body" role="list">
+              {#each group.items as item (item.id)}
+                {@const expiry = expiryInfo(item)}
+                {@const breadcrumb = placeBreadcrumb(item)}
+                <li class="stock-row" class:stock-row--consumed={item.status !== 'available'}>
+                  <a class="stock-row-link" href="/inventar/{item.id}">
+                    <span class="stock-row-qty">{quantityDisplay(item)}</span>
+                    {#if expiry.hasDate}
+                      <span class="mhd-badge {expiry.cssClass}">{expiry.label}</span>
+                    {:else}
+                      <span class="mhd-badge mhd-none">{expiry.label}</span>
+                    {/if}
+                    {#if breadcrumb}
+                      <span class="stock-row-place">{breadcrumb}</span>
+                    {/if}
+                    {#if item.status !== 'available'}
+                      <span class="status-badge status-badge--{item.status}">
+                        {item.status === 'consumed'
+                          ? 'Verbraucht'
+                          : item.status === 'expired'
+                            ? 'Abgelaufen'
+                            : item.status === 'donated'
+                              ? 'Gespendet'
+                              : 'Entsorgt'}
+                      </span>
+                    {/if}
+                  </a>
+                </li>
+              {/each}
+            </ul>
+          {/if}
         </li>
       {/each}
     </ul>
@@ -878,6 +1052,209 @@ Das Produkt bleibt im Katalog.`,
     font-weight: 500;
     color: var(--color-text-secondary);
     white-space: nowrap;
+  }
+
+  /* ── View toggle (Artikel ↔ Bestände) ─────────────────────────────────── */
+
+  .view-toggle {
+    display: inline-flex;
+    padding: 3px;
+    gap: 2px;
+    border-radius: var(--radius-md);
+    background-color: var(--color-surface-sunken);
+    border: 1px solid var(--color-border);
+    margin-bottom: var(--space-4);
+  }
+
+  .view-toggle-btn {
+    appearance: none;
+    border: none;
+    background: transparent;
+    color: var(--color-text-secondary);
+    font-family: var(--font-body);
+    font-size: var(--text-sm);
+    font-weight: 600;
+    padding: var(--space-1) var(--space-4);
+    border-radius: calc(var(--radius-md) - 2px);
+    cursor: pointer;
+    transition: background-color var(--transition-fast), color var(--transition-fast);
+    white-space: nowrap;
+  }
+
+  .view-toggle-btn:hover {
+    color: var(--color-text-primary);
+  }
+
+  .view-toggle-btn.active {
+    background-color: var(--color-surface-raised);
+    color: var(--color-text-primary);
+    box-shadow: var(--shadow-sm);
+  }
+
+  /* ── Product (Artikel) accordion ───────────────────────────────────────── */
+
+  .product-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+
+  .product-card {
+    background-color: var(--color-surface-raised);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
+  }
+
+  .accordion-toggle {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    width: 100%;
+    padding: var(--space-3);
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    text-align: left;
+    transition: background-color var(--transition-fast);
+  }
+
+  .accordion-toggle:hover {
+    background-color: var(--color-surface-sunken);
+  }
+
+  .product-thumb {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border-radius: var(--radius-md);
+    background-color: var(--color-surface-sunken);
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+
+  .product-thumb-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .product-cat-icon {
+    font-size: 1.4rem;
+    line-height: 1;
+  }
+
+  .product-main {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    flex: 1;
+    min-width: 0;
+  }
+
+  .product-name {
+    font-size: var(--text-sm);
+    font-weight: 600;
+    color: var(--color-text-primary);
+    line-height: 1.3;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .product-meta {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    flex-wrap: wrap;
+  }
+
+  .product-total {
+    font-size: var(--text-sm);
+    font-weight: 700;
+    color: var(--color-text-primary);
+  }
+
+  .product-badge {
+    display: inline-flex;
+    align-items: center;
+    height: 18px;
+    padding: 0 var(--space-2);
+    border-radius: var(--radius-full);
+    background-color: var(--color-primary-subtle);
+    color: var(--color-primary);
+    font-size: 10px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+
+  .chevron {
+    flex-shrink: 0;
+    color: var(--color-text-muted);
+    transition: transform var(--transition-base);
+    margin-left: auto;
+  }
+
+  .chevron.open {
+    transform: rotate(180deg);
+  }
+
+  .product-body {
+    list-style: none;
+    margin: 0;
+    padding: 0 var(--space-3) var(--space-2);
+    border-top: 1px solid var(--color-border);
+    display: flex;
+    flex-direction: column;
+  }
+
+  .stock-row {
+    border-bottom: 1px solid var(--color-border-subtle, var(--color-border));
+  }
+
+  .stock-row:last-child {
+    border-bottom: none;
+  }
+
+  .stock-row--consumed {
+    opacity: 0.6;
+  }
+
+  .stock-row-link {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-2) 0;
+    text-decoration: none;
+    color: inherit;
+    flex-wrap: wrap;
+  }
+
+  .stock-row-link:hover .stock-row-qty {
+    color: var(--color-primary);
+  }
+
+  .stock-row-qty {
+    font-size: var(--text-sm);
+    font-weight: 700;
+    color: var(--color-text-primary);
+    min-width: 64px;
+  }
+
+  .stock-row-place {
+    font-size: var(--text-xs);
+    color: var(--color-text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex: 1;
   }
 
   /* ── Item grid ────────────────────────────────────────────────────────── */
