@@ -3,7 +3,7 @@
 > Kanonisches Datenmodell und Entwicklungsplan. Diese Datei ist führend für Absicht,
 > Logik und Ziel von stoqr. Bei Widersprüchen zwischen Code und dieser Datei gilt diese Datei.
 
-Letzte Aktualisierung: 2026-07-23 (G35: Herkunft-Reset-UX klargestellt — präziserer Toast (Reset macht nur empfänglich, Neuzuordnung beim Übernehmen) + onReset-Callback für konsistenten Caller-State; kein Server-Bug; Test auf Pi ausstehend)
+Letzte Aktualisierung: 2026-07-23 (G36: Katalog-Spiegel aktualisiert nach „Übernehmen" sofort — stale lokale Overlays (snapCategoryChoice/snapFieldOverrides) werden vor invalidateAll verworfen; Test auf Pi ausstehend)
 
 ---
 

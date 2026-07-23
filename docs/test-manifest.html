@@ -108,7 +108,7 @@
 <div class="wrap">
   <header class="top">
     <h1>stoqr — Test-Manifest</h1>
-    <p class="subtitle">Blöcke A–E + F/F2 + G/G6/G7/G8/G10/G11/G12/G13/G15/G16/G17/G18/G19/G20/G21/G22/G24/G25/G26/G27/G28/G29/G30/G31/G32/G33/G34/G35 · logisch aufbauender Durchlauf · Stand nach G35 (Reset-UX klargestellt)</p>
+    <p class="subtitle">Blöcke A–E + F/F2 + G/G6/G7/G8/G10/G11/G12/G13/G15/G16/G17/G18/G19/G20/G21/G22/G24/G25/G26/G27/G28/G29/G30/G31/G32/G33/G34/G35/G36 · logisch aufbauender Durchlauf · Stand nach G36 (Spiegel aktualisiert sofort)</p>
 
     <div class="pre">
       <h2>Voraussetzung (kein Testschritt)</h2>
@@ -597,7 +597,14 @@ const BLOCKS = [
       { id: 'G35-1', title: 'Reset-Toast erklaert den naechsten Schritt', steps: ['Bei einem Artikel „Herkunft zuruecksetzen" (egal ob Detailseite, Artikel-Katalog oder Spiegel).', 'Die Toast-Meldung lesen.'],
         expect: 'Der Toast sagt klar, dass die Kategorie beim naechsten Katalog-Abgleich (Artikel-Sicherung → Uebernehmen) neu per Regel zugeordnet wird — der Reset selbst macht nur empfaenglich.' },
       { id: 'G35-2', title: 'Zwei-Schritt-Ablauf funktioniert (Reset -> Sichern -> Uebernehmen)', steps: ['Herkunft eines Artikels zuruecksetzen.', 'Katalog jetzt sichern.', 'Im Katalog-Spiegel den Artikel Uebernehmen.'],
-        expect: 'Nach diesem Ablauf ist die per Regel gewuenschte Kategorie gesetzt. (Der Reset im Artikel-Katalog wirkt serverseitig identisch zum Spiegel — dort sieht man nur keine unmittelbare Aenderung, weil der Katalog keine Herkunft/keinen Uebernehmen-Flow zeigt.)' },
+        expect: 'Nach diesem Ablauf ist die per Regel gewuenschte Kategorie gesetzt. (Der Reset im Artikel-Katalog wirkt serverseitig identisch zum Spiegel — dort sieht man nur keine unmittelbare Aenderung, weil der Katalog keine Herkunft/keinen Uebernehmen-Flow zeigt.) Sofort-Aktualisierung im Spiegel: siehe G36.' },
+    ]
+  },
+  {
+    tag: 'G36', name: 'Katalog-Spiegel aktualisiert nach Uebernehmen sofort', desc: 'Behebt den G35-Punkt: nach Uebernehmen war die Kategorie erst nach manuellem Refresh sichtbar (stale lokale Overlays).',
+    items: [
+      { id: 'G36-1', title: 'Uebernommene Kategorie erscheint sofort (ohne Refresh)', steps: ['Im Katalog-Spiegel bei einem Artikel eine (Regel-)Kategorie uebernehmen.', 'Die Zeile SOFORT betrachten — ohne Browser-Refresh.'],
+        expect: 'Die uebernommene Kategorie ist sofort sichtbar (linker Wert + Select/Tags), kein manueller Refresh mehr noetig. Die lokale Auswahl-/Checkbox-Ueberlagerung wird nach dem Uebernehmen verworfen, sodass die frisch geladenen Daten durchschlagen.' },
     ]
   },
   {

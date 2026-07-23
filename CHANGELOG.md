@@ -5,6 +5,25 @@ Neueste Einträge oben. Jeder Eintrag nennt den Commit-Kontext, damit andere LLM
 
 ---
 
+## [Unreleased] — G36: Katalog-Spiegel aktualisiert nach „Übernehmen" sofort (stale Overlays verworfen) (implementiert, Test auf Pi ausstehend)
+
+Aus dem G35-Test: nach „Übernehmen" wurde die Kategorie erst nach manuellem Refresh sichtbar. Diagnose (Workflow):
+
+- **Root-Cause:** Server + `invalidateAll` sind korrekt, `catalogMirror` ist `$derived(data)`. Aber die lokalen
+  **Overlays** `snapCategoryChoice`/`snapFieldOverrides` (User-Wahl/Checkbox-Zustände) wurden nach dem Übernehmen
+  **nie verworfen** und haben im Anzeige-Getter (`snapCategoryFor`) **Vorrang** → sie verdeckten die frisch geladenen
+  Daten, bis ein Browser-Refresh die Overlays leert. (Companion zur bekannten Reseed-Falle — hier über einem `$derived`.)
+- **Fix:** In `reviewSnapshot` nach erfolgreichem `confirm` die Overlay-Einträge des betroffenen Snapshots **vor**
+  `invalidateAll()` verwerfen (`snapCategoryChoice` ohne id, `snapFieldOverrides[id]` löschen, `catalogMirrorTick++`).
+  Danach fällt der Getter auf die frischen `data`-Werte zurück → die übernommene Kategorie erscheint sofort.
+
+Gates: typecheck 0, lint 0/33, build ✓, vitest 137/137. Keine Migration. Manifest: G35-2-Verweis, G36-Block.
+
+### Commits
+G36 (dieser Commit) — Overlays nach Übernehmen verworfen (sofortige Aktualisierung im Katalog-Spiegel). Exakter Hash: siehe `git log`.
+
+---
+
 ## [Unreleased] — G35: Herkunft-Reset — klareres Feedback + Caller-State (kein Server-Bug) (implementiert, Test auf Pi ausstehend)
 
 Aus dem G32/G33-Test: „Herkunft zurücksetzen" schien im Artikel-Katalog nicht zu wirken, und ein erneutes

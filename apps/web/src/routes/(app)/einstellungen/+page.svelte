@@ -221,6 +221,16 @@
       const b = await res.json().catch(() => ({}))
       if (!res.ok) { toast.error(String(b?.error ?? `Fehler ${res.status}`)); return }
       toast.success(action === 'confirm' ? 'In Artikel übernommen' : 'Ignoriert')
+      // Lokale Overlays dieses Snapshots verwerfen, BEVOR neu geladen wird — sonst
+      // verdecken snapCategoryChoice/snapFieldOverrides die frischen data-Werte und
+      // die Anzeige (Select/Tags) haengt bis zum manuellen Refresh nach (G36).
+      if (snapCategoryChoice[id] !== undefined) {
+        const next = { ...snapCategoryChoice }
+        delete next[id]
+        snapCategoryChoice = next
+      }
+      delete snapFieldOverrides[id]
+      catalogMirrorTick++
       // Spiegel ist $derived(data) → per Reload aktualisieren.
       await invalidateAll()
     } catch {
