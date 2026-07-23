@@ -108,7 +108,7 @@
 <div class="wrap">
   <header class="top">
     <h1>stoqr — Test-Manifest</h1>
-    <p class="subtitle">Blöcke A–E + F/F2 + G/G6/G7/G8/G10/G11/G12/G13/G15/G16/G17/G18/G19/G20/G21/G22/G24/G25/G26/G27/G28/G29/G30/G31/G32/G33/G34/G35/G36 · logisch aufbauender Durchlauf · Stand nach G36 (Spiegel aktualisiert sofort)</p>
+    <p class="subtitle">Blöcke A–E + F/F2 + G/G6/G7/G8/G10/G11/G12/G13/G15/G16/G17/G18/G19/G20/G21/G22/G24/G25/G26/G27/G28/G29/G30/G31/G32/G33/G34/G35/G36/G37 · logisch aufbauender Durchlauf · Stand nach G37 (manuell schlägt Regel in Anzeige)</p>
 
     <div class="pre">
       <h2>Voraussetzung (kein Testschritt)</h2>
@@ -605,6 +605,15 @@ const BLOCKS = [
     items: [
       { id: 'G36-1', title: 'Uebernommene Kategorie erscheint sofort (ohne Refresh)', steps: ['Im Katalog-Spiegel bei einem Artikel eine (Regel-)Kategorie uebernehmen.', 'Die Zeile SOFORT betrachten — ohne Browser-Refresh.'],
         expect: 'Die uebernommene Kategorie ist sofort sichtbar (linker Wert + Select/Tags), kein manueller Refresh mehr noetig. Die lokale Auswahl-/Checkbox-Ueberlagerung wird nach dem Uebernehmen verworfen, sodass die frisch geladenen Daten durchschlagen.' },
+    ]
+  },
+  {
+    tag: 'G37', name: 'Manuelle Kategorie schlaegt Regel-Vorschlag (Anzeige)', desc: 'Behebt die G36-Regression: eine manuell gesetzte Kategorie liess sich nicht mehr setzen, weil die Anzeige auf den Regel-Vorschlag zuruecksprang.',
+    items: [
+      { id: 'G37-1', title: 'Manuelle Kategorie im Spiegel setzen und behalten', steps: ['Einen Artikel im Spiegel, dessen Globus-Pfad eine Regel-Kategorie ergibt.', 'Im Dropdown bewusst eine ANDERE Kategorie als der Regel-Vorschlag waehlen (manuell).', 'Uebernehmen. Danach die Zeile SOFORT betrachten (ohne Refresh).'],
+        expect: 'Die manuell gewaehlte Kategorie wird gesetzt und BLEIBT angezeigt (Tag „manuell") — die Anzeige springt NICHT mehr auf die Regel-Kategorie zurueck. Die manuelle Wahl gewinnt vor dem Regel-Vorschlag (Vorrang manuell > Regel).' },
+      { id: 'G37-2', title: 'Regel-Vorschlag weiterhin bei nicht-manuellen Kategorien', steps: ['Einen Artikel mit nicht-manueller Kategorie (OFF/Globus/keine) + abweichender Regel.', 'Spiegel betrachten.'],
+        expect: 'Fuer NICHT-manuelle Kategorien wird weiterhin der abweichende Regel-Vorschlag gezeigt (Tag „Regel-Vorschlag", G34) — nur manuell gesetzte Kategorien sind geschuetzt. Nach „Herkunft zuruecksetzen" wird auch eine ehemals manuelle Kategorie wieder regel-empfaenglich.' },
     ]
   },
   {

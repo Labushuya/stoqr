@@ -5,6 +5,28 @@ Neueste Einträge oben. Jeder Eintrag nennt den Commit-Kontext, damit andere LLM
 
 ---
 
+## [Unreleased] — G37: Regression behoben — manuelle Kategorie schlägt Regel-Vorschlag in der Spiegel-Anzeige (implementiert, Test auf Pi ausstehend)
+
+Aus dem G36-Test: nach dem G36-Fix ließ sich die Kategorie im Spiegel **nicht mehr manuell setzen** — jeder
+„Übernehmen"-Klick sprang sofort auf die Regel-Kategorie zurück. Diagnose (Workflow):
+
+- **Root-Cause (meine G34/G36-Interaktion):** Nach dem Übernehmen einer manuellen, von der Regel **abweichenden**
+  Kategorie bleibt `differs` true (Regel ≠ gerade gesetzte Kategorie). `snapCategoryFor` stellte bei `differs` den
+  **Regel-Vorschlag über** die gespeicherte Kategorie (G34), und der G36-Overlay-Verwurf entfernte zusätzlich die
+  Session-Wahl → die Anzeige fiel auf den Regel-Vorschlag zurück.
+- **Fix:** `snapCategoryFor` kennt jetzt die **Herkunft** (`categorySource`, seit G34 in der Zeile). Neue Reihenfolge:
+  Session-Wahl → **wenn gespeichert `manual`: gespeicherte Kategorie (Regel-Vorschlag NICHT)** → Regel-Vorschlag bei
+  `differs` (nur nicht-manuell) → gespeichert → autoMatch. So gewinnt eine manuell gesetzte Kategorie (Vorrang
+  manuell > Regel), abweichende Regeln erscheinen weiter bei nicht-manuellen Kategorien (G34), Anzeige bleibt
+  refresh-frei (G36). Der Status-Tag zeigt bei `categorySource === 'manual'` ebenfalls „manuell".
+
+Gates: typecheck 0, lint 0/33, build ✓, vitest 137/137. Keine Migration. Manifest: G36-1-Verweis, G37-Block.
+
+### Commits
+G37 (dieser Commit) — snapCategoryFor respektiert categorySource (manuell schlägt Regel-Vorschlag). Exakter Hash: siehe `git log`.
+
+---
+
 ## [Unreleased] — G36: Katalog-Spiegel aktualisiert nach „Übernehmen" sofort (stale Overlays verworfen) (implementiert, Test auf Pi ausstehend)
 
 Aus dem G35-Test: nach „Übernehmen" wurde die Kategorie erst nach manuellem Refresh sichtbar. Diagnose (Workflow):

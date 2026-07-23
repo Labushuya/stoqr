@@ -145,15 +145,24 @@
     if (cur && categoryId) snapFieldOverrides[id] = { ...cur, category: true }
     catalogMirrorTick++
   }
-  // Effektiv anzuzeigende Kategorie im Spiegel-Select. Reihenfolge (G22-1/G34):
-  //  1. manuelle Session-Wahl (snapCategoryChoice)
-  //  2. frischer Regel-/Auto-Vorschlag, WENN er von der gespeicherten Kategorie
-  //     abweicht (differs) — so wird eine neue/geaenderte Regel sofort sichtbar,
-  //     statt bis "Uebernehmen" die alte gespeicherte Kategorie zu zeigen (G34)
-  //  3. gespeicherte Kategorie (bleibt nach Uebernahme/Reload sichtbar — G22-1)
-  //  4. best-effort autoMatch, 5. leer
-  function snapCategoryFor(id: string, autoMatch: string | null, stored: string | null, differs = false): string {
+  // Effektiv anzuzeigende Kategorie im Spiegel-Select. Reihenfolge (G22-1/G34/G37):
+  //  1. manuelle Session-Wahl (snapCategoryChoice) — waehrend der Bearbeitung
+  //  2. MANUELL gespeicherte Kategorie gewinnt vor dem Regel-Vorschlag (G37) —
+  //     eine bewusst gesetzte manuelle Kategorie darf nicht vom Regel-Vorschlag
+  //     verdeckt werden (Vorrang manuell > Regel)
+  //  3. frischer Regel-/Auto-Vorschlag bei Abweichung (differs) — nur fuer
+  //     NICHT-manuelle Kategorien, damit neue/geaenderte Regeln sofort sichtbar sind (G34)
+  //  4. gespeicherte Kategorie (bleibt nach Uebernahme/Reload sichtbar — G22-1)
+  //  5. best-effort autoMatch, 6. leer
+  function snapCategoryFor(
+    id: string,
+    autoMatch: string | null,
+    stored: string | null,
+    differs = false,
+    categorySource: 'off' | 'globus' | 'manual' | null = null
+  ): string {
     if (snapCategoryChoice[id]) return snapCategoryChoice[id]
+    if (categorySource === 'manual' && stored) return stored
     if (differs && autoMatch) return autoMatch
     return stored ?? autoMatch ?? ''
   }
@@ -678,20 +687,20 @@
                 <!-- Kategorie: Auto-Match/Regel-Vorschlag, gespeicherte Kategorie ODER
                      manuelle Zuordnung (G20-2/G22-1/G34). -->
                 <label class="snap-diff-row" class:snap-diff-row--diff={r.diff.category.differs}>
-                  <input type="checkbox" disabled={!snapCategoryFor(snap.id, snap.catalogCategoryId, r.product.categoryId, r.diff.category.differs)} checked={snapFields[snap.id]?.category} onchange={() => toggleSnapField(snap.id, 'category')} />
-                  <span class="snap-diff-field">Kategorie {#if snapCategoryChoice[snap.id]}<span class="snap-diff-tag snap-diff-tag--ok">manuell</span>{:else if r.diff.category.differs && snap.catalogCategoryId}<span class="snap-diff-tag">Regel-Vorschlag</span>{:else if r.product.categoryId && !r.diff.category.differs}<span class="snap-diff-tag snap-diff-tag--ok">gesetzt</span>{:else if (snap.category?.length ?? 0) > 0 && !snap.catalogCategoryId}<span class="snap-diff-tag snap-diff-tag--warn">nicht zuordenbar</span>{:else if r.diff.category.differs}<span class="snap-diff-tag">abweichend</span>{:else}<span class="snap-diff-tag snap-diff-tag--ok">gleich</span>{/if}{#if r.product.categorySource === 'manual'}<button class="btn-src-reset" type="button" disabled={catResetBusy === r.product.id} title="Manuelle Herkunft zurücksetzen — Kategorie bleibt, wird aber wieder für Regeln empfänglich." onclick={() => resetCategorySource(r.product.id)}>Herkunft zurücksetzen</button>{/if}</span>
+                  <input type="checkbox" disabled={!snapCategoryFor(snap.id, snap.catalogCategoryId, r.product.categoryId, r.diff.category.differs, r.product.categorySource)} checked={snapFields[snap.id]?.category} onchange={() => toggleSnapField(snap.id, 'category')} />
+                  <span class="snap-diff-field">Kategorie {#if snapCategoryChoice[snap.id] || r.product.categorySource === 'manual'}<span class="snap-diff-tag snap-diff-tag--ok">manuell</span>{:else if r.diff.category.differs && snap.catalogCategoryId}<span class="snap-diff-tag">Regel-Vorschlag</span>{:else if r.product.categoryId && !r.diff.category.differs}<span class="snap-diff-tag snap-diff-tag--ok">gesetzt</span>{:else if (snap.category?.length ?? 0) > 0 && !snap.catalogCategoryId}<span class="snap-diff-tag snap-diff-tag--warn">nicht zuordenbar</span>{:else if r.diff.category.differs}<span class="snap-diff-tag">abweichend</span>{:else}<span class="snap-diff-tag snap-diff-tag--ok">gleich</span>{/if}{#if r.product.categorySource === 'manual'}<button class="btn-src-reset" type="button" disabled={catResetBusy === r.product.id} title="Manuelle Herkunft zurücksetzen — Kategorie bleibt, wird aber wieder für Regeln empfänglich." onclick={() => resetCategorySource(r.product.id)}>Herkunft zurücksetzen</button>{/if}</span>
                   <span class="snap-diff-old">{r.product.categoryName || '(leer)'}</span>
                   <span class="snap-diff-arrow" aria-hidden="true">→</span>
                   <span class="snap-diff-new snap-cat-pick">
                     {#if (snap.category?.length ?? 0) > 0}<span class="snap-cat-raw" title="Globus-Kategorie-Pfad">{snap.category?.join(' › ')}</span>{/if}
-                    <select class="input snap-cat-select" value={snapCategoryFor(snap.id, snap.catalogCategoryId, r.product.categoryId, r.diff.category.differs)} onchange={(e) => setSnapCategory(snap.id, e.currentTarget.value)} aria-label="Kategorie manuell zuordnen">
+                    <select class="input snap-cat-select" value={snapCategoryFor(snap.id, snap.catalogCategoryId, r.product.categoryId, r.diff.category.differs, r.product.categorySource)} onchange={(e) => setSnapCategory(snap.id, e.currentTarget.value)} aria-label="Kategorie manuell zuordnen">
                       <option value="">— Kategorie wählen —</option>
                       {#each categoryTree as c (c.id)}<option value={c.id}>{catIndent(c.depth)}{c.name}</option>{/each}
                     </select>
-                    {#if (snap.category?.length ?? 0) > 0 && snapCategoryFor(snap.id, snap.catalogCategoryId, r.product.categoryId, r.diff.category.differs)}
+                    {#if (snap.category?.length ?? 0) > 0 && snapCategoryFor(snap.id, snap.catalogCategoryId, r.product.categoryId, r.diff.category.differs, r.product.categorySource)}
                       <button class="btn-rule" type="button" disabled={ruleBusy === snap.id}
                         title="Dauerregel: dieses Katalog-Segment kuenftig automatisch dieser Kategorie zuordnen"
-                        onclick={() => createRuleFromSnapshot(snap.id, snap.category, snapCategoryFor(snap.id, snap.catalogCategoryId, r.product.categoryId, r.diff.category.differs))}>+ Regel</button>
+                        onclick={() => createRuleFromSnapshot(snap.id, snap.category, snapCategoryFor(snap.id, snap.catalogCategoryId, r.product.categoryId, r.diff.category.differs, r.product.categorySource))}>+ Regel</button>
                     {/if}
                   </span>
                 </label>

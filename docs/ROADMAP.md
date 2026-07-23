@@ -3,7 +3,7 @@
 > Kanonisches Datenmodell und Entwicklungsplan. Diese Datei ist führend für Absicht,
 > Logik und Ziel von stoqr. Bei Widersprüchen zwischen Code und dieser Datei gilt diese Datei.
 
-Letzte Aktualisierung: 2026-07-23 (G36: Katalog-Spiegel aktualisiert nach „Übernehmen" sofort — stale lokale Overlays (snapCategoryChoice/snapFieldOverrides) werden vor invalidateAll verworfen; Test auf Pi ausstehend)
+Letzte Aktualisierung: 2026-07-23 (G37: Regression behoben — im Katalog-Spiegel schlägt eine manuell gesetzte Kategorie den Regel-Vorschlag (snapCategoryFor kennt jetzt categorySource); manuell bleibt sichtbar, abweichende Regeln weiter bei nicht-manuellen; Test auf Pi ausstehend)
 
 ---
 
