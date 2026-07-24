@@ -1,5 +1,6 @@
 <script lang="ts">
   import { goto, invalidateAll } from '$app/navigation'
+  import { onMount } from 'svelte'
   import ConfirmModal from '$lib/components/ConfirmModal.svelte'
   import Modal from '$lib/components/Modal.svelte'
   import ProductForm from '$lib/components/ProductForm.svelte'
@@ -777,6 +778,19 @@
   // svelte-ignore state_referenced_locally
   let siblings = $state<Sibling[]>(data.siblings as Sibling[])
 
+  // Deeplink (G40): kommt man aus der Artikel-Ansicht auf einen bestimmten Bestand,
+  // zu dieser Zeile scrollen + kurz pulsierend hervorheben. Nur sinnvoll bei mehreren
+  // Beständen; nur im Browser (onMount). prefers-reduced-motion wird per CSS respektiert.
+  onMount(() => {
+    if (siblings.length <= 1) return
+    const el = document.getElementById(`stock-${data.item.id}`)
+    if (!el) return
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    el.classList.add('stock-entry--flash')
+    const t = setTimeout(() => el.classList.remove('stock-entry--flash'), 1800)
+    return () => clearTimeout(t)
+  })
+
   let editingRowId = $state<string | null>(null)
   let draftQuantity = $state('')
   let draftUnit = $state('')
@@ -1221,7 +1235,7 @@
       <div class="stock-list">
         {#each siblings as row (row.id)}
           {@const exp = expiryOf(row.bestBeforeDate)}
-          <div class="stock-entry" class:stock-entry--current={row.id === data.item.id} class:stock-entry--consumed={row.status !== 'available'}>
+          <div id="stock-{row.id}" class="stock-entry" class:stock-entry--current={row.id === data.item.id} class:stock-entry--consumed={row.status !== 'available'}>
             {#if editingRowId === row.id}
               <!-- Inline edit -->
               <div class="stock-edit">
@@ -1810,6 +1824,18 @@
   }
   .stock-entry--current { border-color: var(--color-primary); background-color: var(--color-primary-subtle); }
   .stock-entry--consumed { opacity: 0.6; }
+
+  /* Deeplink-Highlight (G40): kurzes Pulsieren, wenn man gezielt auf diesen Bestand kam. */
+  .stock-entry--flash {
+    animation: stock-flash 0.6s ease-in-out 3;
+  }
+  @keyframes stock-flash {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(196, 103, 58, 0); }
+    50% { box-shadow: 0 0 0 3px var(--color-primary); border-color: var(--color-primary); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .stock-entry--flash { animation: none; box-shadow: 0 0 0 2px var(--color-primary); }
+  }
 
   .stock-main { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
   .stock-qty { font-size: var(--text-base); font-weight: 700; color: var(--color-text-primary); }

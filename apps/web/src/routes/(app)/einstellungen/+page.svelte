@@ -428,7 +428,13 @@
       use:enhance={() => {
         globalSaving = true
         return async ({ update }) => {
-          await update()
+          // reset:false → SvelteKit leert die number-Inputs nicht (sonst blitzen sie leer).
+          await update({ reset: false })
+          // Nach invalidateAll die lokalen $state aus dem frischen data reseeden,
+          // damit die gespeicherten Werte sofort durchschlagen (nicht erst nach Reload).
+          yellowDays = data.expiryConfig.yellowDaysBefore
+          redDays = data.expiryConfig.redDaysBefore
+          graceDays = data.expiryConfig.graceDaysAfter
           globalSaving = false
         }
       }}

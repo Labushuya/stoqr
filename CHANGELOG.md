@@ -5,6 +5,30 @@ Neueste Einträge oben. Jeder Eintrag nennt den Commit-Kontext, damit andere LLM
 
 ---
 
+## [Unreleased] — G40: zwei Verfeinerungen aus dem G39-Test (implementiert, Test auf Pi ausstehend)
+
+Aus dem G39-Test (165/165) blieben zwei Notizen — beide klein, kein Blocker:
+
+- **G39-6 (Bug behoben):** Beim Speichern der MHD-Ampel-Schwellen (Einstellungen) leerten sich die Eingabefelder
+  sofort; erst nach Reload waren die Werte wieder da. Ursache: das `?/updateGlobalTolerance`-Formular ruft im
+  `use:enhance` `await update()` — SvelteKit macht `invalidateAll()` **und** `form.reset()`, was die number-Inputs
+  leert, während der lokale `$state` nicht aus dem frischen `data.expiryConfig` reseedet wurde. Serverseitig war alles
+  korrekt (upsert). Fix: `update({ reset: false })` + Reseed der `$state` aus `data.expiryConfig` nach dem Update
+  (die [[stoqr-svelte5-stale-derived-reseed]]-Falle).
+- **G39-3 (Verfeinerung):** Klick auf eine Bestandszeile in der Artikel-Ansicht führt zur Detailseite und **scrollt
+  dort jetzt zum angeklickten Bestand** (`scrollIntoView`, zentriert) + kurzes **pulsierendes Highlight**
+  (`stock-entry--flash`, 3 Pulse, `prefers-reduced-motion` respektiert). Kein Link-Umbau nötig — die Detailseite
+  markiert den Ziel-Bestand ohnehin schon (`stock-entry--current`); ergänzt wurden nur `id="stock-<id>"` + `onMount`.
+  Guard: nur bei >1 Bestand.
+
+Gates: typecheck 0, lint 0/33, build ✓, vitest 163/163 (unverändert, reine UI). Keine Migration.
+
+### Commits
+G40 (dieser Commit) — einstellungen/+page.svelte (Reseed + reset:false), inventar/[id]/+page.svelte (onMount-Scroll +
+Flash-Highlight). Exakter Hash: siehe `git log`.
+
+---
+
 ## [Unreleased] — G39: Inventar-Ansicht „nach Artikel" (Bestände je Artikel aggregiert) (implementiert, Test auf Pi ausstehend)
 
 Die `/inventar`-Übersicht zeigte bisher **einzelne Bestände** (`inventory_items`) flach — ein Artikel mit mehreren

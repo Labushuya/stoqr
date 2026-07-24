@@ -108,7 +108,7 @@
 <div class="wrap">
   <header class="top">
     <h1>stoqr — Test-Manifest</h1>
-    <p class="subtitle">Blöcke A–E + F/F2 + G/G6/G7/G8/G10/G11/G12/G13/G15/G16/G17/G18/G19/G20/G21/G22/G24/G25/G26/G27/G28/G29/G30/G31/G32/G33/G34/G35/G36/G37/G39 · logisch aufbauender Durchlauf · Stand nach G39 (Inventar-Ansicht „nach Artikel")</p>
+    <p class="subtitle">Blöcke A–E + F/F2 + G/G6/G7/G8/G10/G11/G12/G13/G15/G16/G17/G18/G19/G20/G21/G22/G24/G25/G26/G27/G28/G29/G30/G31/G32/G33/G34/G35/G36/G37/G39/G40 · logisch aufbauender Durchlauf · Stand nach G40 (G39-Verfeinerungen: MHD-Speichern + Bestands-Deeplink)</p>
 
     <div class="pre">
       <h2>Voraussetzung (kein Testschritt)</h2>
@@ -631,6 +631,19 @@ const BLOCKS = [
         expect: 'Bei „Nur verfuegbare" (Default an) ist der komplett verbrauchte Artikel NICHT sichtbar. Nach Ausschalten erscheint er (Gesamtmenge „—", Badge „0×").' },
       { id: 'G39-6', title: 'MHD-Ampel nutzt die echten Einstellungen', steps: ['In Einstellungen die MHD-Schwellen (gelb/rot) auf ungewoehnliche Werte setzen (z.B. gelb 30 / rot 10).', '/inventar betrachten (beide Ansichten).'],
         expect: 'Die MHD-Ampeln (Bestands- UND Artikel-Ansicht) folgen den eingestellten Schwellen, nicht mehr fix 7/2 Tage.' },
+    ]
+  },
+  {
+    tag: 'G40', name: 'Verfeinerungen aus G39-Test (MHD-Speichern + Bestands-Deeplink)', desc: 'Zwei kleine Nachbesserungen: MHD-Ampel-Werte bleiben nach dem Speichern sichtbar; Klick auf einen Bestand scrollt auf der Detailseite dorthin + hebt ihn kurz hervor.',
+    items: [
+      { id: 'G40-1', title: 'MHD-Ampel-Werte bleiben nach dem Speichern', steps: ['Einstellungen → MHD-Ampel: gelb/rot/Toleranz auf neue Werte setzen.', 'Speichern. Danach die Felder SOFORT betrachten (ohne Reload).', 'Anschliessend die Seite neu laden.'],
+        expect: 'Die eingegebenen Werte bleiben nach dem Speichern sofort in den Feldern stehen (leeren sich nicht mehr). Nach dem Reload identisch. (Fix: reset:false + Reseed aus data.expiryConfig.)' },
+      { id: 'G40-2', title: 'Ungueltige Kombination weiterhin abgefangen', steps: ['MHD-Ampel: rot GROESSER als gelb setzen (z.B. gelb 3 / rot 10).', 'Speichern.'],
+        expect: 'Fehlermeldung „Rot-Schwelle muss kleiner oder gleich Gelb-Schwelle sein.“ erscheint; die eingegebenen Werte bleiben in den Feldern (kein Leeren).' },
+      { id: 'G40-3', title: 'Klick auf Bestand scrollt + hebt hervor', steps: ['/inventar (Artikel-Ansicht) → Artikel mit MEHREREN Bestaenden aufklappen.', 'Einen HINTEREN Bestand in der Liste anklicken.'],
+        expect: 'Die Detailseite oeffnet und scrollt automatisch zu genau diesem Bestand (zentriert); die Zeile pulsiert kurz (Border-Highlight) und ist als „aktuell“ markiert.' },
+      { id: 'G40-4', title: 'Einzelbestand: kein stoerendes Scrollen', steps: ['Einen Artikel mit nur EINEM Bestand oeffnen (Klick aus der Liste).'],
+        expect: 'Detailseite oeffnet normal; kein unnoetiges Scrollen/Pulsieren (Guard bei nur einem Bestand).' },
     ]
   },
   {
