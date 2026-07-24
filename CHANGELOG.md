@@ -5,6 +5,33 @@ Neueste Einträge oben. Jeder Eintrag nennt den Commit-Kontext, damit andere LLM
 
 ---
 
+## [Unreleased] — G41: Verbraucht-Handling + Wiederherstellen & EAN in Artikel-Ansicht (implementiert, Test auf Pi ausstehend)
+
+Aus der ROADMAP-Auswahl. Evaluierung (2 Explore-Durchläufe) korrigierte die veralteten ROADMAP-Notizen:
+„Einkäufe umbenennen" war bereits fertig; der „Nur verfügbare"-Toggle ist NICHT kaputt (seit G8-5). Die echten
+Lücken beim Verbraucht-Handling waren andere:
+
+- **`consumedAt` wurde im Betrieb nie gesetzt:** Der Haupt-Client-Pfad (PATCH `{status:'consumed'}`) pflegte
+  `consumedAt` nicht (nur eine ungenutzte Action tat es). **Fix in `updateInventoryItem`** (`products.ts`):
+  Statuswechsel weg von `available` stempelt `consumedAt` automatisch, Wechsel zurück auf `available` nullt ihn —
+  eine Wahrheitsquelle, alle Pfade (Liste + Detailseite) profitieren.
+- **Wiederherstellen (neu):** Kontextmenü (`/inventar`) und Zeilen-Aktion (Detailseite) zeigen für nicht-verfügbare
+  Bestände jetzt **„Wiederherstellen"** → Status zurück auf `available`. Ist die Menge 0 (beim Verbrauchen geleert),
+  wird vorher eine neue Menge abgefragt. Kein neuer Endpunkt — nutzt PATCH `{status:'available'[, quantity]}`.
+- **„Verbraucht vor X Tagen" (neu):** Bei nicht-verfügbaren Beständen erscheint neben dem Status-Badge ein dezenter
+  Zusatz (heute/gestern/vor N Tagen). Reiner, getesteter Helfer **`lib/utils/relative-time.ts`** (`formatRelativeDays`,
+  de-DE, Kalendertage über `date-fns`). Altbestände ohne `consumedAt` zeigen nur das Badge — kein Fehler.
+- **#3 EAN in der Artikel-Ansicht:** Die G39-Artikel-Accordion zeigt jetzt die EAN (wie die Einzelbestands-Ansicht).
+
+Gates: typecheck 0, lint 0/33, build ✓, vitest 169/169 (+6 relative-time). **Keine Migration** (Spalte `consumed_at`
+existierte bereits).
+
+### Commits
+G41 (dieser Commit) — updateInventoryItem consumedAt-Pflege; relative-time.ts + Tests; /inventar + /inventar/[id]
+Wiederherstellen + „vor X Tagen"; EAN in Artikel-Karte. Exakter Hash: siehe `git log`.
+
+---
+
 ## [Unreleased] — G40.1: Deeplink-Scroll auf der Bestands-Detailseite repariert (implementiert, Test auf Pi ausstehend)
 
 Aus dem G40-Test: G40-1/-2 (MHD-Speichern) ✓, aber **G40-3/-4 funktionierten gar nicht** — der Scroll zum

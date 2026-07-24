@@ -192,16 +192,18 @@ Kein Text-/Pipe-Export (existiert so in Bring! nicht).
 - **Pfand / Leergut** (geplant, eigener Block — volles Handling gewünscht): Pfand-Betrag am Artikel + Leergut als eigener
   Bestand/Kategorie mit Rückgabe-/Rückbuchungs-Logik; Pfand fließt ins Einkaufs-Estimate. (Migration: deposit-Felder +
   ggf. Leergut-Verknüpfung.)
-- **Einkäufe umbenennen** (klein): `shopping_trips.name` existiert und ist beim Anlegen setzbar — es fehlt nur ein
-  Umbenennen eines laufenden Runs in der UI (updateTrip-Route existiert bereits, PATCH name).
-- **Inventar-Ansicht „Artikel" (Toggle)** (**erledigt G39, Test auf Pi ausstehend**): `/inventar` hat jetzt einen
+- **Einkäufe umbenennen** (**bereits umgesetzt** — Feststellung 2026-07-24): Umbenennen-UI existiert auf
+  `einkauf/[id]` (Button + Input + `saveRename` via PATCH `{name}`); PATCH-Route akzeptiert `name`. Kein offener Task.
+- **Inventar-Ansicht „Artikel" (Toggle)** (**erledigt G39, Test auf Pi ✓**): `/inventar` hat einen
   Umschalter „Nach Artikel ↔ Einzelbestände" (Default = Artikel, in localStorage gemerkt). Die Artikel-Ansicht
-  aggregiert Bestände je Artikel (Accordion: Icon + Name + Gesamtmenge + Anzahl + frühestes MHD; aufgeklappt die
+  aggregiert Bestände je Artikel (Accordion: Icon + Name + EAN + Gesamtmenge + Anzahl + frühestes MHD; aufgeklappt die
   einzelnen Bestände). Reiner Helfer `lib/utils/inventory-group.ts` über `aggregateStock`/`buildPackSize`. Bestehende
-  Filter greifen; MHD-Ampel nutzt jetzt `expirySettings` statt Hardcodes.
-- **„Verbraucht"-Handling + Wiederherstellen** (geplant, enthält kleinen Bug-Fix): verbrauchte Bestände werden aktuell
-  serverseitig gar nicht geladen → der „Nur verfügbare"-Toggle ist wirkungslos. Zu klären: wie lange/ob verbrauchte
-  Bestände sichtbar bleiben (Zeitfenster?) + „Wiederherstellen" (status zurück auf available, consumedAt nullen).
+  Filter greifen; MHD-Ampel nutzt `expirySettings` statt Hardcodes.
+- **„Verbraucht"-Handling + Wiederherstellen** (**erledigt G41, Test auf Pi ausstehend**): `consumedAt` wird jetzt bei
+  jedem Statuswechsel gepflegt (in `updateInventoryItem`); „Wiederherstellen" (zurück auf `available`, bei Menge 0 mit
+  Mengen-Abfrage) im Kontextmenü + auf der Detailseite; „Verbraucht vor X Tagen" neben dem Status-Badge
+  (`lib/utils/relative-time.ts`). Nicht-verfügbare Bestände bleiben unbegrenzt sichtbar (kein Zeitfenster/Cleanup).
+  Der „Nur verfügbare"-Toggle war entgegen der alten Notiz bereits funktional (seit G8-5).
 - **Günstigster-Preis-Hinweis (Einkaufsliste)** (geplant): mit product_prices je Markt (Block F) datenseitig möglich —
   UI-Hinweis, welcher Markt für einen Artikel den günstigsten Preis hat (Bsp. Mineralwasser Penny 0,69 € vs. Globus 0,29 €).
   Preisvergleich pro Basiseinheit (via toBaseFactor + Einheiten v2), damit z.B. 1,5-l-Vergleiche fair sind.

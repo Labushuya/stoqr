@@ -9,6 +9,7 @@
   import { formatDate, formatStockTotal } from '$lib/utils/format'
   import { getExpiryStatus, getDaysRemaining, getExpiryLabel, EXPIRY_CLASS } from '$lib/utils/expiry'
   import { buildUnitMetaMap, pickPackDisplayUnit, packToDisplay, type UnitRow } from '$lib/utils/stock'
+  import { formatRelativeDays } from '$lib/utils/relative-time'
 
   // ── Props ─────────────────────────────────────────────────────────────────
 
@@ -25,6 +26,7 @@
     unit: string
     bestBeforeDate: string | null
     status: string
+    consumedAt: string | null
     notes: string | null
     placeId: string | null
     storeId: string | null
@@ -862,7 +864,8 @@
       body: JSON.stringify({ status: 'consumed' }),
     })
     if (!res.ok) { showToast('Fehler', 'error'); return }
-    siblings = siblings.map((s) => (s.id === row.id ? { ...s, status: 'consumed' } : s))
+    const now = new Date().toISOString()
+    siblings = siblings.map((s) => (s.id === row.id ? { ...s, status: 'consumed', consumedAt: now } : s))
     showToast('Als verbraucht markiert')
     await invalidateAll()
   }
@@ -875,8 +878,35 @@
       body: JSON.stringify({ status }),
     })
     if (!res.ok) { showToast('Fehler', 'error'); return }
-    siblings = siblings.map((s) => (s.id === row.id ? { ...s, status } : s))
+    const now = new Date().toISOString()
+    siblings = siblings.map((s) => (s.id === row.id ? { ...s, status, consumedAt: now } : s))
     showToast(label)
+    await invalidateAll()
+  }
+
+  // Wiederherstellen (G41): zurück auf 'available', consumedAt nullt der Server. Bei Menge 0
+  // vorher neue Menge abfragen (z.B. wenn beim Verbrauchen geleert).
+  async function restoreRow(row: Sibling) {
+    const body: { status: 'available'; quantity?: string } = { status: 'available' }
+    if (parseFloat(row.quantity) <= 0) {
+      const input = window.prompt('Menge beim Wiederherstellen:', '1')
+      if (input === null) return
+      const qty = Number(input.replace(',', '.'))
+      if (isNaN(qty) || qty <= 0) { showToast('Ungültige Menge', 'error'); return }
+      body.quantity = String(qty)
+    }
+    const res = await fetch(`/api/inventory/${row.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+    if (!res.ok) { showToast('Fehler', 'error'); return }
+    siblings = siblings.map((s) =>
+      s.id === row.id
+        ? { ...s, status: 'available', consumedAt: null, quantity: body.quantity ?? s.quantity }
+        : s
+    )
+    showToast('Wiederhergestellt')
     await invalidateAll()
   }
 
@@ -1291,7 +1321,9 @@
                 <span class="stock-qty">{row.quantity} {unitLabel(row.unit)}</span>
                 <span class="stock-mhd {exp.cls}">{exp.label}</span>
                 {#if row.status !== 'available'}
-                  <span class="stock-status">{statusLabel(row.status)}</span>
+                  <span class="stock-status">
+                    {statusLabel(row.status)}{#if row.consumedAt} · {formatRelativeDays(row.consumedAt)}{/if}
+                  </span>
                 {/if}
               </div>
               <div class="stock-meta">
@@ -1306,6 +1338,8 @@
                   <button class="btn-link" type="button" onclick={() => consumeRow(row)}>Verbraucht</button>
                   <button class="btn-link" type="button" onclick={() => setRowStatus(row, 'donated', 'Als gespendet markiert')}>Gespendet</button>
                   <button class="btn-link" type="button" onclick={() => setRowStatus(row, 'discarded', 'Als entsorgt markiert')}>Entsorgt</button>
+                {:else}
+                  <button class="btn-link" type="button" onclick={() => restoreRow(row)}>Wiederherstellen</button>
                 {/if}
                 <button class="btn-link btn-link--danger" type="button" onclick={() => deleteRow(row)}>Entfernen</button>
               </div>

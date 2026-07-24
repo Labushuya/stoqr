@@ -12,6 +12,7 @@
   import { buildUnitMetaMap } from '$lib/utils/stock'
   import { groupInventoryByProduct } from '$lib/utils/inventory-group'
   import { formatStockTotal } from '$lib/utils/format'
+  import { formatRelativeDays } from '$lib/utils/relative-time'
 
   // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -41,6 +42,7 @@
     unit: string
     bestBeforeDate: string | null
     status: 'available' | 'consumed' | 'expired' | 'donated' | 'discarded'
+    consumedAt: string | null
     notes: string | null
     placeId: string | null
     place: Place | null
@@ -315,7 +317,9 @@
         body: JSON.stringify({ status: 'consumed' }),
       })
       if (!res.ok) throw new Error(await res.text())
-      items = items.map((i) => (i.id === item.id ? { ...i, status: 'consumed' } : i))
+      // consumedAt spiegelt der Server jetzt automatisch (G41) — optimistisch mitsetzen.
+      const now = new Date().toISOString()
+      items = items.map((i) => (i.id === item.id ? { ...i, status: 'consumed', consumedAt: now } : i))
       showToast(`"${item.product.name}" als verbraucht markiert`)
     } catch {
       showToast('Fehler', 'error')
@@ -332,8 +336,42 @@
         body: JSON.stringify({ status }),
       })
       if (!res.ok) throw new Error(await res.text())
-      items = items.map((i) => (i.id === item.id ? { ...i, status } : i))
+      const now = new Date().toISOString()
+      items = items.map((i) => (i.id === item.id ? { ...i, status, consumedAt: now } : i))
       showToast(`"${item.product.name}" ${label}`)
+    } catch {
+      showToast('Fehler', 'error')
+    }
+  }
+
+  // Wiederherstellen (G41): nicht-verfügbaren Bestand zurück auf 'available'. Ist die Menge 0
+  // (z.B. beim Verbrauchen geleert), vorher eine neue Menge abfragen. Server nullt consumedAt.
+  async function restoreItem(item: InventoryItem) {
+    closeMenu()
+    const body: { status: 'available'; quantity?: string } = { status: 'available' }
+    if (parseFloat(item.quantity) <= 0) {
+      const input = window.prompt(`Menge für "${item.product.name}" beim Wiederherstellen:`, '1')
+      if (input === null) return // abgebrochen
+      const qty = Number(input.replace(',', '.'))
+      if (isNaN(qty) || qty <= 0) {
+        showToast('Ungültige Menge', 'error')
+        return
+      }
+      body.quantity = String(qty)
+    }
+    try {
+      const res = await fetch(`/api/inventory/${item.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+      if (!res.ok) throw new Error(await res.text())
+      items = items.map((i) =>
+        i.id === item.id
+          ? { ...i, status: 'available', consumedAt: null, quantity: body.quantity ?? i.quantity }
+          : i
+      )
+      showToast(`"${item.product.name}" wiederhergestellt`)
     } catch {
       showToast('Fehler', 'error')
     }
@@ -584,6 +622,9 @@ Das Produkt bleibt im Katalog.`,
                       : item.status === 'donated'
                         ? 'Gespendet'
                         : 'Entsorgt'}
+                  {#if item.consumedAt}
+                    <span class="status-when"> · {formatRelativeDays(item.consumedAt)}</span>
+                  {/if}
                 </span>
               {/if}
             </div>
@@ -620,6 +661,9 @@ Das Produkt bleibt im Katalog.`,
             </span>
             <span class="product-main">
               <span class="product-name">{group.product.name}</span>
+              {#if group.product.gtin}
+                <span class="item-ean">EAN {group.product.gtin}</span>
+              {/if}
               <span class="product-meta">
                 <span class="product-total">{formatStockTotal(group.totals)}</span>
                 <span class="product-badge" title="Anzahl Bestände">{group.availableCount}×</span>
@@ -662,6 +706,9 @@ Das Produkt bleibt im Katalog.`,
                             : item.status === 'donated'
                               ? 'Gespendet'
                               : 'Entsorgt'}
+                        {#if item.consumedAt}
+                          <span class="status-when"> · {formatRelativeDays(item.consumedAt)}</span>
+                        {/if}
                       </span>
                     {/if}
                   </a>
@@ -749,6 +796,19 @@ Das Produkt bleibt im Katalog.`,
                 <path d="M2 4h10M5 4V3h4v1M4.5 4v7h5V4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
               </svg>
               Entsorgt
+            </button>
+          </li>
+        {:else}
+          <li role="menuitem">
+            <button
+              class="dropdown-item"
+              type="button"
+              onclick={() => { const it = portalItem; if (it) restoreItem(it) }}
+            >
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                <path d="M2 7a5 5 0 1 1 1.5 3.5M2 7V4M2 7h3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              Wiederherstellen
             </button>
           </li>
         {/if}
@@ -1452,6 +1512,12 @@ Das Produkt bleibt im Katalog.`,
     font-size: 10px;
     font-weight: 600;
     white-space: nowrap;
+  }
+
+  /* „· vor 3 Tagen" (G41): dezenter Zusatz im Status-Badge */
+  .status-when {
+    font-weight: 500;
+    opacity: 0.75;
   }
 
   .status-badge--consumed {

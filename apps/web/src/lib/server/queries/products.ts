@@ -312,6 +312,13 @@ export async function updateInventoryItem(
 	if (data.storeId !== undefined) patch.storeId = data.storeId;
 	if (data.gtin !== undefined) patch.gtin = data.gtin;
 	if (data.status !== undefined) patch.status = data.status;
+	// consumedAt automatisch pflegen (G41): Übergang weg von 'available' stempelt den
+	// Zeitpunkt (für „verbraucht vor X Tagen"); Wiederherstellen auf 'available' nullt ihn.
+	// Gilt für alle Nicht-available-Status (consumed/donated/discarded/expired). So profitieren
+	// ALLE Client-Pfade, ohne consumedAt explizit im Request mitzusenden.
+	if (data.status !== undefined) {
+		patch.consumedAt = data.status === 'available' ? null : new Date();
+	}
 	if (data.openedAt !== undefined) patch.openedAt = data.openedAt;
 	if (data.openedExpiryDays !== undefined) patch.openedExpiryDays = data.openedExpiryDays;
 	if (data.purchasePriceCt !== undefined) patch.purchasePriceCt = data.purchasePriceCt;

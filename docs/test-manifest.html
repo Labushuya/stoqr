@@ -108,7 +108,7 @@
 <div class="wrap">
   <header class="top">
     <h1>stoqr — Test-Manifest</h1>
-    <p class="subtitle">Blöcke A–E + F/F2 + G/G6/G7/G8/G10/G11/G12/G13/G15/G16/G17/G18/G19/G20/G21/G22/G24/G25/G26/G27/G28/G29/G30/G31/G32/G33/G34/G35/G36/G37/G39/G40 · logisch aufbauender Durchlauf · Stand nach G40 (G39-Verfeinerungen: MHD-Speichern + Bestands-Deeplink)</p>
+    <p class="subtitle">Blöcke A–E + F/F2 + G/G6/G7/G8/G10/G11/G12/G13/G15/G16/G17/G18/G19/G20/G21/G22/G24/G25/G26/G27/G28/G29/G30/G31/G32/G33/G34/G35/G36/G37/G39/G40/G41 · logisch aufbauender Durchlauf · Stand nach G41 (Verbraucht-Handling + Wiederherstellen)</p>
 
     <div class="pre">
       <h2>Voraussetzung (kein Testschritt)</h2>
@@ -644,6 +644,21 @@ const BLOCKS = [
         expect: 'Die Detailseite oeffnet und scrollt automatisch zu genau diesem Bestand (zentriert); die Zeile pulsiert kurz (Border-Highlight) und ist als „aktuell“ markiert.' },
       { id: 'G40-4', title: 'Einzelbestand: kein stoerendes Scrollen', steps: ['Einen Artikel mit nur EINEM Bestand oeffnen (Klick aus der Liste).'],
         expect: 'Detailseite oeffnet normal; kein unnoetiges Scrollen/Pulsieren (Guard bei nur einem Bestand).' },
+    ]
+  },
+  {
+    tag: 'G41', name: 'Verbraucht-Handling + Wiederherstellen + EAN in Artikel-Ansicht', desc: 'consumedAt wird zuverlaessig gesetzt; nicht-verfuegbare Bestaende lassen sich wiederherstellen; „vor X Tagen" neben dem Status; EAN auch in der Artikel-Ansicht.',
+    items: [
+      { id: 'G41-1', title: 'consumedAt gesetzt + „vor X Tagen"', steps: ['Einen verfuegbaren Bestand als „Verbraucht" markieren (Kontextmenue /inventar ODER Detailseite).', '„Nur verfuegbare" ausschalten, den Bestand betrachten.'],
+        expect: 'Der Bestand zeigt Badge „Verbraucht" + einen Zeitzusatz „· heute" (bzw. gestern / vor N Tagen). Der Zeitstempel wird jetzt bei JEDEM Statuswechsel gesetzt (frueher fehlte er ueber den Haupt-Pfad).' },
+      { id: 'G41-2', title: 'Wiederherstellen (Menge > 0)', steps: ['Einen verbrauchten Bestand mit Menge > 0 nehmen.', 'Kontextmenue (/inventar, nicht-verfuegbar) ODER Detailseite → „Wiederherstellen".'],
+        expect: 'Status wird wieder „available", der Zeitzusatz verschwindet, der Bestand taucht bei „Nur verfuegbare" wieder auf. Menge unveraendert.' },
+      { id: 'G41-3', title: 'Wiederherstellen mit Mengen-Abfrage (Menge 0)', steps: ['Einen Bestand komplett verbrauchen (Menge auf 0).', '„Wiederherstellen".'],
+        expect: 'Es erscheint eine Mengen-Abfrage; nach Eingabe (z.B. 2) ist der Bestand wieder verfuegbar mit der neuen Menge. Abbrechen laesst alles unveraendert.' },
+      { id: 'G41-4', title: 'Gespendet/Entsorgt ebenso wiederherstellbar', steps: ['Einen Bestand „Gespendet" bzw. „Entsorgt" markieren.', '„Wiederherstellen".'],
+        expect: 'Auch gespendete/entsorgte Bestaende lassen sich zurueck auf „available" holen (gleicher Weg, gleiches Verhalten).' },
+      { id: 'G41-5', title: 'EAN in der Artikel-Ansicht', steps: ['/inventar → Artikel-Ansicht → einen Artikel mit hinterlegter EAN betrachten.'],
+        expect: 'Die EAN wird in der Artikel-Karte angezeigt (wie in der Einzelbestands-Ansicht). Artikel ohne EAN zeigen nichts (kein leeres Feld).' },
     ]
   },
   {
