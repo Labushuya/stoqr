@@ -779,16 +779,27 @@
   let siblings = $state<Sibling[]>(data.siblings as Sibling[])
 
   // Deeplink (G40): kommt man aus der Artikel-Ansicht auf einen bestimmten Bestand,
-  // zu dieser Zeile scrollen + kurz pulsierend hervorheben. Nur sinnvoll bei mehreren
-  // Beständen; nur im Browser (onMount). prefers-reduced-motion wird per CSS respektiert.
+  // zu dieser Zeile scrollen + pulsierend hervorheben (5 s, dann entfernen). Nur sinnvoll
+  // bei mehreren Beständen; nur im Browser (onMount). prefers-reduced-motion per CSS respektiert.
+  // Der Scroll wird über doppeltes requestAnimationFrame verzögert: bei onMount ist das
+  // Layout oberhalb (Produktbild/Karten) noch nicht final → ein synchroner scrollIntoView
+  // landet an der falschen Position. scroll-margin-top (CSS) hält die Sticky-Navbar frei.
   onMount(() => {
     if (siblings.length <= 1) return
-    const el = document.getElementById(`stock-${data.item.id}`)
-    if (!el) return
-    el.scrollIntoView({ behavior: 'smooth', block: 'center' })
-    el.classList.add('stock-entry--flash')
-    const t = setTimeout(() => el.classList.remove('stock-entry--flash'), 1800)
-    return () => clearTimeout(t)
+    let flashTimer: ReturnType<typeof setTimeout> | undefined
+    const raf1 = requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        const el = document.getElementById(`stock-${data.item.id}`)
+        if (!el) return
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        el.classList.add('stock-entry--flash')
+        flashTimer = setTimeout(() => el.classList.remove('stock-entry--flash'), 5000)
+      })
+    })
+    return () => {
+      cancelAnimationFrame(raf1)
+      if (flashTimer) clearTimeout(flashTimer)
+    }
   })
 
   let editingRowId = $state<string | null>(null)
@@ -1825,13 +1836,16 @@
   .stock-entry--current { border-color: var(--color-primary); background-color: var(--color-primary-subtle); }
   .stock-entry--consumed { opacity: 0.6; }
 
-  /* Deeplink-Highlight (G40): kurzes Pulsieren, wenn man gezielt auf diesen Bestand kam. */
+  /* Deeplink-Ziel (G40): scroll-margin-top hält die Zeile unter der 56px-Sticky-Navbar frei. */
+  .stock-entry { scroll-margin-top: 72px; }
+
+  /* Deeplink-Highlight (G40): pulsierendes Border-Glow, ~5 s lang, dann per JS entfernt. */
   .stock-entry--flash {
-    animation: stock-flash 0.6s ease-in-out 3;
+    animation: stock-flash 0.8s ease-in-out infinite;
   }
   @keyframes stock-flash {
-    0%, 100% { box-shadow: 0 0 0 0 rgba(196, 103, 58, 0); }
-    50% { box-shadow: 0 0 0 3px var(--color-primary); border-color: var(--color-primary); }
+    0%, 100% { box-shadow: 0 0 0 0 rgba(196, 103, 58, 0.35); border-color: var(--color-primary); }
+    50% { box-shadow: 0 0 0 4px var(--color-primary); border-color: var(--color-primary); }
   }
   @media (prefers-reduced-motion: reduce) {
     .stock-entry--flash { animation: none; box-shadow: 0 0 0 2px var(--color-primary); }

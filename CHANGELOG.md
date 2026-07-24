@@ -5,6 +5,29 @@ Neueste Einträge oben. Jeder Eintrag nennt den Commit-Kontext, damit andere LLM
 
 ---
 
+## [Unreleased] — G40.1: Deeplink-Scroll auf der Bestands-Detailseite repariert (implementiert, Test auf Pi ausstehend)
+
+Aus dem G40-Test: G40-1/-2 (MHD-Speichern) ✓, aber **G40-3/-4 funktionierten gar nicht** — der Scroll zum
+angeklickten Bestand griff nicht, das Highlight pulste nicht.
+
+- **Root-Cause (verifiziert, 2 Explore-Durchläufe):** Die Bestandsliste rendert synchron aus `data.siblings` (kein
+  `{#await}`/Effekt), das Ziel-Element existiert also beim `onMount`. Aber `scrollIntoView` lief **synchron in
+  `onMount`** — bevor das Layout darüber (Produktbild + Karten ohne finale Höhe) gesetzt war → die berechnete
+  Scroll-Position war veraltet, der Browser verwarf den Smooth-Scroll. (Der funktionierende Dashboard-Scroll läuft
+  per `onclick`, daher biss ihn das Timing nie.) Zusätzlich fehlte ein Offset für die 56px-Sticky-Navbar.
+- **Fix:** Scroll über **doppeltes `requestAnimationFrame`** verzögern (Layout hat gesetzt), `scroll-margin-top: 72px`
+  an `.stock-entry` (Zeile bleibt unter der Sticky-Navbar frei). Highlight jetzt **durchgehend pulsierend** und nach
+  **5 s** per JS entfernt (statt 3 kurzer Pulse). `prefers-reduced-motion` respektiert. Cleanup: `cancelAnimationFrame`
+  + `clearTimeout` im onMount-Teardown.
+
+Gates: typecheck 0, lint 0/33, build ✓, vitest 163/163 (unverändert). Keine Migration.
+
+### Commits
+G40.1 (dieser Commit) — inventar/[id]/+page.svelte: rAF-verzögerter Scroll, scroll-margin-top, 5-s-Puls-Highlight.
+Exakter Hash: siehe `git log`.
+
+---
+
 ## [Unreleased] — G40: zwei Verfeinerungen aus dem G39-Test (implementiert, Test auf Pi ausstehend)
 
 Aus dem G39-Test (165/165) blieben zwei Notizen — beide klein, kein Blocker:
