@@ -108,7 +108,7 @@
 <div class="wrap">
   <header class="top">
     <h1>stoqr — Test-Manifest</h1>
-    <p class="subtitle">Blöcke A–E + F/F2 + G/G6/G7/G8/G10/G11/G12/G13/G15/G16/G17/G18/G19/G20/G21/G22/G24/G25/G26/G27/G28/G29/G30/G31/G32/G33/G34/G35/G36/G37/G39/G40/G41 · logisch aufbauender Durchlauf · Stand nach G41 (Verbraucht-Handling + Wiederherstellen)</p>
+    <p class="subtitle">Blöcke A–E + F/F2 + G/G6/G7/G8/G10/G11/G12/G13/G15/G16/G17/G18/G19/G20/G21/G22/G24/G25/G26/G27/G28/G29/G30/G31/G32/G33/G34/G35/G36/G37/G39/G40/G41/G42 · logisch aufbauender Durchlauf · Stand nach G42 (Bestandskorrektur mit editierbarer Vorschau)</p>
 
     <div class="pre">
       <h2>Voraussetzung (kein Testschritt)</h2>
@@ -659,6 +659,21 @@ const BLOCKS = [
         expect: 'Auch gespendete/entsorgte Bestaende lassen sich zurueck auf „available" holen (gleicher Weg, gleiches Verhalten).' },
       { id: 'G41-5', title: 'EAN in der Artikel-Ansicht', steps: ['/inventar → Artikel-Ansicht → einen Artikel mit hinterlegter EAN betrachten.'],
         expect: 'Die EAN wird in der Artikel-Karte angezeigt (wie in der Einzelbestands-Ansicht). Artikel ohne EAN zeigen nichts (kein leeres Feld).' },
+    ]
+  },
+  {
+    tag: 'G42', name: 'Bestandskorrektur mit editierbarer Vorschau', desc: 'Zwei-Schritt-Korrektur: Zielmenge -> Vorschau der Verteilung (anpassbar) -> Uebernehmen. Nach oben Wahl bestehende/neu; 0 wird verbraucht; Zeilen sofort aktualisiert.',
+    items: [
+      { id: 'G42-1', title: 'Nach unten: FIFO-Vorschau, anpassbar, sofort sichtbar', steps: ['Artikel mit mehreren Bestandszeilen (z.B. Eistee 1x MHD 2027-01-01 + 3x MHD 2026-12-01 = 4).', 'Detailseite → „Bestand korrigieren" → Ziel 3 → „Weiter".', 'Vorschau ansehen (aeltestes MHD zuerst reduziert), ggf. eine Zeile anpassen → „Uebernehmen".'],
+        expect: 'Schritt 2 zeigt die betroffenen Zeilen alt->neu (die 2026-12-01-Zeile 3->2), Mengen editierbar, Live-Gesamtsumme. Nach Uebernehmen sind die Zeilen SOFORT korrekt (kein manueller Refresh), Gesamt = 3.' },
+      { id: 'G42-2', title: 'Zeile auf 0 → verbraucht', steps: ['Korrektur so waehlen, dass eine Zeile komplett auf 0 faellt.', 'Uebernehmen, dann „Nur verfuegbare" ausschalten.'],
+        expect: 'Die auf 0 gefallene Zeile erscheint als „Verbraucht" (nicht available mit Menge 0) und ist per „Wiederherstellen" (G41) zurueckholbar.' },
+      { id: 'G42-3', title: 'Nach oben: bestehende erhoehen', steps: ['Gleicher Artikel, Ziel 6 → „Weiter".', 'Modus „Bestehende erhoehen" → eine Zeile z.B. von 3 auf 5 setzen → „Uebernehmen".'],
+        expect: 'Es erscheint die Wahl „Bestehende erhoehen / Neue Zeile". Bei „Bestehende" werden die vorhandenen Zeilen editierbar; die erhoehte Zeile wird gespeichert (kein neuer Eintrag). Gesamt = 6.' },
+      { id: 'G42-4', title: 'Nach oben: neue Zeile mit MHD', steps: ['Ziel > Ist → „Weiter" → Modus „Neue Zeile".', 'Menge + MHD (optional) direkt im Dialog eingeben → „Uebernehmen".'],
+        expect: 'Eine NEUE Bestandszeile mit der eingegebenen Menge (und ggf. MHD) wird angelegt; bestehende Zeilen bleiben unveraendert. MHD ist direkt im Dialog setzbar (nicht erst nachtragen).' },
+      { id: 'G42-5', title: 'Aktivitaet: Vorher→Nachher je Zeile', steps: ['Nach einer Korrektur /aktivitaet oeffnen.'],
+        expect: 'Je beruehrter Bestandszeile ein Eintrag mit Alt-Menge/-Status → Neu (statt eines nichtssagenden Summen-Eintrags).' },
     ]
   },
   {

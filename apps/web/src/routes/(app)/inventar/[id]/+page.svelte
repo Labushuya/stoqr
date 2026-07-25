@@ -189,11 +189,21 @@
   let invValue = $state('')
   let invSaving = $state(false)
   let invError = $state<string | null>(null)
-  let invNeedsIncrease = $state(false)
+
+  // Zwei-Schritt-Korrektur (G42): 1 = Zielmenge, 2 = editierbare Vorschau.
+  let invStep = $state<1 | 2>(1)
+  let invDirection = $state<'increase' | 'decrease'>('decrease')
+  // Editierbare Vorschau-Zeilen (alt->neu). Bei „decrease": FIFO-reduzierte Zeilen.
+  // Bei „increase" + Modus „bestehende": alle relevanten Zeilen zum Erhöhen.
+  type PreviewLine = { id: string; oldQuantity: number; newQuantity: number; unit: string; bestBeforeDate: string | null }
+  let invLines = $state<PreviewLine[]>([])
+  // Nur bei „increase": Wahl bestehende erhöhen ODER neue Zeile.
+  let invUpMode = $state<'existing' | 'new'>('existing')
+  let invNewQty = $state('')
+  let invNewMhd = $state('')
 
   function openInventoryModal() {
     const groups = data.stockTotals.groups as StockGroupView[]
-    // Vorbelegung mit der ersten Gruppe (oder Standard-Einheit, falls kein Bestand).
     if (groups.length > 0) {
       invUnit = groups[0].displayUnit
       invValue = String(groups[0].displayValue)
@@ -202,7 +212,11 @@
       invValue = '0'
     }
     invError = null
-    invNeedsIncrease = false
+    invStep = 1
+    invLines = []
+    invUpMode = 'existing'
+    invNewQty = ''
+    invNewMhd = ''
     showInventoryModal = true
   }
 
@@ -212,7 +226,8 @@
     if (g) invValue = String(g.displayValue)
   }
 
-  async function saveInventory() {
+  // Schritt 1 → Vorschau holen (Dry-Run, schreibt nichts).
+  async function loadInventoryPreview() {
     const qty = Number(invValue)
     if (!Number.isFinite(qty) || qty < 0) { invError = 'Bitte gültige Menge >= 0 angeben.'; return }
     invSaving = true
@@ -221,18 +236,71 @@
       const res = await fetch(`/api/products/${product.id}/inventory-adjust`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ newQuantity: qty, unit: invUnit }),
+        body: JSON.stringify({ newQuantity: qty, unit: invUnit, preview: true }),
       })
       const body = await res.json().catch(() => ({}))
       if (!res.ok) { invError = String(body?.error ?? `Fehler ${res.status}`); return }
-      if (body.needsIncrease) {
-        // Erhöhung wird nicht automatisch gemacht — Hinweis, Bestand manuell anlegen.
-        invNeedsIncrease = true
-        showToast('Erhöhung bitte über „Bestand hinzufügen" erfassen', 'error')
-        return
+
+      invDirection = body.direction
+      if (body.direction === 'decrease') {
+        invLines = (body.updates as PreviewLine[]) ?? []
+        if (invLines.length === 0) { invError = 'Keine passenden Bestände zum Reduzieren.'; return }
+      } else {
+        // increase: bestehende Zeilen zum Erhöhen + Vorschlag für neue Zeile.
+        invLines = (body.relevantRows as PreviewLine[]) ?? []
+        invUpMode = invLines.length > 0 ? 'existing' : 'new'
+        invNewQty = String(body.suggestedNewQuantity ?? '')
+        invNewMhd = ''
       }
+      invStep = 2
+    } catch {
+      invError = 'Netzwerkfehler.'
+    } finally {
+      invSaving = false
+    }
+  }
+
+  // Live-Summe der Vorschau (in der gewählten Einheit) — nur informativ.
+  const invPreviewTotal = $derived(() => {
+    if (invDirection === 'decrease') return invLines.reduce((s, l) => s + (Number(l.newQuantity) || 0), 0)
+    if (invUpMode === 'existing') return invLines.reduce((s, l) => s + (Number(l.newQuantity) || 0), 0)
+    // new: bestehende Ist-Summe + neue Zeile
+    return invLines.reduce((s, l) => s + (Number(l.oldQuantity) || 0), 0) + (Number(invNewQty) || 0)
+  })
+
+  // Schritt 2 → committen (die editierten Zeilen bzw. neue Zeile).
+  async function saveInventory() {
+    invSaving = true
+    invError = null
+    try {
+      const payload: {
+        unit: string
+        lines: Array<{ id: string; newQuantity: number }>
+        newLine?: { quantity: number; bestBeforeDate?: string | null }
+      } = { unit: invUnit, lines: [] }
+
+      if (invDirection === 'decrease') {
+        payload.lines = invLines.map((l) => ({ id: l.id, newQuantity: Number(l.newQuantity) || 0 }))
+      } else if (invUpMode === 'existing') {
+        payload.lines = invLines.map((l) => ({ id: l.id, newQuantity: Number(l.newQuantity) || 0 }))
+      } else {
+        const q = Number(invNewQty)
+        if (!Number.isFinite(q) || q <= 0) { invError = 'Bitte eine gültige Menge für die neue Zeile angeben.'; invSaving = false; return }
+        payload.newLine = { quantity: q, bestBeforeDate: invNewMhd || null }
+      }
+
+      const res = await fetch(`/api/products/${product.id}/inventory-adjust`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+      const body = await res.json().catch(() => ({}))
+      if (!res.ok) { invError = String(body?.error ?? `Fehler ${res.status}`); return }
       showInventoryModal = false
       await invalidateAll()
+      // Reseed der Bestandsliste aus frischem data (sonst haengen die Zeilen im
+      // veralteten $state — Refresh-Bug G42-#3, Muster wie runNormalize).
+      siblings = data.siblings as Sibling[]
       showToast('Bestand korrigiert')
     } catch {
       invError = 'Netzwerkfehler.'
@@ -1461,29 +1529,83 @@
 
 <!-- ── Bestandskorrektur / Inventur (Modal) ───────────────────────────────── -->
 <Modal open={showInventoryModal} title="Bestand korrigieren" size="sm" onClose={() => (showInventoryModal = false)}>
-  <p class="scope-hint">Gib den tatsächlichen aktuellen Bestand an. Die Differenz wird auf die Bestände verrechnet (älteste MHD zuerst) und fließt als Bedarf auf die Einkaufsliste.</p>
   {#if invError}<p class="field-error">{invError}</p>{/if}
-  {#if invNeedsIncrease}
-    <p class="field-error">Der neue Bestand ist höher als der erfasste. Bitte den Zuwachs über „Bestand hinzufügen" mit MHD/Markt erfassen.</p>
-  {/if}
-  <div class="target-form">
-    {#if (data.stockTotals.groups as StockGroupView[]).length > 1}
+
+  {#if invStep === 1}
+    <!-- Schritt 1: Zielmenge -->
+    <p class="scope-hint">Gib den tatsächlichen aktuellen Bestand an. Im nächsten Schritt siehst du die geplante Verteilung und kannst sie anpassen, bevor sie übernommen wird.</p>
+    <div class="target-form">
+      {#if (data.stockTotals.groups as StockGroupView[]).length > 1}
+        <label class="tf-field">
+          <span class="tf-label">Einheit-Gruppe</span>
+          <select class="input" bind:value={invUnit} onchange={onInvUnitChange}>
+            {#each data.stockTotals.groups as g (g.displayUnit)}
+              <option value={g.displayUnit}>{g.displayName}</option>
+            {/each}
+          </select>
+        </label>
+      {/if}
       <label class="tf-field">
-        <span class="tf-label">Einheit-Gruppe</span>
-        <select class="input" bind:value={invUnit} onchange={onInvUnitChange}>
-          {#each data.stockTotals.groups as g (g.displayUnit)}
-            <option value={g.displayUnit}>{g.displayName}</option>
-          {/each}
-        </select>
+        <span class="tf-label">Tatsächlicher Bestand ({unitLabel(invUnit)})</span>
+        <input class="input" type="number" min="0" step="0.25" bind:value={invValue} />
       </label>
+    </div>
+  {:else}
+    <!-- Schritt 2: editierbare Vorschau -->
+    {#if invDirection === 'decrease'}
+      <p class="scope-hint">Weniger vorhanden — die Differenz wird von den Beständen abgezogen (älteste MHD zuerst). Zeilen anpassbar. Zeilen mit 0 gelten als verbraucht.</p>
+      <div class="adjust-lines">
+        {#each invLines as line (line.id)}
+          <div class="adjust-line">
+            <span class="adjust-line-info">
+              MHD: {line.bestBeforeDate ? formatDate(line.bestBeforeDate) : '—'}
+              <span class="adjust-line-old">(war {line.oldQuantity} {unitLabel(line.unit)})</span>
+            </span>
+            <input class="input adjust-line-input" type="number" min="0" step="0.25" bind:value={line.newQuantity} />
+          </div>
+        {/each}
+      </div>
+    {:else}
+      <p class="scope-hint">Mehr vorhanden — bestehende Bestände erhöhen oder eine neue Zeile anlegen?</p>
+      <div class="up-mode-toggle" role="group" aria-label="Aufstock-Modus">
+        <button type="button" class="up-mode-btn" class:active={invUpMode === 'existing'} disabled={invLines.length === 0} onclick={() => (invUpMode = 'existing')}>Bestehende erhöhen</button>
+        <button type="button" class="up-mode-btn" class:active={invUpMode === 'new'} onclick={() => (invUpMode = 'new')}>Neue Zeile</button>
+      </div>
+      {#if invUpMode === 'existing'}
+        <div class="adjust-lines">
+          {#each invLines as line (line.id)}
+            <div class="adjust-line">
+              <span class="adjust-line-info">
+                MHD: {line.bestBeforeDate ? formatDate(line.bestBeforeDate) : '—'}
+                <span class="adjust-line-old">(war {line.oldQuantity} {unitLabel(line.unit)})</span>
+              </span>
+              <input class="input adjust-line-input" type="number" min="0" step="0.25" bind:value={line.newQuantity} />
+            </div>
+          {/each}
+        </div>
+      {:else}
+        <div class="target-form">
+          <label class="tf-field">
+            <span class="tf-label">Neue Menge ({unitLabel(invUnit)})</span>
+            <input class="input" type="number" min="0" step="0.25" bind:value={invNewQty} />
+          </label>
+          <label class="tf-field">
+            <span class="tf-label">MHD (optional)</span>
+            <input class="input" type="date" bind:value={invNewMhd} />
+          </label>
+        </div>
+      {/if}
     {/if}
-    <label class="tf-field">
-      <span class="tf-label">Tatsächlicher Bestand ({unitLabel(invUnit)})</span>
-      <input class="input" type="number" min="0" step="0.25" bind:value={invValue} />
-    </label>
-  </div>
+    <p class="adjust-total">Neuer Gesamtbestand: <strong>{invPreviewTotal()} {unitLabel(invUnit)}</strong></p>
+  {/if}
+
   {#snippet footer()}
-    <button class="btn-secondary" type="button" disabled={invSaving} onclick={saveInventory}>Übernehmen</button>
+    {#if invStep === 1}
+      <button class="btn-secondary" type="button" disabled={invSaving} onclick={loadInventoryPreview}>Weiter</button>
+    {:else}
+      <button class="btn-link" type="button" disabled={invSaving} onclick={() => (invStep = 1)}>Zurück</button>
+      <button class="btn-secondary" type="button" disabled={invSaving} onclick={saveInventory}>Übernehmen</button>
+    {/if}
   {/snippet}
 </Modal>
 
@@ -1740,6 +1862,18 @@
   .tf-field { display: flex; flex-direction: column; gap: var(--space-1); }
   .tf-label { font-size: var(--text-xs); color: var(--color-text-muted); }
   .tf-unit-hint { font-weight: 600; color: var(--color-text-secondary); }
+
+  /* ── Bestandskorrektur-Vorschau (G42) ──────────────────────────────────── */
+  .adjust-lines { display: flex; flex-direction: column; gap: var(--space-2); margin-top: var(--space-2); }
+  .adjust-line { display: flex; align-items: center; gap: var(--space-2); }
+  .adjust-line-info { flex: 1; font-size: var(--text-sm); color: var(--color-text-secondary); }
+  .adjust-line-old { color: var(--color-text-muted); font-size: var(--text-xs); }
+  .adjust-line-input { width: 90px; flex-shrink: 0; }
+  .adjust-total { margin-top: var(--space-3); font-size: var(--text-sm); color: var(--color-text-secondary); }
+  .up-mode-toggle { display: inline-flex; gap: 2px; padding: 3px; border-radius: var(--radius-md); background: var(--color-surface-sunken); border: 1px solid var(--color-border); margin: var(--space-2) 0; }
+  .up-mode-btn { appearance: none; border: none; background: transparent; color: var(--color-text-secondary); font-family: var(--font-body); font-size: var(--text-sm); font-weight: 600; padding: var(--space-1) var(--space-3); border-radius: calc(var(--radius-md) - 2px); cursor: pointer; }
+  .up-mode-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .up-mode-btn.active { background: var(--color-surface-raised); color: var(--color-text-primary); box-shadow: var(--shadow-sm); }
 
   /* ── Inputs / buttons ───────────────────────────────────────────────── */
   .input {

@@ -313,13 +313,28 @@ export type AdjustItem = {
   bestBeforeDate?: string | null
 }
 
+// Anzeige-angereicherte Zeile (für die editierbare Vorschau): alt→neu + Kontext.
+export type AdjustLine = {
+  id: string
+  oldQuantity: number
+  newQuantity: number
+  unit: string
+  bestBeforeDate: string | null
+}
+
 export type AdjustmentPlan = {
   // Zeilen, deren quantity neu gesetzt werden soll (absolute Werte in der jeweiligen Zeilen-Einheit).
-  updates: Array<{ id: string; newQuantity: number }>
+  // Angereichert um oldQuantity/unit/bestBeforeDate für die Vorschau.
+  updates: AdjustLine[]
+  // Alle passenden available-Zeilen dieser Gruppe (FIFO-sortiert) — Grundlage für die
+  // „bestehende aufstocken"-Wahl beim Korrigieren nach oben. Reine Anzeige-Info.
+  relevantRows: AdjustLine[]
   // Rest, der nicht durch Reduktion abgebildet werden konnte (newTotal > Ist): > 0 = Aufstockung nötig.
   shortfallInBase: number
-  // true, wenn newTotal den Ist übersteigt (Aufstocken erfordert manuelles Anlegen eines Bestands).
+  // true, wenn newTotal den Ist übersteigt (Aufstocken: bestehende erhöhen ODER neue Zeile).
   needsIncrease: boolean
+  // Fehlmenge in der ZIEL-Einheit (für einen Vorschlag „neue Zeile mit N"). Nur bei needsIncrease > 0.
+  suggestedNewQuantity: number
 }
 
 /**
@@ -359,14 +374,27 @@ export function planInventoryAdjustment(
     return sum + (parseFloat(String(i.quantity)) || 0) * f
   }, 0)
 
-  const updates: Array<{ id: string; newQuantity: number }> = []
+  // Faktor der ZIEL-Einheit (für die Rückrechnung der Fehlmenge in eine „neue Zeile").
+  const targetFactor = resolveUnitMeta(match.symbol ?? '', metaMap, packSize).toBaseFactor || 1
+
+  // Alle passenden Zeilen als Anzeige-Info (FIFO-sortiert), oldQuantity = aktuelle Menge.
+  const relevantRows: AdjustLine[] = sorted.map((i) => {
+    const q = parseFloat(String(i.quantity)) || 0
+    return { id: i.id, oldQuantity: q, newQuantity: q, unit: i.unit, bestBeforeDate: i.bestBeforeDate ?? null }
+  })
+
+  const updates: AdjustLine[] = []
 
   if (newTotalInBase >= currentInBase) {
-    // Aufstocken: nicht automatisch (konservativ). Keine Reduktion.
+    // Aufstocken: keine automatische Reduktion. Die UI bietet die Wahl
+    // „bestehende Zeilen erhöhen" (relevantRows) ODER „neue Zeile" (suggestedNewQuantity).
+    const shortfallInBase = newTotalInBase - currentInBase
     return {
       updates: [],
-      shortfallInBase: newTotalInBase - currentInBase,
-      needsIncrease: newTotalInBase > currentInBase,
+      relevantRows,
+      shortfallInBase,
+      needsIncrease: shortfallInBase > 0,
+      suggestedNewQuantity: shortfallInBase / targetFactor,
     }
   }
 
@@ -379,17 +407,17 @@ export function planInventoryAdjustment(
     const itemInBase = qty * f
     if (itemInBase <= toRemoveInBase) {
       // Zeile komplett leeren.
-      updates.push({ id: item.id, newQuantity: 0 })
+      updates.push({ id: item.id, oldQuantity: qty, newQuantity: 0, unit: item.unit, bestBeforeDate: item.bestBeforeDate ?? null })
       toRemoveInBase -= itemInBase
     } else {
       // Zeile teilweise reduzieren.
       const remainingInBase = itemInBase - toRemoveInBase
-      updates.push({ id: item.id, newQuantity: remainingInBase / f })
+      updates.push({ id: item.id, oldQuantity: qty, newQuantity: remainingInBase / f, unit: item.unit, bestBeforeDate: item.bestBeforeDate ?? null })
       toRemoveInBase = 0
     }
   }
 
-  return { updates, shortfallInBase: 0, needsIncrease: false }
+  return { updates, relevantRows, shortfallInBase: 0, needsIncrease: false, suggestedNewQuantity: 0 }
 }
 
 // ---------------------------------------------------------------------------

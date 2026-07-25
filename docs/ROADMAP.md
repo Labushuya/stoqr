@@ -145,6 +145,8 @@ Kein Text-/Pipe-Export (existiert so in Bring! nicht).
   - [x] Bedarf-Indikator auf der Artikel-Detailseite + Soll-Modal
 - **2c — Einkaufsliste + Inventur** (abgeschlossen, Test ausstehend):
   - [x] Bestandskorrektur/Inventur pro Artikel (tatsächlichen Gesamtbestand angeben, FIFO-Rückschreibung)
+        — **G42:** editierbare Zwei-Schritt-Vorschau (Verteilung anpassbar), Korrektur auch nach oben (bestehende
+        erhöhen ODER neue Zeile mit MHD), 0→verbraucht, Audit je Zeile (Undo-Basis), Refresh-Bug behoben.
   - [x] Einkaufsliste-UI: auto-Bedarf (Soll−Ist, auffüllen bis Soll) + manuelle Einträge + abhaken
   - [x] „Bedarf aus Beständen erzeugen" (Dedup: 1 auto-Eintrag/Artikel) + auto bei Inventur
   - [x] Einbuchen: Einkaufslisten-Eintrag → echter Bestand (easy-add vorbelegt, Eintrag danach entfernt)

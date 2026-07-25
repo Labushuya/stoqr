@@ -5,6 +5,34 @@ Neueste Einträge oben. Jeder Eintrag nennt den Commit-Kontext, damit andere LLM
 
 ---
 
+## [Unreleased] — G42: Bestandskorrektur mit editierbarer Vorschau (implementiert, Test auf Pi ausstehend)
+
+Aus einer G41-Nutzer-Rückfrage: die Bestandskorrektur („Bestand korrigieren") war intransparent und hatte mehrere
+Lücken (verifiziert per Workflow, 3 Explore-Leser). Umbau in eine bestätigte, editierbare Zwei-Schritt-Korrektur:
+
+- **Editierbare Vorschau statt blindem FIFO:** Schritt 1 = Zielmenge; Schritt 2 = Vorschau der betroffenen Zeilen
+  (alt→neu, MHD-Kontext), **jede Zeile anpassbar**, mit Live-Gesamtsumme. Server liefert die Verteilung als **Dry-Run**
+  (`{preview:true}`, schreibt nichts) — `planInventoryAdjustment` (bereits rein) um `oldQuantity`/`unit`/`bestBeforeDate`
+  je Zeile, `relevantRows` und `suggestedNewQuantity` erweitert. Commit schreibt die **bestätigten** Zeilen.
+- **Korrektur nach oben (neu):** früher stiller „geht nicht"-Abbruch. Jetzt fragt die UI beim Aufstocken:
+  **bestehende Zeilen erhöhen** ODER **neue Zeile anlegen** (MHD direkt im Dialog ausfüllbar). Nach unten: keine Frage,
+  reine FIFO-Reduktion.
+- **0 → verbraucht:** Zeilen, die durch die Korrektur auf 0 fallen, bekommen Status `consumed` (kein „available/0" mehr).
+- **Refresh-Bug behoben:** `saveInventory` reseedet nach `invalidateAll()` jetzt `siblings` aus `data.siblings`
+  (Muster `runNormalize`) — korrigierte Zeilen sind **sofort** sichtbar, kein manueller Refresh
+  ([[stoqr-svelte5-stale-derived-reseed]]).
+- **Undo-Grundlage:** die Korrektur protokolliert jetzt **je berührter Zeile** ein Audit mit `oldValues`/`newValues`
+  (Item-ID + Alt-Menge/-Status) statt eines Summen-Eintrags ohne Alt-Werte. (Undo-Button folgt später.)
+
+Gates: typecheck 0, lint 0/33, build ✓, vitest 170/170 (+2 stock). **Keine Migration** (nur zusätzliche Audit-Zeilen).
+
+### Commits
+G42 (dieser Commit) — planInventoryAdjustment-Anreicherung + Tests; inventory-adjust Dry-Run/Commit + 0→consumed +
+Audit je Zeile; inventar/[id] zweistufiges Korrektur-Modal mit editierbarer Vorschau + Aufstock-Wahl + Reseed.
+Exakter Hash: siehe `git log`.
+
+---
+
 ## [Unreleased] — G41: Verbraucht-Handling + Wiederherstellen & EAN in Artikel-Ansicht (implementiert, Test auf Pi ausstehend)
 
 Aus der ROADMAP-Auswahl. Evaluierung (2 Explore-Durchläufe) korrigierte die veralteten ROADMAP-Notizen:

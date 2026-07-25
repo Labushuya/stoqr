@@ -186,16 +186,21 @@ describe('planInventoryAdjustment', () => {
     // Ist = 1500 g, neuer Ist = 800 g -> 700 g entfernen: zuerst a (500 g) ganz, dann b um 200 g.
     const plan = planInventoryAdjustment(items, 800, { dimension: 'mass' }, meta)
     expect(plan.needsIncrease).toBe(false)
-    expect(plan.updates).toContainEqual({ id: 'a', newQuantity: 0 })
+    expect(plan.updates).toContainEqual(expect.objectContaining({ id: 'a', newQuantity: 0 }))
     // b: 1000 g - 200 g = 800 g -> in kg = 0.8
     const bUpd = plan.updates.find((u) => u.id === 'b')
     expect(bUpd?.newQuantity).toBeCloseTo(0.8, 5)
+    // Anreicherung: oldQuantity + Kontext vorhanden (fuer die Vorschau).
+    const aUpd = plan.updates.find((u) => u.id === 'a')
+    expect(aUpd?.oldQuantity).toBe(500)
+    expect(aUpd?.unit).toBe('g')
+    expect(aUpd?.bestBeforeDate).toBe('2026-01-01')
   })
 
   it('leert alles bei neuem Ist 0', () => {
     const plan = planInventoryAdjustment(items, 0, { dimension: 'mass' }, meta)
-    expect(plan.updates).toContainEqual({ id: 'a', newQuantity: 0 })
-    expect(plan.updates).toContainEqual({ id: 'b', newQuantity: 0 })
+    expect(plan.updates).toContainEqual(expect.objectContaining({ id: 'a', newQuantity: 0 }))
+    expect(plan.updates).toContainEqual(expect.objectContaining({ id: 'b', newQuantity: 0 }))
   })
 
   it('signalisiert needsIncrease wenn neuer Ist > aktueller Ist', () => {
@@ -203,6 +208,21 @@ describe('planInventoryAdjustment', () => {
     expect(plan.needsIncrease).toBe(true)
     expect(plan.updates).toHaveLength(0)
     expect(plan.shortfallInBase).toBeCloseTo(500, 5)
+    // relevantRows listet die bestehenden Zeilen (fuer „bestehende aufstocken").
+    expect(plan.relevantRows.map((r) => r.id).sort()).toEqual(['a', 'b'])
+  })
+
+  it('suggestedNewQuantity: Fehlmenge in ZIEL-Einheit (count/Symbol)', () => {
+    // 4 Flaschen Ist, Ziel 6 -> Fehlmenge 2 (Flaschen).
+    const countItems = [
+      { id: 'x', quantity: '1', unit: 'Packung', status: 'available', bestBeforeDate: '2027-01-01' },
+      { id: 'y', quantity: '3', unit: 'Packung', status: 'available', bestBeforeDate: '2026-12-01' },
+    ]
+    const plan = planInventoryAdjustment(countItems, 6, { dimension: 'count', symbol: 'Packung' }, meta)
+    expect(plan.needsIncrease).toBe(true)
+    expect(plan.suggestedNewQuantity).toBeCloseTo(2, 5)
+    // FIFO-Reihenfolge in relevantRows: aeltestes MHD (y, 2026-12-01) zuerst.
+    expect(plan.relevantRows[0].id).toBe('y')
   })
 
   it('count symbolgenau: reduziert nur passende Einheit', () => {
@@ -212,7 +232,7 @@ describe('planInventoryAdjustment', () => {
     ]
     const plan = planInventoryAdjustment(countItems, 1, { dimension: 'count', symbol: 'Packung' }, meta)
     // nur Packung betroffen: 3 -> 1
-    expect(plan.updates).toEqual([{ id: 'p1', newQuantity: 1 }])
+    expect(plan.updates).toEqual([expect.objectContaining({ id: 'p1', newQuantity: 1 })])
   })
 })
 
@@ -331,7 +351,7 @@ describe('planInventoryAdjustment mit packSize (FIFO in Flaschen)', () => {
   it('reduziert auf 3000 ml (=2 Flaschen): a ganz weg, b bleibt bei 2', () => {
     // Ist 6000 ml, Ziel 3000 ml -> 3000 ml entfernen: a (3000 ml) ganz.
     const plan = planInventoryAdjustment(items, 3000, { dimension: 'volume' }, meta, flaschePack)
-    expect(plan.updates).toContainEqual({ id: 'a', newQuantity: 0 })
+    expect(plan.updates).toContainEqual(expect.objectContaining({ id: 'a', newQuantity: 0 }))
     // b unberührt (kein Update)
     expect(plan.updates.find((u) => u.id === 'b')).toBeUndefined()
   })
