@@ -6,6 +6,11 @@ import {
   parseGlobusSuggestJson,
   extractImageUrlsByEan,
   matchSuggestByEan,
+  parseGlobusReferencePrice,
+  parseGlobusDetailJsonLd,
+  normalizeBaseUnit,
+  extractDetailUrlsByEan,
+  buildFieldMap,
 } from './globus-price'
 
 // Echter Ausschnitt aus dem Globus-Suggest-HTML (verifiziert 2026-07-19,
@@ -13,17 +18,29 @@ import {
 const REAL_SUGGEST_HTML = `
 <div class="search-suggest js-search-result">
   <div class="search-suggest suggest-products">
-    <a class="search-suggest-product js-result">
+    <li class="search-suggest-product js-result">
       <input type="hidden" data-etracker-search-suggest-product='{"id":"4306188415978","name":"Mineralwasser, Classic","category":["Men&uuml;","Getr&auml;nke","Wasser","Mineralwasser"],"price":"0.29","currency":"EUR"}'>
+      <a href="https://produkte.globus.de/hockenheim/getraenke/wasser/mineralwasser/4306188415978/mineralwasser-classic" class="search-suggest-product-link">
       <img src="https://produkte.globus.de/media/29/77/06/1774332551/4306188415978_f33fc833.jpg?1774332551">
       <div class="col search-suggest-product-name">Mineralwasser, Classic</div>
       <span class="search-suggest-product-price">0,29&nbsp;&euro;</span>
-    </a>
-    <a class="search-suggest-product js-result">
+      <br><small class="search-suggest-product-reference-price">(0,19 &euro; / 1&nbsp;l)</small>
+      </a>
+    </li>
+    <li class="search-suggest-product js-result">
       <input type="hidden" data-etracker-search-suggest-product='{"id":"5449000017987","name":"Cola, koffein- &amp; zuckerfrei (12x 1,000 Liter)","price":"15.99","currency":"EUR"}'>
-    </a>
+    </li>
   </div>
 </div>`
+
+// Echtes Detailseiten-JSON-LD (verifiziert 2026-07-25, gekuerzt auf den Product-Block).
+const REAL_DETAIL_HTML = `
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"LocalBusiness","name":"Hockenheim"}
+</script>
+<script type="application/ld+json">
+[{"@context":"https://schema.org/","@type":"Product","name":"Mineralwasser, Classic","description":"Jeden Tag Mineralwasser Classic 1,5L PET EW DUE","sku":"4306188415978","brand":{"@type":"Brand","name":"Jeden Tag"},"image":["https://produkte.globus.de/media/x.jpg"],"offers":[{"@type":"Offer","availability":"https://schema.org/InStock","priceCurrency":"EUR","priceValidUntil":"2026-07-25","seller":{"@type":"Organization","name":"GLOBUS Markthallen"},"price":0.29}]},{"@context":"https://schema.org","@type":"Organization"}]
+</script>`
 
 describe('applyEanToUrl', () => {
   it('ersetzt {EAN} durch die GTIN', () => {
@@ -140,5 +157,103 @@ describe('matchSuggestByEan', () => {
     expect(matchSuggestByEan(products, '')).toBeNull()
     expect(matchSuggestByEan(products, null)).toBeNull()
     expect(matchSuggestByEan([], '4306188415978')).toBeNull()
+  })
+})
+
+// ── G44: Grundpreis + Detail-URL + JSON-LD ──────────────────────────────────
+
+describe('normalizeBaseUnit', () => {
+  it('normalisiert gaengige Einheiten', () => {
+    expect(normalizeBaseUnit('1 l')).toBe('l')
+    expect(normalizeBaseUnit('1&nbsp;l')).toBe('l')
+    expect(normalizeBaseUnit('1 Liter')).toBe('l')
+    expect(normalizeBaseUnit('1 kg')).toBe('kg')
+    expect(normalizeBaseUnit('100 g')).toBe('100g')
+    expect(normalizeBaseUnit('1 Stück')).toBe('Stück')
+  })
+  it('faellt auf Rohtext zurueck bei Unbekanntem', () => {
+    expect(normalizeBaseUnit('1 Rolle')).toBe('1 Rolle')
+  })
+})
+
+describe('parseGlobusReferencePrice', () => {
+  it('parst „(0,19 € / 1 l)" aus dem reference-price-Element', () => {
+    const r = parseGlobusReferencePrice('<small class="search-suggest-product-reference-price">(0,19 &euro; / 1&nbsp;l)</small>')
+    expect(r).toEqual({ basePriceCt: 19, baseUnit: 'l' })
+  })
+  it('parst kg / 100g', () => {
+    expect(parseGlobusReferencePrice('reference-price">(1,49 € / 1 kg)</small>')).toEqual({ basePriceCt: 149, baseUnit: 'kg' })
+    expect(parseGlobusReferencePrice('reference-price">(0,89 € / 100 g)</small>')).toEqual({ basePriceCt: 89, baseUnit: '100g' })
+  })
+  it('liefert null ohne reference-price / unparsbar', () => {
+    expect(parseGlobusReferencePrice('<span>0,29 €</span>')).toBeNull()
+    expect(parseGlobusReferencePrice('')).toBeNull()
+    expect(parseGlobusReferencePrice(null)).toBeNull()
+  })
+})
+
+describe('extractDetailUrlsByEan', () => {
+  it('ordnet die Detail-URL der EAN zu', () => {
+    const map = extractDetailUrlsByEan(REAL_SUGGEST_HTML)
+    expect(map.get('4306188415978')).toContain('/4306188415978/mineralwasser-classic')
+  })
+})
+
+describe('parseGlobusSuggestJson — G44-Felder', () => {
+  it('reichert Treffer um basePrice + baseUnit + detailUrl an', () => {
+    const r = parseGlobusSuggestJson(REAL_SUGGEST_HTML)
+    const w = r.find((p) => p.ean === '4306188415978')
+    expect(w?.basePriceCt).toBe(19)
+    expect(w?.baseUnit).toBe('l')
+    expect(w?.detailUrl).toContain('/4306188415978/')
+  })
+  it('Treffer ohne reference-price → basePrice null', () => {
+    const r = parseGlobusSuggestJson(REAL_SUGGEST_HTML)
+    const cola = r.find((p) => p.ean === '5449000017987')
+    expect(cola?.basePriceCt).toBeNull()
+    expect(cola?.baseUnit).toBeNull()
+  })
+})
+
+describe('parseGlobusDetailJsonLd', () => {
+  it('extrahiert brand/description/offers aus dem Product-JSON-LD', () => {
+    const d = parseGlobusDetailJsonLd(REAL_DETAIL_HTML)
+    expect(d.brand).toBe('Jeden Tag')
+    expect(d.description).toContain('1,5L PET EW DUE')
+    expect(d.priceCt).toBe(29)
+    expect(d.availability).toBe('InStock')
+    expect(d.priceValidUntil).toBe('2026-07-25')
+    expect(d.seller).toBe('GLOBUS Markthallen')
+  })
+  it('ignoriert Nicht-Product-Bloecke, liefert bei fehlendem Product alles null', () => {
+    const d = parseGlobusDetailJsonLd('<script type="application/ld+json">{"@type":"LocalBusiness","name":"x"}</script>')
+    expect(d).toEqual({ brand: null, description: null, priceCt: null, availability: null, priceValidUntil: null, seller: null })
+  })
+  it('robust bei kaputtem JSON / leerem Input', () => {
+    expect(parseGlobusDetailJsonLd('<script type="application/ld+json">{kaputt</script>').brand).toBeNull()
+    expect(parseGlobusDetailJsonLd('').brand).toBeNull()
+    expect(parseGlobusDetailJsonLd(null).brand).toBeNull()
+  })
+})
+
+describe('buildFieldMap', () => {
+  it('erfasst Felder aus Suggest + Detail mit Quelle und Zugehoerigkeit', () => {
+    const hit = parseGlobusSuggestJson(REAL_SUGGEST_HTML).find((p) => p.ean === '4306188415978')!
+    const detail = parseGlobusDetailJsonLd(REAL_DETAIL_HTML)
+    const map = buildFieldMap(hit, detail)
+    const by = (f: string) => map.find((e) => e.field === f)
+    expect(by('gtin')).toMatchObject({ source: 'suggest-json', belongsTo: 'article' })
+    expect(by('basePrice')).toMatchObject({ source: 'suggest-html', belongsTo: 'price' })
+    expect(by('basePrice')?.value).toContain('0.19 € / l')
+    expect(by('brand')).toMatchObject({ value: 'Jeden Tag', source: 'detail-jsonld', belongsTo: 'article' })
+    expect(by('seller')).toMatchObject({ belongsTo: 'store' })
+    // leere Felder werden ausgelassen
+    expect(map.every((e) => e.value !== null && e.value !== '')).toBe(true)
+  })
+  it('funktioniert ohne Detail-Daten (nur Suggest)', () => {
+    const hit = parseGlobusSuggestJson(REAL_SUGGEST_HTML).find((p) => p.ean === '4306188415978')!
+    const map = buildFieldMap(hit, null)
+    expect(map.find((e) => e.field === 'brand')).toBeUndefined()
+    expect(map.find((e) => e.field === 'gtin')).toBeDefined()
   })
 })

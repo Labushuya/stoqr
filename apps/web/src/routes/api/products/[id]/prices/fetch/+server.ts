@@ -61,6 +61,8 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
       storeId: store.id,
       priceCt: parsed.priceCt,
       unit: stockUnit ?? product.defaultUnit ?? 'piece',
+      basePriceCt: parsed.basePriceCt,
+      basePriceUnit: parsed.baseUnit,
       createdBy: locals.user.id,
     })
 

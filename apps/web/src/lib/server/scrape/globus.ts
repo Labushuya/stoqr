@@ -13,7 +13,7 @@ import { env } from '$env/dynamic/private'
 import { eq } from 'drizzle-orm'
 import { db } from '$lib/server/db'
 import { expiryConfig } from '@stoqr/db'
-import { applyEanToUrl, parseGlobusSuggestJson, matchSuggestByEan, EAN_PLACEHOLDER, type GlobusSuggestProduct } from '$lib/utils/globus-price'
+import { applyEanToUrl, parseGlobusSuggestJson, matchSuggestByEan, parseGlobusDetailJsonLd, EAN_PLACEHOLDER, type GlobusSuggestProduct, type GlobusDetailData } from '$lib/utils/globus-price'
 
 const TIMEOUT_MS = 8000
 const DEFAULT_USER_AGENT =
@@ -23,6 +23,8 @@ export type ScrapedPrice = {
   priceCt: number
   name: string
   ean: string
+  basePriceCt: number | null
+  baseUnit: string | null
 }
 
 /**
@@ -124,24 +126,84 @@ export async function fetchGlobusSuggest(url: string): Promise<GlobusSuggestProd
 }
 
 /**
+ * Laedt eine Globus-Produkt-Detailseite (G44) und liefert das rohe HTML + das
+ * geparste schema.org/Product-JSON-LD (brand/description/offers). Best-effort,
+ * defensiv: jeder Fehler → { html: null, data: <alles null> }. Kein throw.
+ */
+export async function fetchGlobusDetail(
+  url: string,
+): Promise<{ html: string | null; data: GlobusDetailData }> {
+  const empty: GlobusDetailData = {
+    brand: null, description: null, priceCt: null,
+    availability: null, priceValidUntil: null, seller: null,
+  }
+  const ctrl = new AbortController()
+  const t = setTimeout(() => ctrl.abort(), TIMEOUT_MS)
+  try {
+    const res = await fetch(url, {
+      signal: ctrl.signal,
+      headers: {
+        'User-Agent': env.PRICE_SCRAPE_USER_AGENT || DEFAULT_USER_AGENT,
+        'Accept-Language': 'de-DE,de;q=0.9',
+      },
+    })
+    if (!res.ok) {
+      console.warn(`[scrape/globus] detail ${hostOf(url)} → HTTP ${res.status}`)
+      return { html: null, data: empty }
+    }
+    const html = await res.text()
+    return { html, data: parseGlobusDetailJsonLd(html) }
+  } catch (err) {
+    const reason = err instanceof Error ? err.name : 'unknown'
+    console.warn(`[scrape/globus] detail ${hostOf(url)} → Fehler (${reason})`)
+    return { html: null, data: empty }
+  } finally {
+    clearTimeout(t)
+  }
+}
+
+/**
  * Liefert den PREIS des Treffers mit exakt passender EAN (in Cent). Kein Match
  * oder Treffer ohne Preis → null (nie throw).
  */
 export async function scrapeGlobusPrice(url: string, gtin: string): Promise<ScrapedPrice | null> {
   const match = matchSuggestByEan(await fetchSuggest(url), gtin)
   if (!match || match.priceCt == null) return null
-  return { priceCt: match.priceCt, name: match.name, ean: match.ean }
+  return {
+    priceCt: match.priceCt,
+    name: match.name,
+    ean: match.ean,
+    basePriceCt: match.basePriceCt,
+    baseUnit: match.baseUnit,
+  }
 }
 
 /**
  * Liefert den kompletten Katalog-Treffer (inkl. category/currency/imageUrl/raw,
  * auch ohne Preis) mit exakt passender EAN + Gesamt-Trefferzahl (fuer den
- * Struktur-Check des Katalog-Syncs). Kein Fehler wird geworfen.
+ * Struktur-Check des Katalog-Syncs). Zusaetzlich (G44): bei vorhandener Detail-URL
+ * best-effort die Detailseite ziehen → detailData (JSON-LD) + detailHtml (Roh-Archiv).
+ * Kein Fehler wird geworfen; ohne Detailtreffer bleiben detailData=null/detailHtml=null.
  */
 export async function scrapeGlobusSnapshot(
   url: string,
   gtin: string,
-): Promise<{ product: GlobusSuggestProduct | null; totalHits: number }> {
+): Promise<{
+  product: GlobusSuggestProduct | null
+  totalHits: number
+  detailData: GlobusDetailData | null
+  detailHtml: string | null
+}> {
   const products = await fetchSuggest(url)
-  return { product: matchSuggestByEan(products, gtin), totalHits: products.length }
+  const product = matchSuggestByEan(products, gtin)
+
+  let detailData: GlobusDetailData | null = null
+  let detailHtml: string | null = null
+  if (product?.detailUrl) {
+    const detail = await fetchGlobusDetail(product.detailUrl)
+    detailData = detail.data
+    detailHtml = detail.html
+  }
+
+  return { product, totalHits: products.length, detailData, detailHtml }
 }

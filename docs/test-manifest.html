@@ -108,7 +108,7 @@
 <div class="wrap">
   <header class="top">
     <h1>stoqr — Test-Manifest</h1>
-    <p class="subtitle">Blöcke A–E + F/F2 + G/G6/G7/G8/G10/G11/G12/G13/G15/G16/G17/G18/G19/G20/G21/G22/G24/G25/G26/G27/G28/G29/G30/G31/G32/G33/G34/G35/G36/G37/G39/G40/G41/G42/G43 · logisch aufbauender Durchlauf · Stand nach G43 (Korrektur-Vorschau vollständig + Mengen-Modal)</p>
+    <p class="subtitle">Blöcke A–E + F/F2 + G/G6/G7/G8/G10/G11/G12/G13/G15/G16/G17/G18/G19/G20/G21/G22/G24/G25/G26/G27/G28/G29/G30/G31/G32/G33/G34/G35/G36/G37/G39/G40/G41/G42/G43/G44 · logisch aufbauender Durchlauf · Stand nach G44 (Reichere Globus-Daten: Grundpreis + JSON-LD + Feld-Landkarte)</p>
 
     <div class="pre">
       <h2>Voraussetzung (kein Testschritt)</h2>
@@ -683,6 +683,19 @@ const BLOCKS = [
         expect: 'Schritt 2 zeigt ALLE relevanten Bestandszeilen (nicht nur die FIFO-reduzierten), jede editierbar; der FIFO-Vorschlag ist vorbelegt (aeltestes MHD reduziert, unberuehrte Zeilen unveraendert). Verhalten jetzt konsistent zur „nach oben"-Ansicht.' },
       { id: 'G43-2', title: 'Wiederherstellen-Menge im stoqr-Modal', steps: ['Einen Bestand mit Menge 0 wiederherstellen — auf /inventar (Kontextmenue) UND auf der Detailseite.'],
         expect: 'Es erscheint ein stoqr-Modal mit Zahlenfeld (KEIN Browser-Prompt mehr), im gleichen Stil wie die anderen Dialoge. Bestaetigen stellt mit der eingegebenen Menge wieder her; Abbrechen laesst alles unveraendert. Bei Menge > 0 weiterhin direkt ohne Modal.' },
+    ]
+  },
+  {
+    tag: 'G44', name: 'Reichere Globus-Daten (Grundpreis + JSON-LD + Feld-Landkarte)', desc: 'Online-Abruf holt jetzt Grundpreis (PAngV) + Detailseiten-JSON-LD; volles Detail-HTML wird archiviert; je Snapshot ist eine Feld-Landkarte (Feld/Wert/Quelle/Zugehoerigkeit) einsehbar. Voraussetzung: Online-Preis-Abruf AN + Globus-Markt mit Suggest-URL.',
+    items: [
+      { id: 'G44-1', title: 'Grundpreis erscheint an der Preis-Card', steps: ['Online-Preis-Abruf aktiv, Globus-Markt mit Suggest-URL, Artikel mit gefuehrter EAN (z.B. Mineralwasser 4306188415978, Gebinde 1,5 l).', 'Artikel-Detailseite → Preise-Card → beim Markt „Online abrufen", Vorschlag uebernehmen.'],
+        expect: 'Neben dem Preis (0,29 €) erscheint der Grundpreis „0,19 €/l" (gesetzlich ausgezeichnet, nicht selbst gerechnet).' },
+      { id: 'G44-2', title: 'Feld-Landkarte im Katalog-Spiegel', steps: ['Einstellungen → „Katalog jetzt sichern" (mit aktivem Abruf).', 'Beim gesicherten Artikel den Abschnitt „Abgerufene Felder … Herkunft & Zugehoerigkeit" aufklappen.'],
+        expect: 'Eine Tabelle listet die abgerufenen Felder mit Wert, Quelle (suggest-json / suggest-html / detail-jsonld) und Zugehoerigkeit (Artikel/Preis/Markt) — u.a. brand „Jeden Tag", description „1,5L PET EW DUE", basePrice, availability.' },
+      { id: 'G44-3', title: 'Detailseiten-Daten (Marke/Beschreibung) als Vorschlag', steps: ['Nach dem Sichern den Spiegel-Eintrag betrachten.'],
+        expect: 'Marke und Beschreibung aus dem Detailseiten-JSON-LD sind sichtbar/uebernehmbar — Artikel werden NICHT automatisch ueberschrieben (nur Vorschlag; manuelle/Regel-Vorrang-Logik bleibt).' },
+      { id: 'G44-4', title: 'Failsafe: kein Detailtreffer', steps: ['Einen Artikel mit EAN abrufen, dessen Detailseite nicht erreichbar ist / kein JSON-LD hat.'],
+        expect: 'Der Suggest-Preis + Grundpreis bleiben erhalten, kein Crash; die Feld-Landkarte zeigt dann nur die Suggest-Felder. (Migration 0020 lief in CI; Alt-Snapshots ohne extracted zeigen keine Tabelle.)' },
     ]
   },
   {

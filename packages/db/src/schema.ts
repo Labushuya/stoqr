@@ -260,6 +260,11 @@ export const productPrices = pgTable(
       .references(() => stores.id, { onDelete: 'cascade' }),
     priceCt: integer('price_ct').notNull(),
     unit: varchar('unit', { length: 16 }).notNull(),
+    // Grundpreis (PAngV, G44): gesetzlich ausgezeichneter Preis je Basiseinheit,
+    // z.B. 19 Cent / 'l'. Aus dem Globus-Suggest-HTML (reference-price). Nullable:
+    // nicht jeder Artikel/Markt zeichnet einen Grundpreis aus.
+    basePriceCt: integer('base_price_ct'),
+    basePriceUnit: varchar('base_price_unit', { length: 16 }),
     isReduced: boolean('is_reduced').notNull().default(false),
     isCurrent: boolean('is_current').notNull().default(false),
     // Freigabe-Status: 'proposed' = Online-Vorschlag (Staging, nie is_current),
@@ -334,6 +339,11 @@ export const globusSnapshots = pgTable(
     imageRemoteUrl: text('image_remote_url'),
     localImagePath: text('local_image_path'), // Pfad im MEDIA_DIR; null wenn kein Bild
     rawJson: jsonb('raw_json').notNull(),
+    // G44: vollstaendiges Detailseiten-HTML (Roh-Archiv) + strukturierte Feld-Landkarte
+    // dieses Abrufs ({ field, value, source, belongsTo }[]) — dokumentiert, welcher
+    // Wert woher kam. Beide nullable (Detailseite best-effort).
+    rawDetailHtml: text('raw_detail_html'),
+    extracted: jsonb('extracted'),
     status: varchar('status', { length: 16 })
       .notNull()
       .default('proposed')

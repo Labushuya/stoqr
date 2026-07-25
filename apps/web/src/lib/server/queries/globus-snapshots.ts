@@ -30,6 +30,9 @@ export interface SnapshotInput {
   imageRemoteUrl: string | null
   localImagePath?: string | null
   rawJson: unknown
+  // G44: Roh-Archiv des Detailseiten-HTML + strukturierte Feld-Landkarte des Abrufs.
+  rawDetailHtml?: string | null
+  extracted?: unknown
   createdBy?: string | null
 }
 
@@ -92,6 +95,8 @@ export async function recordSnapshot(
         imageRemoteUrl: input.imageRemoteUrl,
         localImagePath: input.localImagePath ?? null,
         rawJson: input.rawJson,
+        rawDetailHtml: input.rawDetailHtml ?? null,
+        extracted: input.extracted ?? null,
         status: 'proposed',
         source: 'globus',
         createdBy: input.createdBy ?? null,
@@ -151,6 +156,9 @@ export type CatalogMirrorRow = {
     storeId: string | null
     localImagePath: string | null
     catalogCategoryId: string | null
+    // Feld-Landkarte des Abrufs (G44): { field, value, source, belongsTo }[] — dokumentiert,
+    // welcher Wert woher kam. null bei Alt-Snapshots ohne Anreicherung.
+    extracted: unknown
     fetchedAt: Date
   } | null
   diff: MirrorDiff
@@ -234,6 +242,7 @@ export async function listCatalogMirror(householdId: string): Promise<CatalogMir
             storeId: snap.storeId,
             localImagePath: snap.localImagePath,
             catalogCategoryId,
+            extracted: snap.extracted ?? null,
             fetchedAt: snap.fetchedAt,
           }
         : null,

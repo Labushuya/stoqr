@@ -171,6 +171,8 @@ export interface RecordProposedPriceInput {
   storeId: string
   priceCt: number
   unit: string
+  basePriceCt?: number | null
+  basePriceUnit?: string | null
   note?: string | null
   createdBy?: string | null
 }
@@ -202,6 +204,8 @@ export async function recordProposedPrice(input: RecordProposedPriceInput) {
         storeId: input.storeId,
         priceCt: input.priceCt,
         unit: input.unit,
+        basePriceCt: input.basePriceCt ?? null,
+        basePriceUnit: input.basePriceUnit ?? null,
         isReduced: false,
         isCurrent: false,
         status: 'proposed',

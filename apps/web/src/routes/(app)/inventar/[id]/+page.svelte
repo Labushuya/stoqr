@@ -362,6 +362,8 @@
     priceCt: number
     unit: string
     isReduced: boolean
+    basePriceCt: number | null
+    basePriceUnit: string | null
     store: { id: string; name: string; chain: string | null } | null
   }
   const currentPrices = $derived((data.currentPrices as CurrentPrice[]) ?? [])
@@ -370,6 +372,11 @@
   }
   function fmtPrice(cents: number): string {
     return (cents / 100).toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })
+  }
+  // Grundpreis-Anzeige (G44): „0,19 €/l" — der gesetzlich ausgezeichnete Preis je Basiseinheit.
+  function fmtBasePrice(cents: number | null, unit: string | null): string {
+    if (cents == null || !unit) return ''
+    return `${fmtPrice(cents)}/${unit}`
   }
 
   let priceEditStore = $state<string | null>(null)
@@ -1318,6 +1325,9 @@
                   {#if cp}
                     {fmtPrice(cp.priceCt)} / {cp.unit}
                     {#if cp.isReduced}<span class="price-badge">Angebot</span>{/if}
+                    {#if cp.basePriceCt != null}
+                      <span class="price-base" title="Grundpreis (gesetzlich ausgezeichnet)">{fmtBasePrice(cp.basePriceCt, cp.basePriceUnit)}</span>
+                    {/if}
                   {:else}
                     <span class="price-none">kein Preis</span>
                   {/if}
@@ -2175,6 +2185,7 @@
   .price-value { font-size: var(--text-sm); color: var(--color-text-secondary); display: inline-flex; align-items: center; gap: var(--space-2); }
   .price-none { color: var(--color-text-muted); font-style: italic; }
   .price-badge { background: #fff7ed; color: #c2410c; border-radius: var(--radius-full); padding: 0 var(--space-2); font-size: 10px; font-weight: 700; }
+  .price-base { color: var(--color-text-muted); font-size: var(--text-xs); font-weight: 600; margin-left: var(--space-1); }
   .price-edit { display: flex; flex-direction: column; gap: var(--space-2); }
   .price-edit-row { display: flex; align-items: center; gap: var(--space-2); }
   .price-input { flex: 0 1 110px; }

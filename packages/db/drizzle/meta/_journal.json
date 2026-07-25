@@ -140,6 +140,13 @@
       "when": 1783800014000,
       "tag": "0019_category_mappings",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1783800015000,
+      "tag": "0020_globus_rich_data",
+      "breakpoints": true
     }
   ]
 }

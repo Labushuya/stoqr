@@ -8,6 +8,7 @@ import { writeAudit } from '$lib/server/queries/audit'
 import { recordSnapshot } from '$lib/server/queries/globus-snapshots'
 import { downloadCatalogImage } from '$lib/server/media'
 import { scrapeGlobusSnapshot, isPriceScrapeEnabled, resolveScrapeUrl } from '$lib/server/scrape/globus'
+import { buildFieldMap } from '$lib/utils/globus-price'
 
 // ---------------------------------------------------------------------------
 // POST /api/catalog/sync — Globus-Katalog-Sicherung (G7)
@@ -74,13 +75,15 @@ export const POST: RequestHandler = async ({ locals }) => {
     try {
       if (i > 0) await sleep(RATE_LIMIT_MS)
       attempted++
-      const { product: hit, totalHits: hits } = await scrapeGlobusSnapshot(url, r.gtin)
+      const { product: hit, totalHits: hits, detailData, detailHtml } = await scrapeGlobusSnapshot(url, r.gtin)
       totalHits += hits
       if (!hit) {
         skipped++
         continue
       }
       const localImagePath = await downloadCatalogImage(householdId, r.gtin, hit.imageUrl)
+      // Feld-Landkarte (G44): dokumentiert je Feld Wert, Quelle und Zugehoerigkeit.
+      const extracted = buildFieldMap(hit, detailData)
       const result = await recordSnapshot({
         householdId,
         productId: r.productId,
@@ -93,6 +96,8 @@ export const POST: RequestHandler = async ({ locals }) => {
         imageRemoteUrl: hit.imageUrl,
         localImagePath,
         rawJson: hit.raw,
+        rawDetailHtml: detailHtml,
+        extracted,
         createdBy: locals.user.id,
       })
       if (result.changed && result.row) {

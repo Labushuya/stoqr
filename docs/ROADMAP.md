@@ -191,8 +191,14 @@ Kein Text-/Pipe-Export (existiert so in Bring! nicht).
   Zutaten-Ampel via aggregateStock/compareToTarget, fehlende Zutaten → Einkaufsliste.
 
 ### Weitere geplante Features (aufgenommen 2026-07-18, Reihenfolge offen)
+- **Reichere Globus-Daten (Stufe 1)** (**erledigt G44, Test auf Pi ausstehend**): Grundpreis (PAngV, „0,19 €/l") aus
+  dem Suggest-HTML + Detailseiten-JSON-LD (brand/description/offers) abgerufen; `product_prices.base_price_ct/unit`;
+  volles Detail-HTML archiviert (`globus_snapshots.raw_detail_html`) + Feld-Landkarte (`extracted`: Feld/Wert/Quelle/
+  Zugehörigkeit) im Katalog-Spiegel sichtbar. Migration 0020. **Stufe 2 (offen):** Headless-Chromium (Playwright) für
+  JS-gerenderte Felder (exakter Pfandbetrag, Nährwerte) — Dockerfile-Umbau Alpine→Debian/`apk chromium`, arm64/non-root.
 - **Pfand / Leergut** (geplant, eigener Block — volles Handling gewünscht): Pfand-Betrag am Artikel + Leergut als eigener
   Bestand/Kategorie mit Rückgabe-/Rückbuchungs-Logik; Pfand fließt ins Einkaufs-Estimate. (Migration: deposit-Felder +
+  ggf. Einweg/Mehrweg-Status ist bereits aus G44-JSON-LD-`description` ableitbar, exakter Betrag erst mit Stufe 2.)
   ggf. Leergut-Verknüpfung.)
 - **Einkäufe umbenennen** (**bereits umgesetzt** — Feststellung 2026-07-24): Umbenennen-UI existiert auf
   `einkauf/[id]` (Button + Input + `saveRename` via PATCH `{name}`); PATCH-Route akzeptiert `name`. Kein offener Task.

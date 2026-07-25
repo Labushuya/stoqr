@@ -5,6 +5,39 @@ Neueste Einträge oben. Jeder Eintrag nennt den Commit-Kontext, damit andere LLM
 
 ---
 
+## [Unreleased] — G44: Reichere Globus-Daten (Stufe 1) — Grundpreis + JSON-LD + Rohdaten-Archiv (implementiert, Test auf Pi ausstehend)
+
+Ziel: maximaler Datenreichtum aus dem Globus-Abruf. Analyse an **echten Globus-Antworten** ergab: das heute geparste
+Suggest-JSON ist karg (id/name/category/price/currency, über alle Sortimente identisch), der Reichtum liegt im
+umgebenden HTML + auf der Detailseite. Stufe 1 (risikolos, kein Headless) hebt das:
+
+- **Grundpreis (PAngV):** aus dem Suggest-HTML (`reference-price`, z.B. „0,19 €/l") — der gesetzlich ausgezeichnete
+  Preis je Basiseinheit statt theoretischer Umrechnung. Neu am `product_prices` (`base_price_ct`/`base_price_unit`),
+  fließt aus dem Online-Abruf in den Vorschlag und wird an der Preis-Card angezeigt.
+- **Detailseiten-JSON-LD:** neuer Abruf der Produkt-Detailseite (best-effort), parst `schema.org/Product`
+  (brand „Jeden Tag", description „1,5L PET EW DUE", offers.{availability,priceValidUntil,seller}).
+- **Rohdaten-Archiv + Feld-Landkarte:** `globus_snapshots.raw_detail_html` archiviert das volle Detail-HTML;
+  `globus_snapshots.extracted` (jsonb) speichert je Feld **Wert + Quelle + Zugehörigkeit** (`buildFieldMap`) — im
+  Katalog-Spiegel als aufklappbare Tabelle „Abgerufene Felder" einsehbar.
+- **Reine, getestete Parser:** `parseGlobusReferencePrice`, `parseGlobusDetailJsonLd`, `normalizeBaseUnit`,
+  `extractDetailUrlsByEan`, `buildFieldMap` (+ GlobusSuggestProduct um basePrice/detailUrl erweitert). 12 neue Tests
+  an echten HTML-Schnipseln.
+
+Migration **0020** (additiv, nullable, kein Backfill) — wird nur in CI gegen echtes Postgres getestet. Reichere
+Daten werden nur VORgeschlagen, Artikel nie automatisch überschrieben (Herkunfts-/Vorrang-Logik G20/G34 bleibt).
+
+**Stufe 2 (separat, offen):** Headless-Chromium (Playwright) für JS-gerenderte Felder (exakter Pfandbetrag,
+Nährwerte). Erfordert Dockerfile-Umbau (Alpine→Debian/`apk chromium`), arm64/non-root — eigenes Projekt.
+
+Gates: typecheck 0, lint 0/33, build ✓, vitest 183/183 (+12). Migration 0020.
+
+### Commits
+G44 (dieser Commit) — globus-price.ts (Parser + buildFieldMap + Tests), globus.ts (fetchGlobusDetail + Snapshot-Detail),
+Schema/Migration 0020 (base_price + raw_detail_html/extracted), Persistenz (recordSnapshot/recordProposedPrice),
+Anzeige (Preis-Card Grundpreis + Katalog-Spiegel Feld-Landkarte). Exakter Hash: siehe `git log`.
+
+---
+
 ## [Unreleased] — G43: zwei Nachbesserungen aus dem G42-Test (implementiert, Test auf Pi ausstehend)
 
 Konsistenz-Notizen aus dem G42-Test (179/179), beide UX:

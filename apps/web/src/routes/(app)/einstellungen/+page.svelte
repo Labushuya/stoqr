@@ -56,6 +56,7 @@
       storeId: string | null
       localImagePath: string | null
       catalogCategoryId: string | null
+      extracted: { field: string; value: string | null; source: string; belongsTo: string }[] | null
       fetchedAt: string
     } | null
     diff: { name: FieldDiff; image: FieldDiff; category: FieldDiff; any: boolean }
@@ -713,6 +714,25 @@
                   <span class="snap-diff-new">{snap.priceCt != null ? fmtSnapPrice(snap.priceCt) + ' (Vorschlag)' : '(Katalog: kein Preis)'}</span>
                 </label>
 
+                {#if snap.extracted && snap.extracted.length > 0}
+                  <details class="field-map">
+                    <summary>Abgerufene Felder ({snap.extracted.length}) — Herkunft &amp; Zugehörigkeit</summary>
+                    <table class="field-map-table">
+                      <thead><tr><th>Feld</th><th>Wert</th><th>Quelle</th><th>gehört zu</th></tr></thead>
+                      <tbody>
+                        {#each snap.extracted as e (e.field)}
+                          <tr>
+                            <td>{e.field}</td>
+                            <td class="field-map-val">{e.value}</td>
+                            <td><span class="field-map-src">{e.source}</span></td>
+                            <td>{e.belongsTo === 'article' ? 'Artikel' : e.belongsTo === 'price' ? 'Preis' : 'Markt'}</td>
+                          </tr>
+                        {/each}
+                      </tbody>
+                    </table>
+                  </details>
+                {/if}
+
                 <div class="snap-actions">
                   <button class="btn-save-inline" type="button" disabled={snapshotBusy === snap.id} onclick={() => reviewSnapshot(snap.id, 'confirm')}>Übernehmen</button>
                   <button class="btn-save-inline" type="button" disabled={snapshotBusy === snap.id} onclick={() => reviewSnapshot(snap.id, 'confirm', true)}>Alles übernehmen</button>
@@ -1016,6 +1036,16 @@
   .snap-name { font-size: var(--text-sm); font-weight: 600; color: var(--color-text-primary); }
   .snap-meta { font-size: var(--text-xs); color: var(--color-text-muted); }
   .snap-actions { display: flex; gap: var(--space-2); flex-shrink: 0; flex-wrap: wrap; margin-top: var(--space-2); }
+
+  /* Feld-Landkarte (G44): woher kam welcher abgerufene Wert */
+  .field-map { margin-top: var(--space-2); font-size: var(--text-xs); }
+  .field-map summary { cursor: pointer; color: var(--color-text-secondary); font-weight: 600; }
+  .field-map summary:hover { color: var(--color-text-primary); }
+  .field-map-table { width: 100%; border-collapse: collapse; margin-top: var(--space-2); }
+  .field-map-table th { text-align: left; color: var(--color-text-muted); font-weight: 600; padding: 2px var(--space-2); border-bottom: 1px solid var(--color-border); }
+  .field-map-table td { padding: 2px var(--space-2); border-bottom: 1px solid var(--color-border-subtle, var(--color-border)); vertical-align: top; }
+  .field-map-val { color: var(--color-text-primary); word-break: break-word; }
+  .field-map-src { font-family: var(--font-mono, monospace); font-size: 10px; color: var(--color-text-muted); }
   .snap-badge { font-size: var(--text-xs); font-weight: 600; padding: 2px 8px; border-radius: 999px; background: var(--color-surface-sunken); color: var(--color-text-muted); flex-shrink: 0; }
   .snap-badge--warn { background: color-mix(in srgb, var(--color-warning, #d97706) 18%, transparent); color: var(--color-warning, #d97706); }
   .snap-diff { padding: var(--space-2) var(--space-3) var(--space-3); border-top: 1px solid var(--color-border); display: flex; flex-direction: column; gap: var(--space-2); }
