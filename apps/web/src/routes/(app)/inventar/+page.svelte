@@ -1,5 +1,6 @@
 <script lang="ts">
   import ConfirmModal from '$lib/components/ConfirmModal.svelte'
+  import Modal from '$lib/components/Modal.svelte'
   import ProductForm from '$lib/components/ProductForm.svelte'
   import type { PageData } from './$types'
   import {
@@ -344,21 +345,31 @@
     }
   }
 
-  // Wiederherstellen (G41): nicht-verfügbaren Bestand zurück auf 'available'. Ist die Menge 0
-  // (z.B. beim Verbrauchen geleert), vorher eine neue Menge abfragen. Server nullt consumedAt.
-  async function restoreItem(item: InventoryItem) {
+  // Wiederherstellen (G41/G43): nicht-verfügbaren Bestand zurück auf 'available'. Ist die Menge 0
+  // (z.B. beim Verbrauchen geleert), wird die Menge über ein stoqr-Modal abgefragt. Server nullt consumedAt.
+  let restoreModal = $state<{ item: InventoryItem; qty: string } | null>(null)
+
+  function restoreItem(item: InventoryItem) {
     closeMenu()
-    const body: { status: 'available'; quantity?: string } = { status: 'available' }
     if (parseFloat(item.quantity) <= 0) {
-      const input = window.prompt(`Menge für "${item.product.name}" beim Wiederherstellen:`, '1')
-      if (input === null) return // abgebrochen
-      const qty = Number(input.replace(',', '.'))
-      if (isNaN(qty) || qty <= 0) {
-        showToast('Ungültige Menge', 'error')
-        return
-      }
-      body.quantity = String(qty)
+      restoreModal = { item, qty: '1' }
+      return
     }
+    void doRestoreItem(item)
+  }
+
+  function confirmRestoreModal() {
+    if (!restoreModal) return
+    const qty = Number(String(restoreModal.qty).replace(',', '.'))
+    if (isNaN(qty) || qty <= 0) { showToast('Ungültige Menge', 'error'); return }
+    const item = restoreModal.item
+    restoreModal = null
+    void doRestoreItem(item, String(qty))
+  }
+
+  async function doRestoreItem(item: InventoryItem, quantity?: string) {
+    const body: { status: 'available'; quantity?: string } = { status: 'available' }
+    if (quantity) body.quantity = quantity
     try {
       const res = await fetch(`/api/inventory/${item.id}`, {
         method: 'PATCH',
@@ -937,6 +948,21 @@ Das Produkt bleibt im Katalog.`,
     onCancel={closeConfirm}
   />
 {/if}
+
+<!-- ── Bestand wiederherstellen: Mengen-Abfrage (Menge 0, G43) ─────────────── -->
+<Modal open={restoreModal !== null} title="Bestand wiederherstellen" size="sm" onClose={() => (restoreModal = null)}>
+  {#if restoreModal}
+    <p class="restore-hint">„{restoreModal.item.product.name}" hat keine Menge mehr. Gib die Menge an, mit der wiederhergestellt werden soll.</p>
+    <label class="restore-field">
+      <span class="restore-label">Menge</span>
+      <input class="input" type="number" min="0" step="0.25" bind:value={restoreModal.qty} />
+    </label>
+  {/if}
+  {#snippet footer()}
+    <button class="btn-secondary" type="button" onclick={() => (restoreModal = null)}>Abbrechen</button>
+    <button class="btn-primary" type="button" onclick={confirmRestoreModal}>Wiederherstellen</button>
+  {/snippet}
+</Modal>
 
 <!-- ── Toast container ───────────────────────────────────────────────────── -->
 
@@ -1847,6 +1873,16 @@ Das Produkt bleibt im Katalog.`,
     line-height: 1.5;
     margin: 0;
   }
+
+  /* ── Restore-Mengen-Modal (G43) ───────────────────────────────────────── */
+  .restore-hint {
+    font-size: var(--text-sm);
+    color: var(--color-text-secondary);
+    line-height: 1.5;
+    margin: 0 0 var(--space-3);
+  }
+  .restore-field { display: flex; flex-direction: column; gap: var(--space-1); }
+  .restore-label { font-size: var(--text-xs); color: var(--color-text-muted); }
 
   /* ── Spinner ──────────────────────────────────────────────────────────── */
 

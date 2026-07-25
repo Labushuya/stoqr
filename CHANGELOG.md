@@ -5,6 +5,27 @@ Neueste Einträge oben. Jeder Eintrag nennt den Commit-Kontext, damit andere LLM
 
 ---
 
+## [Unreleased] — G43: zwei Nachbesserungen aus dem G42-Test (implementiert, Test auf Pi ausstehend)
+
+Konsistenz-Notizen aus dem G42-Test (179/179), beide UX:
+
+- **G42-1:** Die Korrektur-Vorschau **nach unten** zeigte nur die FIFO-reduzierten Zeilen. Jetzt werden — konsistent
+  zur „nach oben"-Ansicht — **alle** relevanten Bestandszeilen editierbar gezeigt; der FIFO-Vorschlag ist vorbelegt
+  (aus `updates` eingemischt, unberührte Zeilen behalten ihre Menge). `loadInventoryPreview` mappt `relevantRows` +
+  Vorschlag; Commit/0→verbraucht unverändert.
+- **G42-2:** Die Mengen-Abfrage beim **Wiederherstellen** (Bestand mit Menge 0) lief über `window.prompt`
+  (UI-Bruch). Ersetzt durch ein **stoqr-Modal** mit Zahlenfeld — auf beiden Seiten (`/inventar`-Kontextmenü und
+  Detailseite). `restoreItem`/`restoreRow` in „öffnet Modal bei Menge 0" + `doRestore…(qty)` aufgeteilt; bei Menge > 0
+  weiterhin direkt ohne Modal.
+
+Gates: typecheck 0, lint 0/33, build ✓, vitest 170/170 (unverändert, reine UI). Keine Migration.
+
+### Commits
+G43 (dieser Commit) — inventar/[id] decrease-Vorschau auf relevantRows + FIFO-Merge + Restore-Modal;
+inventar/+page.svelte Modal-Import + Restore-Mengen-Modal statt prompt. Exakter Hash: siehe `git log`.
+
+---
+
 ## [Unreleased] — G42: Bestandskorrektur mit editierbarer Vorschau (implementiert, Test auf Pi ausstehend)
 
 Aus einer G41-Nutzer-Rückfrage: die Bestandskorrektur („Bestand korrigieren") war intransparent und hatte mehrere

@@ -243,7 +243,15 @@
 
       invDirection = body.direction
       if (body.direction === 'decrease') {
-        invLines = (body.updates as PreviewLine[]) ?? []
+        // Alle relevanten Zeilen zeigen (nicht nur die FIFO-reduzierten), jede editierbar.
+        // FIFO-Vorschlag einmischen: newQuantity aus updates, sonst = oldQuantity (unberührt).
+        const proposed = new Map<string, number>(
+          ((body.updates as PreviewLine[]) ?? []).map((u) => [u.id, Number(u.newQuantity)])
+        )
+        invLines = ((body.relevantRows as PreviewLine[]) ?? []).map((r) => ({
+          ...r,
+          newQuantity: proposed.has(r.id) ? (proposed.get(r.id) as number) : r.oldQuantity,
+        }))
         if (invLines.length === 0) { invError = 'Keine passenden Bestände zum Reduzieren.'; return }
       } else {
         // increase: bestehende Zeilen zum Erhöhen + Vorschlag für neue Zeile.
@@ -952,17 +960,30 @@
     await invalidateAll()
   }
 
-  // Wiederherstellen (G41): zurück auf 'available', consumedAt nullt der Server. Bei Menge 0
-  // vorher neue Menge abfragen (z.B. wenn beim Verbrauchen geleert).
-  async function restoreRow(row: Sibling) {
-    const body: { status: 'available'; quantity?: string } = { status: 'available' }
+  // Wiederherstellen (G41/G43): zurück auf 'available', consumedAt nullt der Server. Bei Menge 0
+  // wird die neue Menge über ein stoqr-Modal abgefragt (nicht window.prompt).
+  let restoreModal = $state<{ row: Sibling; qty: string } | null>(null)
+
+  function restoreRow(row: Sibling) {
     if (parseFloat(row.quantity) <= 0) {
-      const input = window.prompt('Menge beim Wiederherstellen:', '1')
-      if (input === null) return
-      const qty = Number(input.replace(',', '.'))
-      if (isNaN(qty) || qty <= 0) { showToast('Ungültige Menge', 'error'); return }
-      body.quantity = String(qty)
+      restoreModal = { row, qty: '1' }
+      return
     }
+    void doRestoreRow(row)
+  }
+
+  function confirmRestoreModal() {
+    if (!restoreModal) return
+    const qty = Number(String(restoreModal.qty).replace(',', '.'))
+    if (isNaN(qty) || qty <= 0) { showToast('Ungültige Menge', 'error'); return }
+    const row = restoreModal.row
+    restoreModal = null
+    void doRestoreRow(row, String(qty))
+  }
+
+  async function doRestoreRow(row: Sibling, quantity?: string) {
+    const body: { status: 'available'; quantity?: string } = { status: 'available' }
+    if (quantity) body.quantity = quantity
     const res = await fetch(`/api/inventory/${row.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
@@ -1606,6 +1627,21 @@
       <button class="btn-link" type="button" disabled={invSaving} onclick={() => (invStep = 1)}>Zurück</button>
       <button class="btn-secondary" type="button" disabled={invSaving} onclick={saveInventory}>Übernehmen</button>
     {/if}
+  {/snippet}
+</Modal>
+
+<!-- ── Bestand wiederherstellen: Mengen-Abfrage (Menge 0, G43) ─────────────── -->
+<Modal open={restoreModal !== null} title="Bestand wiederherstellen" size="sm" onClose={() => (restoreModal = null)}>
+  {#if restoreModal}
+    <p class="scope-hint">Dieser Bestand hat keine Menge mehr. Gib die Menge an, mit der er wiederhergestellt werden soll.</p>
+    <label class="tf-field">
+      <span class="tf-label">Menge ({unitLabel(restoreModal.row.unit)})</span>
+      <input class="input" type="number" min="0" step="0.25" bind:value={restoreModal.qty} />
+    </label>
+  {/if}
+  {#snippet footer()}
+    <button class="btn-link" type="button" onclick={() => (restoreModal = null)}>Abbrechen</button>
+    <button class="btn-secondary" type="button" onclick={confirmRestoreModal}>Wiederherstellen</button>
   {/snippet}
 </Modal>
 

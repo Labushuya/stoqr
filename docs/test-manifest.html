@@ -108,7 +108,7 @@
 <div class="wrap">
   <header class="top">
     <h1>stoqr — Test-Manifest</h1>
-    <p class="subtitle">Blöcke A–E + F/F2 + G/G6/G7/G8/G10/G11/G12/G13/G15/G16/G17/G18/G19/G20/G21/G22/G24/G25/G26/G27/G28/G29/G30/G31/G32/G33/G34/G35/G36/G37/G39/G40/G41/G42 · logisch aufbauender Durchlauf · Stand nach G42 (Bestandskorrektur mit editierbarer Vorschau)</p>
+    <p class="subtitle">Blöcke A–E + F/F2 + G/G6/G7/G8/G10/G11/G12/G13/G15/G16/G17/G18/G19/G20/G21/G22/G24/G25/G26/G27/G28/G29/G30/G31/G32/G33/G34/G35/G36/G37/G39/G40/G41/G42/G43 · logisch aufbauender Durchlauf · Stand nach G43 (Korrektur-Vorschau vollständig + Mengen-Modal)</p>
 
     <div class="pre">
       <h2>Voraussetzung (kein Testschritt)</h2>
@@ -674,6 +674,15 @@ const BLOCKS = [
         expect: 'Eine NEUE Bestandszeile mit der eingegebenen Menge (und ggf. MHD) wird angelegt; bestehende Zeilen bleiben unveraendert. MHD ist direkt im Dialog setzbar (nicht erst nachtragen).' },
       { id: 'G42-5', title: 'Aktivitaet: Vorher→Nachher je Zeile', steps: ['Nach einer Korrektur /aktivitaet oeffnen.'],
         expect: 'Je beruehrter Bestandszeile ein Eintrag mit Alt-Menge/-Status → Neu (statt eines nichtssagenden Summen-Eintrags).' },
+    ]
+  },
+  {
+    tag: 'G43', name: 'Korrektur-Vorschau vollstaendig + Mengen-Modal (aus G42-Test)', desc: 'Zwei Konsistenz-Nachbesserungen: Vorschau nach unten zeigt ALLE Zeilen editierbar; Wiederherstellen-Mengenabfrage als stoqr-Modal statt Browser-Prompt.',
+    items: [
+      { id: 'G43-1', title: 'Korrektur nach unten zeigt ALLE Zeilen', steps: ['Artikel mit mehreren Bestandszeilen → „Bestand korrigieren" → Ziel niedriger → „Weiter".'],
+        expect: 'Schritt 2 zeigt ALLE relevanten Bestandszeilen (nicht nur die FIFO-reduzierten), jede editierbar; der FIFO-Vorschlag ist vorbelegt (aeltestes MHD reduziert, unberuehrte Zeilen unveraendert). Verhalten jetzt konsistent zur „nach oben"-Ansicht.' },
+      { id: 'G43-2', title: 'Wiederherstellen-Menge im stoqr-Modal', steps: ['Einen Bestand mit Menge 0 wiederherstellen — auf /inventar (Kontextmenue) UND auf der Detailseite.'],
+        expect: 'Es erscheint ein stoqr-Modal mit Zahlenfeld (KEIN Browser-Prompt mehr), im gleichen Stil wie die anderen Dialoge. Bestaetigen stellt mit der eingegebenen Menge wieder her; Abbrechen laesst alles unveraendert. Bei Menge > 0 weiterhin direkt ohne Modal.' },
     ]
   },
   {
