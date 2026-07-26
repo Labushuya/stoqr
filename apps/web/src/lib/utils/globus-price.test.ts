@@ -213,6 +213,32 @@ describe('parseGlobusSuggestJson — G44-Felder', () => {
     expect(cola?.basePriceCt).toBeNull()
     expect(cola?.baseUnit).toBeNull()
   })
+  it('findet den reference-price auch bei GROSSEM Abstand zum Attribut (G44-Bug: srcset dazwischen)', () => {
+    // Der echte Globus-Treffer hat ~2900 Zeichen (Bild-srcset) zwischen etracker-Attribut
+    // und reference-price. Ein fixes 2000er-Fenster verpasste ihn. Hier: 3000 Fuellzeichen.
+    const filler = ' '.repeat(3000)
+    const html = `
+      <li class="search-suggest-product js-result">
+        <input data-etracker-search-suggest-product='{"id":"111","name":"Gross","price":"1.00"}'>
+        <a href="https://x.de/p/111/gross" class="search-suggest-product-link">img</a>${filler}
+        <small class="search-suggest-product-reference-price">(0,50 &euro; / 1&nbsp;l)</small>
+      </li>`
+    const r = parseGlobusSuggestJson(html)
+    expect(r[0].basePriceCt).toBe(50)
+    expect(r[0].baseUnit).toBe('l')
+  })
+  it('ordnet den reference-price dem RICHTIGEN Treffer zu (nicht dem naechsten)', () => {
+    const html = `
+      <li><input data-etracker-search-suggest-product='{"id":"aaa","name":"A","price":"1.00"}'>
+      <small class="search-suggest-product-reference-price">(0,10 € / 1 l)</small></li>
+      <li><input data-etracker-search-suggest-product='{"id":"bbb","name":"B","price":"2.00"}'>
+      <small class="search-suggest-product-reference-price">(0,20 € / 1 kg)</small></li>`
+    const r = parseGlobusSuggestJson(html)
+    expect(r.find((p) => p.ean === 'aaa')?.basePriceCt).toBe(10)
+    expect(r.find((p) => p.ean === 'aaa')?.baseUnit).toBe('l')
+    expect(r.find((p) => p.ean === 'bbb')?.basePriceCt).toBe(20)
+    expect(r.find((p) => p.ean === 'bbb')?.baseUnit).toBe('kg')
+  })
 })
 
 describe('parseGlobusDetailJsonLd', () => {

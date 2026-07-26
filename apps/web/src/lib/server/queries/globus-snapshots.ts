@@ -61,10 +61,17 @@ export async function recordSnapshot(
     }
 
     if (last && !snapshotDiffers(incoming, last)) {
-      // Nichts geaendert -> nur Zeitstempel des letzten Snapshots auffrischen.
+      // Nichts Diff-relevantes geaendert -> Zeitstempel auffrischen. G44: die reicheren
+      // Felder (Detail-HTML + Feld-Landkarte) trotzdem NACHTRAGEN, wenn sie neu vorliegen
+      // — sonst bekaeme ein bereits gesicherter Artikel nie eine extracted-Landkarte.
       await tx
         .update(globusSnapshots)
-        .set({ fetchedAt: new Date(), localImagePath: input.localImagePath ?? last.localImagePath })
+        .set({
+          fetchedAt: new Date(),
+          localImagePath: input.localImagePath ?? last.localImagePath,
+          rawDetailHtml: input.rawDetailHtml ?? last.rawDetailHtml,
+          extracted: input.extracted ?? last.extracted,
+        })
         .where(eq(globusSnapshots.id, last.id))
       return { changed: false }
     }

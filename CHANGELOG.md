@@ -35,6 +35,11 @@ Gates: typecheck 0, lint 0/33, build ✓, vitest 183/183 (+12). Migration 0020.
 G44 (dieser Commit) — globus-price.ts (Parser + buildFieldMap + Tests), globus.ts (fetchGlobusDetail + Snapshot-Detail),
 Schema/Migration 0020 (base_price + raw_detail_html/extracted), Persistenz (recordSnapshot/recordProposedPrice),
 Anzeige (Preis-Card Grundpreis + Katalog-Spiegel Feld-Landkarte). Exakter Hash: siehe `git log`.
+G44-fix — Grundpreis kam auf dem Pi nicht an: `parseGlobusSuggestJson` suchte den reference-price in einem fixen
+2000-Zeichen-Fenster, im echten Globus-HTML liegt er aber ~2919 Zeichen hinter dem etracker-Attribut (Bild-srcset
+dazwischen). Fix: Segment-Grenze bis zum nächsten Treffer statt fixem Fenster (+2 Tests mit grossem Abstand).
+Zusätzlich: `recordSnapshot`-„unchanged"-Pfad trägt rawDetailHtml/extracted jetzt nach (bereits gesicherte Artikel
+bekamen sonst nie eine Feld-Landkarte).
 
 ---
 

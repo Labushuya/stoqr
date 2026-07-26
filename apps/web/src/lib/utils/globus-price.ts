@@ -327,8 +327,16 @@ export function parseGlobusSuggestJson(html: string | null | undefined): GlobusS
   const results: GlobusSuggestProduct[] = []
   // Attributwert steht in einfachen ODER doppelten Quotes.
   const re = new RegExp(`${SUGGEST_ATTR}=(?:'([^']*)'|"([^"]*)")`, 'g')
-  let m: RegExpExecArray | null
-  while ((m = re.exec(html)) !== null) {
+  // Erst alle Treffer-Positionen sammeln, um je Treffer das HTML-Segment bis zum
+  // NAECHSTEN Treffer abzugrenzen. Der reference-price (Grundpreis) steht im selben
+  // <li>, aber teils weit hinter dem Attribut (grosses Bild-srcset dazwischen) —
+  // ein fixes Fenster wuerde ihn verpassen (G44-Bug). Segment-Grenze ist zuverlaessig.
+  const matches: RegExpExecArray[] = []
+  let mm: RegExpExecArray | null
+  while ((mm = re.exec(html)) !== null) matches.push(mm)
+
+  for (let idx = 0; idx < matches.length; idx++) {
+    const m = matches[idx]
     const raw = m[1] ?? m[2] ?? ''
     if (!raw) continue
     try {
@@ -348,11 +356,11 @@ export function parseGlobusSuggestJson(html: string | null | undefined): GlobusS
         ? obj.category.filter((c): c is string => typeof c === 'string').map((c) => decodeEntities(c))
         : []
       const currency = typeof obj.currency === 'string' ? obj.currency : null
-      // Grundpreis (G44): den reference-price im HTML NACH diesem Treffer-Attribut
-      // suchen (er steht im selben <li>, kurz nach dem etracker-Attribut). Fenster
-      // begrenzen, damit nicht der reference-price des naechsten Treffers gegriffen wird.
-      const after = html.slice(m.index, m.index + 2000)
-      const ref = parseGlobusReferencePrice(after)
+      // Grundpreis (G44): reference-price im Segment dieses Treffers (bis zum naechsten
+      // etracker-Attribut, sonst bis Stringende) — nicht in einem fixen Byte-Fenster.
+      const segEnd = idx + 1 < matches.length ? matches[idx + 1].index : html.length
+      const segment = html.slice(m.index, segEnd)
+      const ref = parseGlobusReferencePrice(segment)
       results.push({
         ean,
         name,
