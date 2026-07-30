@@ -45,6 +45,8 @@
       imageUrl: string | null
       categoryId: string | null
       categoryName: string | null
+      brand: string | null
+      description: string | null
       categorySource: 'off' | 'globus' | 'manual' | null
     }
     snapshot: {
@@ -56,10 +58,12 @@
       storeId: string | null
       localImagePath: string | null
       catalogCategoryId: string | null
+      brand: string | null
+      description: string | null
       extracted: { field: string; value: string | null; source: string; belongsTo: string }[] | null
       fetchedAt: string
     } | null
-    diff: { name: FieldDiff; image: FieldDiff; category: FieldDiff; any: boolean }
+    diff: { name: FieldDiff; image: FieldDiff; category: FieldDiff; brand: FieldDiff; description: FieldDiff; any: boolean }
   }
   // Spiegel direkt aus den (reaktiven) Load-Daten ableiten — nach jedem
   // invalidateAll() automatisch aktuell (kein manuelles, stale-anfaelliges Setzen).
@@ -110,11 +114,11 @@
   // aufgebaut — dadurch ist der Eintrag bereits beim ERSTEN Render vorhanden (kein
   // $effect-Race, der frueher Badge und Panel auseinanderlaufen liess, G14-3).
   // Nutzer-Toggles bleiben ueber ein untracked Overlay erhalten.
-  const snapFieldOverrides: Record<string, { image: boolean; name: boolean; category: boolean; price: boolean }> = {}
+  const snapFieldOverrides: Record<string, { image: boolean; name: boolean; category: boolean; price: boolean; brand: boolean; description: boolean }> = {}
   let catalogMirrorTick = $state(0)
   const snapFields = $derived.by(() => {
     void catalogMirrorTick // Abhaengigkeit: Neuberechnung nach einem Toggle erzwingen.
-    const out: Record<string, { image: boolean; name: boolean; category: boolean; price: boolean }> = {}
+    const out: Record<string, { image: boolean; name: boolean; category: boolean; price: boolean; brand: boolean; description: boolean }> = {}
     for (const r of catalogMirror) {
       if (!r.snapshot) continue
       out[r.snapshot.id] = snapFieldOverrides[r.snapshot.id] ?? defaultSnapFields({
@@ -123,12 +127,14 @@
         categoryDiffers: r.diff.category.differs,
         priceCt: r.snapshot.priceCt,
         storeId: r.snapshot.storeId,
+        brandDiffers: r.diff.brand?.differs ?? false,
+        descriptionDiffers: r.diff.description?.differs ?? false,
       })
     }
     return out
   })
   // Checkbox-Toggle: schreibt ins Overlay (bleibt erhalten) + triggert Neuberechnung.
-  function toggleSnapField(id: string, field: 'image' | 'name' | 'category' | 'price') {
+  function toggleSnapField(id: string, field: 'image' | 'name' | 'category' | 'price' | 'brand' | 'description') {
     const cur = snapFields[id]
     if (!cur) return
     snapFieldOverrides[id] = { ...cur, [field]: !cur[field] }
@@ -206,8 +212,8 @@
     snapshotBusy = id
     try {
       const fields = allFields
-        ? { image: true, name: true, category: true, price: true }
-        : (snapFields[id] ?? { image: true, name: false, category: false, price: false })
+        ? { image: true, name: true, category: true, price: true, brand: true, description: true }
+        : (snapFields[id] ?? { image: true, name: false, category: false, price: false, brand: false, description: false })
       // Nur eine MANUELLE Wahl wird als categoryId (Herkunft 'manual') gesendet. Ein
       // frischer Regel-/Auto-Vorschlag wird NICHT hier mitgegeben — der Server loest
       // ihn beim Uebernehmen selbst via matchCategoryId auf und schreibt Herkunft
@@ -673,6 +679,24 @@
                   <span class="snap-diff-old">{r.product.name || '(leer)'}</span>
                   <span class="snap-diff-arrow" aria-hidden="true">→</span>
                   <span class="snap-diff-new">{snap.name || '(Katalog: kein Wert)'}</span>
+                </label>
+
+                <!-- Marke (G45) -->
+                <label class="snap-diff-row" class:snap-diff-row--diff={r.diff.brand?.differs}>
+                  <input type="checkbox" disabled={!snap.brand} checked={snapFields[snap.id]?.brand} onchange={() => toggleSnapField(snap.id, 'brand')} />
+                  <span class="snap-diff-field">Marke {#if r.diff.brand?.differs}<span class="snap-diff-tag">abweichend</span>{:else}<span class="snap-diff-tag snap-diff-tag--ok">gleich</span>{/if}</span>
+                  <span class="snap-diff-old">{r.product.brand || '(leer)'}</span>
+                  <span class="snap-diff-arrow" aria-hidden="true">→</span>
+                  <span class="snap-diff-new">{snap.brand || '(Katalog: kein Wert)'}</span>
+                </label>
+
+                <!-- Beschreibung (G45) -->
+                <label class="snap-diff-row" class:snap-diff-row--diff={r.diff.description?.differs}>
+                  <input type="checkbox" disabled={!snap.description} checked={snapFields[snap.id]?.description} onchange={() => toggleSnapField(snap.id, 'description')} />
+                  <span class="snap-diff-field">Beschreibung {#if r.diff.description?.differs}<span class="snap-diff-tag">abweichend</span>{:else}<span class="snap-diff-tag snap-diff-tag--ok">gleich</span>{/if}</span>
+                  <span class="snap-diff-old">{r.product.description || '(leer)'}</span>
+                  <span class="snap-diff-arrow" aria-hidden="true">→</span>
+                  <span class="snap-diff-new">{snap.description || '(Katalog: kein Wert)'}</span>
                 </label>
 
                 <!-- Bild -->

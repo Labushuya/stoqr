@@ -547,7 +547,7 @@ export async function getProductById(id: string) {
 // Feld-Provenienz (G15) — Quelle je Stammdaten-Feld: 'off'|'globus'|'manual'.
 // ---------------------------------------------------------------------------
 
-export type ProductField = 'name' | 'brand' | 'image' | 'category' | 'unit';
+export type ProductField = 'name' | 'brand' | 'image' | 'category' | 'unit' | 'description';
 export type FieldSource = 'off' | 'globus' | 'manual';
 
 /** Setzt die Herkunft je Feld (Upsert auf (product_id, field)). Leere Map = no-op. */

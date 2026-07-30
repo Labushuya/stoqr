@@ -10,6 +10,8 @@ export type ArticleSide = {
   name: string | null
   imageUrl: string | null
   categoryId: string | null
+  brand?: string | null
+  description?: string | null
 }
 
 export type CatalogSide = {
@@ -17,6 +19,9 @@ export type CatalogSide = {
   localImagePath: string | null
   /** Bereits auf eine stoqr-categoryId gemappte Katalog-Kategorie (best-effort). */
   categoryId: string | null
+  /** Reichere Felder aus dem Detailseiten-JSON-LD (G45). */
+  brand?: string | null
+  description?: string | null
 }
 
 export type FieldDiff = {
@@ -30,6 +35,8 @@ export type MirrorDiff = {
   name: FieldDiff
   image: FieldDiff
   category: FieldDiff
+  brand: FieldDiff
+  description: FieldDiff
   /** true = mindestens ein Feld weicht ab. */
   any: boolean
 }
@@ -38,10 +45,17 @@ function norm(s: string | null | undefined): string {
   return (s ?? '').trim()
 }
 
-/** Vergleicht Artikel vs. Katalog-Snapshot feldweise (Name/Bild/Kategorie). */
+/** Feldweiser Text-Diff: Katalog hat Wert, weicht vom Artikel ab. */
+function textDiff(catalogVal: string | null | undefined, articleVal: string | null | undefined): FieldDiff {
+  const cat = norm(catalogVal)
+  const art = norm(articleVal)
+  return cat !== '' && cat !== art ? { differs: true, fillsGap: art === '' } : { differs: false, fillsGap: false }
+}
+
+/** Vergleicht Artikel vs. Katalog-Snapshot feldweise (Name/Bild/Kategorie/Marke/Beschreibung). */
 export function computeMirrorDiff(article: ArticleSide, catalog: CatalogSide | null): MirrorDiff {
   const empty: FieldDiff = { differs: false, fillsGap: false }
-  if (!catalog) return { name: empty, image: empty, category: empty, any: false }
+  if (!catalog) return { name: empty, image: empty, category: empty, brand: empty, description: empty, any: false }
 
   // Name: Katalog hat einen Namen, der sich vom Artikelnamen unterscheidet.
   const catName = norm(catalog.name)
@@ -68,5 +82,12 @@ export function computeMirrorDiff(article: ArticleSide, catalog: CatalogSide | n
       ? { differs: true, fillsGap: artCat === '' }
       : empty
 
-  return { name, image, category, any: name.differs || image.differs || category.differs }
+  // Marke / Beschreibung (G45): reiner Text-Diff aus dem JSON-LD.
+  const brand = textDiff(catalog.brand, article.brand)
+  const description = textDiff(catalog.description, article.description)
+
+  return {
+    name, image, category, brand, description,
+    any: name.differs || image.differs || category.differs || brand.differs || description.differs,
+  }
 }

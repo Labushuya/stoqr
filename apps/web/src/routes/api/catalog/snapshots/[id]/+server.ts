@@ -22,7 +22,7 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
 
   const body = (await request.json().catch(() => ({}))) as {
     action?: 'confirm' | 'reject' | 'materialize'
-    fields?: { image?: boolean; name?: boolean; category?: boolean; price?: boolean }
+    fields?: { image?: boolean; name?: boolean; category?: boolean; price?: boolean; brand?: boolean; description?: boolean }
     // G20-2: im Katalog-Spiegel manuell gewaehlte Ziel-Kategorie (gewinnt ueber Auto-Match).
     categoryId?: string | null
   }

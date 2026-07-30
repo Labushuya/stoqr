@@ -150,6 +150,8 @@ export type CatalogMirrorRow = {
     imageUrl: string | null
     categoryId: string | null
     categoryName: string | null
+    brand: string | null
+    description: string | null
     // Herkunft der gespeicherten Kategorie (G34) — fuer den "Herkunft zuruecksetzen"-
     // Button im Spiegel. null = nicht erfasst.
     categorySource: 'off' | 'globus' | 'manual' | null
@@ -163,6 +165,9 @@ export type CatalogMirrorRow = {
     storeId: string | null
     localImagePath: string | null
     catalogCategoryId: string | null
+    // Reichere Felder aus dem JSON-LD (G45), fuer die uebernehmbaren Diff-Zeilen.
+    brand: string | null
+    description: string | null
     // Feld-Landkarte des Abrufs (G44): { field, value, source, belongsTo }[] — dokumentiert,
     // welcher Wert woher kam. null bei Alt-Snapshots ohne Anreicherung.
     extracted: unknown
@@ -193,7 +198,7 @@ export async function listCatalogMirror(householdId: string): Promise<CatalogMir
   const prods = await db.query.products.findMany({
     where: (p, { and, inArray, isNotNull }) =>
       and(inArray(p.id, productIds), isNotNull(p.gtin)),
-    columns: { id: true, name: true, gtin: true, imageUrl: true, categoryId: true },
+    columns: { id: true, name: true, gtin: true, imageUrl: true, categoryId: true, brand: true, description: true },
     with: { category: { columns: { name: true } } },
   })
   if (prods.length === 0) return []
@@ -223,10 +228,19 @@ export async function listCatalogMirror(householdId: string): Promise<CatalogMir
     const snap = latestByGtin.get(p.gtin!) ?? null
     // Katalog-Kategorie best-effort auf stoqr-categoryId mappen (fuer den Diff).
     const catalogCategoryId = snap ? await matchCategoryId(snap.category, householdId) : null
+    // Reichere Felder (G45): brand/description aus snap.extracted (Feld-Landkarte) lesen.
+    const extractedVal = (field: string): string | null => {
+      const arr = snap?.extracted as { field?: string; value?: string | null }[] | null | undefined
+      if (!Array.isArray(arr)) return null
+      const v = arr.find((x) => x?.field === field)?.value
+      return typeof v === 'string' && v.trim() !== '' ? v.trim() : null
+    }
+    const snapBrand = extractedVal('brand')
+    const snapDescription = extractedVal('description')
     const diff = computeMirrorDiff(
-      { name: p.name, imageUrl: p.imageUrl, categoryId: p.categoryId },
+      { name: p.name, imageUrl: p.imageUrl, categoryId: p.categoryId, brand: p.brand, description: p.description },
       snap
-        ? { name: snap.name, localImagePath: snap.localImagePath, categoryId: catalogCategoryId }
+        ? { name: snap.name, localImagePath: snap.localImagePath, categoryId: catalogCategoryId, brand: snapBrand, description: snapDescription }
         : null
     )
     rows.push({
@@ -237,6 +251,8 @@ export async function listCatalogMirror(householdId: string): Promise<CatalogMir
         imageUrl: p.imageUrl,
         categoryId: p.categoryId,
         categoryName: p.category?.name ?? null,
+        brand: p.brand ?? null,
+        description: p.description ?? null,
         categorySource: (catSourceByProduct.get(p.id) ?? null) as 'off' | 'globus' | 'manual' | null,
       },
       snapshot: snap
@@ -249,6 +265,8 @@ export async function listCatalogMirror(householdId: string): Promise<CatalogMir
             storeId: snap.storeId,
             localImagePath: snap.localImagePath,
             catalogCategoryId,
+            brand: snapBrand,
+            description: snapDescription,
             extracted: snap.extracted ?? null,
             fetchedAt: snap.fetchedAt,
           }
@@ -313,7 +331,7 @@ export async function getSnapshotCounts(householdId: string) {
 export async function applySnapshotToProduct(
   id: string,
   householdId: string,
-  fields: { image?: boolean; name?: boolean; category?: boolean; price?: boolean },
+  fields: { image?: boolean; name?: boolean; category?: boolean; price?: boolean; brand?: boolean; description?: boolean },
   reviewedBy?: string | null,
   // G20-2: explizit im Katalog-Spiegel manuell gewaehlte Ziel-Kategorie. Wenn
   // gesetzt (und fields.category), gewinnt sie ueber das Best-Effort-matchCategoryId
@@ -325,24 +343,34 @@ export async function applySnapshotToProduct(
   })
   if (!snap) return { ok: false, reason: 'not-found' }
 
+  // Reichere Felder (G45): brand/description stehen NICHT als flache Spalten am
+  // Snapshot, sondern in extracted (Feld-Landkarte, belongsTo='article'). Von dort lesen.
+  const extractedVal = (field: string): string | null => {
+    const arr = snap.extracted as { field?: string; value?: string | null }[] | null
+    if (!Array.isArray(arr)) return null
+    const e = arr.find((x) => x?.field === field)
+    const v = e?.value
+    return typeof v === 'string' && v.trim() !== '' ? v.trim() : null
+  }
+
   // Artikel aufloesen: bevorzugt ueber die Verknuepfung, sonst ueber die EAN
   // (verwendet im Haushalt). So funktioniert die Uebernahme auch fuer Snapshots
   // ohne productId.
   let product = snap.productId
     ? await db.query.products.findFirst({
         where: eq(products.id, snap.productId),
-        columns: { id: true, name: true, imageUrl: true, categoryId: true, defaultUnit: true },
+        columns: { id: true, name: true, imageUrl: true, categoryId: true, defaultUnit: true, brand: true, description: true },
       })
     : undefined
   if (!product && snap.gtin) {
     product = await db.query.products.findFirst({
       where: eq(products.gtin, snap.gtin),
-      columns: { id: true, name: true, imageUrl: true, categoryId: true, defaultUnit: true },
+      columns: { id: true, name: true, imageUrl: true, categoryId: true, defaultUnit: true, brand: true, description: true },
     })
   }
   if (!product) return { ok: false, reason: 'no-product' }
 
-  const patch: { name?: string; imageUrl?: string | null; categoryId?: string | null } = {}
+  const patch: { name?: string; imageUrl?: string | null; categoryId?: string | null; brand?: string; description?: string } = {}
   // Herkunft der Kategorie: 'globus' beim Auto-Match, 'manual' bei expliziter Wahl (G20-2).
   let categorySource: 'globus' | 'manual' | null = null
 
@@ -354,6 +382,19 @@ export async function applySnapshotToProduct(
   // Name: angekreuzt -> setzen; ohne Ankreuzen nur wenn Artikelname leer.
   if (snap.name && snap.name.trim() !== '' && (fields.name || !product.name?.trim())) {
     patch.name = snap.name.trim()
+  }
+  // Marke / Beschreibung (G45): aus extracted (JSON-LD). Regel wie Name — angekreuzt
+  // ODER Feld leer. Schuetzt manuell gepflegte Werte (Herkunft 'manual' via setFieldSources).
+  const snapBrand = extractedVal('brand')
+  if (snapBrand && (fields.brand || !product.brand?.trim())) {
+    // manual-Schutz: bereits manuell gesetzte Marke nur bei explizitem Ankreuzen ueberschreiben.
+    const srcs = await getFieldSources(product.id)
+    if (fields.brand || srcs.brand !== 'manual') patch.brand = snapBrand
+  }
+  const snapDescription = extractedVal('description')
+  if (snapDescription && (fields.description || !product.description?.trim())) {
+    const srcs = await getFieldSources(product.id)
+    if (fields.description || srcs.description !== 'manual') patch.description = snapDescription
   }
   // Kategorie: 1) explizit manuell gewaehlt (gewinnt, Herkunft 'manual'); sonst
   // 2) Best-Effort per matchCategoryId (Herkunft 'globus'). Manuelle Wahl wird
@@ -393,6 +434,8 @@ export async function applySnapshotToProduct(
     const srcs: Partial<Record<ProductField, 'globus' | 'manual'>> = {}
     if (patch.name !== undefined) srcs.name = 'globus'
     if (patch.imageUrl !== undefined) srcs.image = 'globus'
+    if (patch.brand !== undefined) srcs.brand = 'globus'
+    if (patch.description !== undefined) srcs.description = 'globus'
     if (patch.categoryId !== undefined && categorySource) srcs.category = categorySource
     await setFieldSources(product.id, srcs)
   }

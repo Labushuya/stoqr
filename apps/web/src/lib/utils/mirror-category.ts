@@ -59,7 +59,7 @@ export function canTakeMirrorPrice(input: { priceCt: number | null; storeId: str
   return input.priceCt != null && input.storeId != null
 }
 
-export type SnapFieldDefaults = { image: boolean; name: boolean; category: boolean; price: boolean }
+export type SnapFieldDefaults = { image: boolean; name: boolean; category: boolean; price: boolean; brand: boolean; description: boolean }
 
 /** Default-Ankreuzung je Snapshot: abweichende Felder + uebernehmbarer Preis. */
 export function defaultSnapFields(input: {
@@ -68,12 +68,16 @@ export function defaultSnapFields(input: {
   categoryDiffers: boolean
   priceCt: number | null
   storeId: string | null
+  brandDiffers?: boolean
+  descriptionDiffers?: boolean
 }): SnapFieldDefaults {
   return {
     image: input.imageDiffers,
     name: input.nameDiffers,
     category: input.categoryDiffers,
     price: canTakeMirrorPrice({ priceCt: input.priceCt, storeId: input.storeId }),
+    brand: input.brandDiffers ?? false,
+    description: input.descriptionDiffers ?? false,
   }
 }
 

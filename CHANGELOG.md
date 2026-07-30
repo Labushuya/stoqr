@@ -5,6 +5,30 @@ Neueste Einträge oben. Jeder Eintrag nennt den Commit-Kontext, damit andere LLM
 
 ---
 
+## [Unreleased] — G45: Marke/Beschreibung aus dem Katalog übernehmbar (implementiert, Test auf Pi ausstehend)
+
+Aus dem G44-Test (184/185): Grundpreis-Anzeige ✓ (wird gezeigt wo ausgezeichnet). Offen war G44-3 — die Werte unter
+„Abgerufene Felder" (Marke/Beschreibung aus dem Detailseiten-JSON-LD) waren nur Anzeige, **nicht übernehmbar**. Der
+Katalog-Spiegel übernahm bisher nur Name/Bild/Kategorie/Preis.
+
+- **Marke + Beschreibung als ankreuzbare Diff-Zeilen** im Katalog-Spiegel (analog Name/Bild/Kategorie). Beim „Übernehmen"
+  werden sie in `products.brand`/`products.description` geschrieben (Felder existierten schon → **keine Migration**).
+- **Herkunfts-Schutz:** Schreibregel „angekreuzt ODER Feld leer"; `setFieldSources({brand,description:'globus'})`.
+  `ProductField`-Enum um `'description'` erweitert → der `manual`-Schutz (G31/G34) greift jetzt auch für die
+  Beschreibung: ein späterer Abruf überschreibt eine manuell gepflegte Beschreibung nicht.
+- Werte kommen aus `snapshot.extracted` (Feld-Landkarte, G44) — es gibt keine flachen brand/description-Spalten am
+  Snapshot. `listCatalogMirror` leitet `snapshot.brand/description` + `diff.brand/description` daraus ab;
+  `computeMirrorDiff` + `defaultSnapFields` um beide Felder erweitert (reine Helfer, getestet).
+
+Gate: typecheck 0, lint 0/33, build ✓, vitest 186/186 (+1). Keine Migration.
+
+### Commits
+G45 (dieser Commit) — applySnapshotToProduct + review-Endpoint brand/description; mirror-diff/mirror-category +
+listCatalogMirror-Ableitung aus extracted; einstellungen 2 Diff-Zeilen + snapFields/payload; ProductField 'description'.
+Exakter Hash: siehe `git log`.
+
+---
+
 ## [Unreleased] — G44: Reichere Globus-Daten (Stufe 1) — Grundpreis + JSON-LD + Rohdaten-Archiv (implementiert, Test auf Pi ausstehend)
 
 Ziel: maximaler Datenreichtum aus dem Globus-Abruf. Analyse an **echten Globus-Antworten** ergab: das heute geparste

@@ -108,7 +108,7 @@
 <div class="wrap">
   <header class="top">
     <h1>stoqr — Test-Manifest</h1>
-    <p class="subtitle">Blöcke A–E + F/F2 + G/G6/G7/G8/G10/G11/G12/G13/G15/G16/G17/G18/G19/G20/G21/G22/G24/G25/G26/G27/G28/G29/G30/G31/G32/G33/G34/G35/G36/G37/G39/G40/G41/G42/G43/G44 · logisch aufbauender Durchlauf · Stand nach G44 (Reichere Globus-Daten: Grundpreis + JSON-LD + Feld-Landkarte)</p>
+    <p class="subtitle">Blöcke A–E + F/F2 + G/G6/G7/G8/G10/G11/G12/G13/G15/G16/G17/G18/G19/G20/G21/G22/G24/G25/G26/G27/G28/G29/G30/G31/G32/G33/G34/G35/G36/G37/G39/G40/G41/G42/G43/G44/G45 · logisch aufbauender Durchlauf · Stand nach G45 (Marke/Beschreibung übernehmbar)</p>
 
     <div class="pre">
       <h2>Voraussetzung (kein Testschritt)</h2>
@@ -696,6 +696,17 @@ const BLOCKS = [
         expect: 'Marke und Beschreibung aus dem Detailseiten-JSON-LD sind sichtbar/uebernehmbar — Artikel werden NICHT automatisch ueberschrieben (nur Vorschlag; manuelle/Regel-Vorrang-Logik bleibt).' },
       { id: 'G44-4', title: 'Failsafe: kein Detailtreffer', steps: ['Einen Artikel mit EAN abrufen, dessen Detailseite nicht erreichbar ist / kein JSON-LD hat.'],
         expect: 'Der Suggest-Preis + Grundpreis bleiben erhalten, kein Crash; die Feld-Landkarte zeigt dann nur die Suggest-Felder. (Migration 0020 lief in CI; Alt-Snapshots ohne extracted zeigen keine Tabelle.)' },
+    ]
+  },
+  {
+    tag: 'G45', name: 'Marke/Beschreibung aus dem Katalog übernehmbar', desc: 'Die aus dem Detailseiten-JSON-LD abgerufenen Werte Marke + Beschreibung lassen sich im Katalog-Spiegel ankreuzen und in den Artikel uebernehmen (mit Herkunfts-Schutz). Voraussetzung: ein Katalog-Sync/Online-Abruf hat den Snapshot mit Feld-Landkarte erzeugt.',
+    items: [
+      { id: 'G45-1', title: 'Marke + Beschreibung als ankreuzbare Diff-Zeilen', steps: ['Einstellungen → Katalog-Sicherung → bei einem gesicherten Artikel (mit Detaildaten) die Diff-Liste betrachten.'],
+        expect: 'Zwischen „Name" und „Bild" erscheinen zwei neue Zeilen „Marke" und „Beschreibung" mit Checkbox, Artikel-Wert → Katalog-Wert und abweichend/gleich-Tag. Leerer Katalog-Wert → Checkbox deaktiviert.' },
+      { id: 'G45-2', title: 'Übernehmen schreibt Marke/Beschreibung in den Artikel', steps: ['Marke und/oder Beschreibung ankreuzen → „Übernehmen".', 'Artikel-Detailseite oeffnen bzw. Artikel bearbeiten.'],
+        expect: 'Die uebernommenen Werte stehen jetzt am Artikel (Marke, Beschreibung). „Alles übernehmen" nimmt sie ebenfalls mit.' },
+      { id: 'G45-3', title: 'Herkunfts-Schutz: manuelle Beschreibung wird nicht ueberschrieben', steps: ['Beschreibung am Artikel manuell aendern (bearbeiten, speichern).', 'Erneut „Katalog sichern"/abrufen und im Spiegel „Übernehmen" OHNE die Beschreibung anzukreuzen.'],
+        expect: 'Die manuell gepflegte Beschreibung bleibt erhalten (manual-Schutz). Nur ausdrueckliches Ankreuzen ueberschreibt sie mit dem Katalog-Wert.' },
     ]
   },
   {

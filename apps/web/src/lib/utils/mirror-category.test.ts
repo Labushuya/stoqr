@@ -71,9 +71,13 @@ describe('canTakeMirrorPrice', () => {
 describe('defaultSnapFields', () => {
   it('spiegelt Diffs + Preis-Uebernehmbarkeit', () => {
     expect(defaultSnapFields({ imageDiffers: true, nameDiffers: false, categoryDiffers: true, priceCt: 100, storeId: 's' }))
-      .toEqual({ image: true, name: false, category: true, price: true })
+      .toEqual({ image: true, name: false, category: true, price: true, brand: false, description: false })
     expect(defaultSnapFields({ imageDiffers: false, nameDiffers: false, categoryDiffers: false, priceCt: null, storeId: null }))
-      .toEqual({ image: false, name: false, category: false, price: false })
+      .toEqual({ image: false, name: false, category: false, price: false, brand: false, description: false })
+  })
+  it('brand/description-Diffs schlagen durch (G45)', () => {
+    expect(defaultSnapFields({ imageDiffers: false, nameDiffers: false, categoryDiffers: false, priceCt: null, storeId: null, brandDiffers: true, descriptionDiffers: true }))
+      .toEqual({ image: false, name: false, category: false, price: false, brand: true, description: true })
   })
 })
 
