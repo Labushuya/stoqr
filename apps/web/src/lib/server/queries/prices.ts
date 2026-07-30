@@ -131,6 +131,9 @@ export async function getCurrentPricesForListProducts(householdId: string, produ
       priceCt: productPrices.priceCt,
       unit: productPrices.unit,
       isReduced: productPrices.isReduced,
+      // Grundpreis (G46): fuer den fairen günstigster-Markt-Vergleich pro Basiseinheit.
+      basePriceCt: productPrices.basePriceCt,
+      basePriceUnit: productPrices.basePriceUnit,
     })
     .from(productPrices)
     .where(

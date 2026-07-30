@@ -4,6 +4,7 @@
   import { toast } from '$lib/stores/toast'
   import { buildUnitMetaMap, buildPackSize } from '$lib/utils/stock'
   import { estimateLineCost, summarizeCosts, formatEuroApprox } from '$lib/utils/prices'
+  import { rankCheapestStore } from '$lib/utils/price-compare'
 
   let { data }: { data: PageData } = $props()
 
@@ -49,7 +50,7 @@
   let selectedStore = $state('')
 
   // ── Preis-Schätzung (Block F, client-reaktiv je gewähltem Markt) ───────────
-  type PriceRow = { productId: string; storeId: string; priceCt: number; unit: string; isReduced: boolean }
+  type PriceRow = { productId: string; storeId: string; priceCt: number; unit: string; isReduced: boolean; basePriceCt: number | null; basePriceUnit: string | null }
   type PackRow = { id: string; defaultUnit: string | null; defaultVolumeMl: string | null; defaultWeightG: string | null }
   const priceRows = $derived((data.prices as PriceRow[]) ?? [])
   const metaMap = $derived(buildUnitMetaMap(units))
@@ -57,6 +58,20 @@
   const packByProduct = $derived(
     new Map(((data.packs as PackRow[]) ?? []).map((p) => [p.id, buildPackSize(p)]))
   )
+  const packRawByProduct = $derived(
+    new Map(((data.packs as PackRow[]) ?? []).map((p) => [p.id, p]))
+  )
+  const storeName = (id: string) => stores.find((s) => s.id === id)?.name ?? 'Markt'
+  // Günstigster Markt je Artikel (G46): über alle Märkte mit aktuellem Preis, fair
+  // pro Basiseinheit (Grundpreis bevorzugt). null = kein eindeutiger/vergleichbarer Sieger.
+  function cheapestStoreFor(productId: string | null): string | null {
+    if (!productId) return null
+    const rows = priceRows.filter((p) => p.productId === productId)
+    if (rows.length < 2) return null
+    const product = packRawByProduct.get(productId) ?? {}
+    const r = rankCheapestStore(rows, product, metaMap)
+    return r.cheapestStoreId
+  }
   // Lookup aktueller Preis für (productId, gewählter Markt).
   function priceFor(productId: string | null): { priceCt: number; unit: string } | null {
     if (!productId || !selectedStore) return null
@@ -316,6 +331,7 @@
         {#each openItems as i (i.id)}
           {@const reserved = i.reservedTripId !== null}
           {@const est = selectedStore && !reserved ? estimateFor(i) : null}
+          {@const cheapest = cheapestStoreFor(i.productId)}
           <li class="item" class:item--reserved={reserved}>
             <button class="check" type="button" aria-label="Abhaken" disabled={reserved} onclick={() => toggle(i)}></button>
             <div class="item-main">
@@ -328,6 +344,7 @@
                 {#if est && est.cents != null}<span class="cost-line">{formatEuroApprox(est.cents)}</span>
                 {:else if est && !est.hasPrice}<span class="cost-line cost-line--none">kein Preis</span>
                 {:else if est && !est.comparable}<span class="cost-line cost-line--none">Einheit ≠</span>{/if}
+                {#if cheapest}<span class="cheapest-hint" title="Günstigster Markt pro Basiseinheit">günstigster: {storeName(cheapest)}</span>{/if}
               </span>
             </div>
             <div class="item-actions">
@@ -462,4 +479,5 @@
   .cost-warn { font-size: var(--text-xs); color: #c2410c; }
   .cost-line { font-weight: 600; color: var(--color-text-secondary); }
   .cost-line--none { font-weight: 400; color: var(--color-text-muted); font-style: italic; }
+  .cheapest-hint { color: var(--color-success, #16a34a); font-size: 11px; font-weight: 600; }
 </style>

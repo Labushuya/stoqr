@@ -212,9 +212,11 @@ Kein Text-/Pipe-Export (existiert so in Bring! nicht).
   Mengen-Abfrage) im Kontextmenü + auf der Detailseite; „Verbraucht vor X Tagen" neben dem Status-Badge
   (`lib/utils/relative-time.ts`). Nicht-verfügbare Bestände bleiben unbegrenzt sichtbar (kein Zeitfenster/Cleanup).
   Der „Nur verfügbare"-Toggle war entgegen der alten Notiz bereits funktional (seit G8-5).
-- **Günstigster-Preis-Hinweis (Einkaufsliste)** (geplant): mit product_prices je Markt (Block F) datenseitig möglich —
-  UI-Hinweis, welcher Markt für einen Artikel den günstigsten Preis hat (Bsp. Mineralwasser Penny 0,69 € vs. Globus 0,29 €).
-  Preisvergleich pro Basiseinheit (via toBaseFactor + Einheiten v2), damit z.B. 1,5-l-Vergleiche fair sind.
+- **Günstigster-Preis-Hinweis (Einkaufsliste)** (**erledigt G46, Test auf Pi ausstehend**): reiner Helfer
+  `lib/utils/price-compare.ts` — Vergleich pro Basiseinheit, **Grundpreis (G44) bevorzugt**, sonst Eigenrechnung;
+  Angebote zählen mit; nur vergleichbare Einheiten. Anzeige: Badge „günstigster" auf der Artikel-Detailseite
+  (Preise-Card) + Hinweis „günstigster: {Markt}" je Einkaufslisten-Zeile. Nicht vergleichbare Einheiten → Hinweis
+  statt Marker.
 - **EAN auf der Artikel-Übersichtsseite anzeigen** (klein, Konsistenz): EAN/Barcode ist in Einstellungen→Artikel sichtbar,
   aber nicht auf `/inventar`. Dort ebenfalls anzeigen (analog Einstellungen-Artikel-Zeile).
 - **Doku-Notiz EAN-Identität vs. Katalog-Diff** (klein, aufgenommen 2026-07-21): festhalten, dass eine EAN/GTIN global

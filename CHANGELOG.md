@@ -5,6 +5,28 @@ Neueste Einträge oben. Jeder Eintrag nennt den Commit-Kontext, damit andere LLM
 
 ---
 
+## [Unreleased] — G46: Günstigster-Markt-Ranking (Detailseite + Einkaufsliste) (implementiert, Test auf Pi ausstehend)
+
+ROADMAP #4b. Macht die Preis-/Grundpreis-Daten (G44) sichtbar nutzbar: je Artikel wird der **günstigste Markt pro
+Basiseinheit** markiert — fair, mit dem PAngV-Grundpreis bevorzugt.
+
+- **Neu `lib/utils/price-compare.ts`** (rein, 12 Tests): `baseUnitFactor` (normiert l/kg/100g/ml/… auf g/ml),
+  `pricePerBaseUnit` (**Grundpreis bevorzugt**, sonst Eigenrechnung `priceCt/toBaseFactor` via `resolveUnitMeta`+`buildPackSize`),
+  `rankCheapestStore` (billigster über die größte vergleichbare Gruppe; **Angebote zählen mit**; nur gleiche Dimension /
+  bei count gleiches Symbol; ≤1 vergleichbarer Markt → kein Marker).
+- **Detailseite** (`inventar/[id]`): Badge **„günstigster"** am billigsten Markt der Preise-Card + Hinweis
+  **„nicht vergleichbar"** an Märkten mit inkompatibler Einheit. Rein clientseitig (kein Server-Change).
+- **Einkaufsliste**: je Zeile Hinweis **„günstigster: {Markt}"** über alle Märkte mit aktuellem Preis.
+  `getCurrentPricesForListProducts` um `basePriceCt`/`basePriceUnit` erweitert.
+
+Gate: typecheck 0, lint 0/33, build ✓, vitest 198/198 (+12). **Keine Migration** (nur select-columns + reine Logik + Anzeige).
+
+### Commits
+G46 (dieser Commit) — price-compare.ts + Tests; inventar/[id] Ranking-Badge/Hinweis; prices.ts +basePrice für Listen;
+einkaufsliste günstigster-Markt-Hinweis. Exakter Hash: siehe `git log`.
+
+---
+
 ## [Unreleased] — G45: Marke/Beschreibung aus dem Katalog übernehmbar (implementiert, Test auf Pi ausstehend)
 
 Aus dem G44-Test (184/185): Grundpreis-Anzeige ✓ (wird gezeigt wo ausgezeichnet). Offen war G44-3 — die Werte unter

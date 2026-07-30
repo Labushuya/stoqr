@@ -108,7 +108,7 @@
 <div class="wrap">
   <header class="top">
     <h1>stoqr — Test-Manifest</h1>
-    <p class="subtitle">Blöcke A–E + F/F2 + G/G6/G7/G8/G10/G11/G12/G13/G15/G16/G17/G18/G19/G20/G21/G22/G24/G25/G26/G27/G28/G29/G30/G31/G32/G33/G34/G35/G36/G37/G39/G40/G41/G42/G43/G44/G45 · logisch aufbauender Durchlauf · Stand nach G45 (Marke/Beschreibung übernehmbar)</p>
+    <p class="subtitle">Blöcke A–E + F/F2 + G/G6/G7/G8/G10/G11/G12/G13/G15/G16/G17/G18/G19/G20/G21/G22/G24/G25/G26/G27/G28/G29/G30/G31/G32/G33/G34/G35/G36/G37/G39/G40/G41/G42/G43/G44/G45/G46 · logisch aufbauender Durchlauf · Stand nach G46 (Günstigster-Markt-Ranking)</p>
 
     <div class="pre">
       <h2>Voraussetzung (kein Testschritt)</h2>
@@ -707,6 +707,19 @@ const BLOCKS = [
         expect: 'Die uebernommenen Werte stehen jetzt am Artikel (Marke, Beschreibung). „Alles übernehmen" nimmt sie ebenfalls mit.' },
       { id: 'G45-3', title: 'Herkunfts-Schutz: manuelle Beschreibung wird nicht ueberschrieben', steps: ['Beschreibung am Artikel manuell aendern (bearbeiten, speichern).', 'Erneut „Katalog sichern"/abrufen und im Spiegel „Übernehmen" OHNE die Beschreibung anzukreuzen.'],
         expect: 'Die manuell gepflegte Beschreibung bleibt erhalten (manual-Schutz). Nur ausdrueckliches Ankreuzen ueberschreibt sie mit dem Katalog-Wert.' },
+    ]
+  },
+  {
+    tag: 'G46', name: 'Günstigster-Markt-Ranking (Detailseite + Einkaufsliste)', desc: 'Je Artikel wird der günstigste Markt pro Basiseinheit markiert — fair, Grundpreis (PAngV) bevorzugt, Angebote zählen mit. Voraussetzung: Artikel mit >=2 Märkten + Preisen.',
+    items: [
+      { id: 'G46-1', title: 'Badge am günstigsten Markt (Detailseite)', steps: ['Artikel mit mind. 2 zugeordneten Märkten, die je einen aktuellen Preis haben (idealerweise mit Grundpreis, z.B. Mineralwasser 0,69 €/l vs 0,19 €/l).', 'Artikel-Detailseite → Preise-Card.'],
+        expect: 'Der günstigste Markt PRO BASISEINHEIT trägt ein grünes Badge „günstigster". Der Vergleich nutzt den Grundpreis wo vorhanden, sonst Preis/Einheit. Bei nur einem Markt kein Badge.' },
+      { id: 'G46-2', title: 'Nicht vergleichbare Einheit → Hinweis statt Marker', steps: ['Ein Markt mit einer Einheit, die sich nicht fair vergleichen laesst (z.B. Stück vs kg/l).'],
+        expect: 'Diese Zeile zeigt „nicht vergleichbar" (kein Badge), die anderen ranken normal weiter. Kein Crash.' },
+      { id: 'G46-3', title: 'Angebot gewinnt', steps: ['Bei einem Markt einen (günstigeren) Angebotspreis als Dauerpreis übernehmen/setzen, sodass er der billigste ist.'],
+        expect: 'Der Angebotsmarkt wird als „günstigster" markiert (Angebote zählen im Ranking mit; das bestehende „Angebot"-Badge bleibt).' },
+      { id: 'G46-4', title: 'Günstigster-Markt-Hinweis auf der Einkaufsliste', steps: ['Einkaufsliste öffnen; ein Artikel, der bei mehreren Märkten einen aktuellen Preis hat, steht auf der Liste.'],
+        expect: 'Die Listen-Zeile zeigt „günstigster: {Markt}". Bei nur einem Markt / keinem Preis kein Hinweis.' },
     ]
   },
   {

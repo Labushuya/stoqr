@@ -9,6 +9,7 @@
   import { formatDate, formatStockTotal } from '$lib/utils/format'
   import { getExpiryStatus, getDaysRemaining, getExpiryLabel, EXPIRY_CLASS } from '$lib/utils/expiry'
   import { buildUnitMetaMap, pickPackDisplayUnit, packToDisplay, type UnitRow } from '$lib/utils/stock'
+  import { rankCheapestStore } from '$lib/utils/price-compare'
   import { formatRelativeDays } from '$lib/utils/relative-time'
 
   // ── Props ─────────────────────────────────────────────────────────────────
@@ -370,6 +371,20 @@
   function priceForStore(storeId: string): CurrentPrice | undefined {
     return currentPrices.find((p) => p.storeId === storeId)
   }
+  // Günstigster-Markt-Ranking (G46): pro Basiseinheit, Grundpreis bevorzugt.
+  const priceRanking = $derived(
+    rankCheapestStore(
+      currentPrices.map((p) => ({
+        storeId: p.storeId,
+        priceCt: p.priceCt,
+        unit: p.unit,
+        basePriceCt: p.basePriceCt,
+        basePriceUnit: p.basePriceUnit,
+      })),
+      product,
+      unitMeta,
+    ),
+  )
   function fmtPrice(cents: number): string {
     return (cents / 100).toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })
   }
@@ -1328,6 +1343,11 @@
                     {#if cp.basePriceCt != null}
                       <span class="price-base" title="Grundpreis (gesetzlich ausgezeichnet)">{fmtBasePrice(cp.basePriceCt, cp.basePriceUnit)}</span>
                     {/if}
+                    {#if priceRanking.cheapestStoreId === s.id}
+                      <span class="price-cheapest" title="Günstigster Markt pro Basiseinheit">günstigster</span>
+                    {:else if priceRanking.incomparableStoreIds.includes(s.id)}
+                      <span class="price-incomp" title="Einheit nicht mit anderen Märkten vergleichbar">nicht vergleichbar</span>
+                    {/if}
                   {:else}
                     <span class="price-none">kein Preis</span>
                   {/if}
@@ -2185,6 +2205,8 @@
   .price-value { font-size: var(--text-sm); color: var(--color-text-secondary); display: inline-flex; align-items: center; gap: var(--space-2); }
   .price-none { color: var(--color-text-muted); font-style: italic; }
   .price-badge { background: #fff7ed; color: #c2410c; border-radius: var(--radius-full); padding: 0 var(--space-2); font-size: 10px; font-weight: 700; }
+  .price-cheapest { background: var(--color-success-subtle, #dcfce7); color: var(--color-success, #16a34a); border-radius: var(--radius-full); padding: 0 var(--space-2); font-size: 10px; font-weight: 700; }
+  .price-incomp { color: var(--color-text-muted); font-size: 10px; font-style: italic; }
   .price-base { color: var(--color-text-muted); font-size: var(--text-xs); font-weight: 600; margin-left: var(--space-1); }
   .price-edit { display: flex; flex-direction: column; gap: var(--space-2); }
   .price-edit-row { display: flex; align-items: center; gap: var(--space-2); }
