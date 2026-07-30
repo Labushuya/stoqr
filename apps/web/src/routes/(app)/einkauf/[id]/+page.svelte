@@ -190,11 +190,16 @@
 
     {#if costSummary}
       <div class="cost-summary">
-        <span class="cost-total">Einkauf {formatEuroApprox(costSummary.totalCents)}</span>
+        <span class="cost-total">
+          Einkauf {formatEuroApprox(costSummary.totalCents)}{#if costSummary.totalDepositCents > 0} + Pfand {formatEuroApprox(costSummary.totalDepositCents)} = {formatEuroApprox(costSummary.totalCents + costSummary.totalDepositCents)}{/if}
+        </span>
         {#if costSummary.isPartial}
           <span class="cost-warn">
             ⚠ Schätzung unvollständig{#if costSummary.itemsWithoutPrice > 0}: {costSummary.itemsWithoutPrice} ohne Preis{/if}{#if costSummary.itemsNotComparable > 0}, {costSummary.itemsNotComparable} Einheit nicht vergleichbar{/if}
           </span>
+        {/if}
+        {#if costSummary.itemsDepositUnknown > 0}
+          <span class="cost-warn">Pfand bei {costSummary.itemsDepositUnknown} Position(en) nicht berechenbar (Gebinde fehlt).</span>
         {/if}
       </div>
     {:else if !trip.storeId && trip.items.length > 0}

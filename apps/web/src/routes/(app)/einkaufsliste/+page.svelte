@@ -50,8 +50,8 @@
   let selectedStore = $state('')
 
   // ── Preis-Schätzung (Block F, client-reaktiv je gewähltem Markt) ───────────
-  type PriceRow = { productId: string; storeId: string; priceCt: number; unit: string; isReduced: boolean; basePriceCt: number | null; basePriceUnit: string | null }
-  type PackRow = { id: string; defaultUnit: string | null; defaultVolumeMl: string | null; defaultWeightG: string | null }
+  type PriceRow = { productId: string; storeId: string; priceCt: number; unit: string; isReduced: boolean; basePriceCt: number | null; basePriceUnit: string | null; priceIncludesDeposit: boolean }
+  type PackRow = { id: string; defaultUnit: string | null; defaultVolumeMl: string | null; defaultWeightG: string | null; hasDeposit: boolean; depositCt: number | null }
   const priceRows = $derived((data.prices as PriceRow[]) ?? [])
   const metaMap = $derived(buildUnitMetaMap(units))
   // Gebinde-Größe je Produkt (Einheiten v2) für die Estimate-Umrechnung.
@@ -73,10 +73,13 @@
     return r.cheapestStoreId
   }
   // Lookup aktueller Preis für (productId, gewählter Markt).
-  function priceFor(productId: string | null): { priceCt: number; unit: string } | null {
+  function priceFor(productId: string | null): { priceCt: number; unit: string; depositCt: number | null; priceIncludesDeposit: boolean } | null {
     if (!productId || !selectedStore) return null
     const r = priceRows.find((p) => p.productId === productId && p.storeId === selectedStore)
-    return r ? { priceCt: r.priceCt, unit: r.unit } : null
+    if (!r) return null
+    const pack = packRawByProduct.get(productId)
+    const depositCt = pack?.hasDeposit ? pack.depositCt : null
+    return { priceCt: r.priceCt, unit: r.unit, depositCt, priceIncludesDeposit: r.priceIncludesDeposit }
   }
   function estimateFor(i: Item) {
     const packSize = i.productId ? packByProduct.get(i.productId) : undefined
@@ -309,11 +312,16 @@
     <p class="filter-hint">Zeigt Artikel für diesen Markt + Einträge ohne Markt. Kein Mischen mehrerer Märkte.</p>
     {#if listSummary}
       <div class="cost-summary">
-        <span class="cost-total">Einkauf {formatEuroApprox(listSummary.totalCents)}</span>
+        <span class="cost-total">
+          Einkauf {formatEuroApprox(listSummary.totalCents)}{#if listSummary.totalDepositCents > 0} + Pfand {formatEuroApprox(listSummary.totalDepositCents)} = {formatEuroApprox(listSummary.totalCents + listSummary.totalDepositCents)}{/if}
+        </span>
         {#if listSummary.isPartial}
           <span class="cost-warn">
             ⚠ Schätzung unvollständig{#if listSummary.itemsWithoutPrice > 0}: {listSummary.itemsWithoutPrice} ohne Preis{/if}{#if listSummary.itemsNotComparable > 0}, {listSummary.itemsNotComparable} Einheit nicht vergleichbar{/if}
           </span>
+        {/if}
+        {#if listSummary.itemsDepositUnknown > 0}
+          <span class="cost-warn">Pfand bei {listSummary.itemsDepositUnknown} Position(en) nicht berechenbar (Gebinde fehlt).</span>
         {/if}
       </div>
     {/if}
@@ -344,6 +352,8 @@
                 {#if est && est.cents != null}<span class="cost-line">{formatEuroApprox(est.cents)}</span>
                 {:else if est && !est.hasPrice}<span class="cost-line cost-line--none">kein Preis</span>
                 {:else if est && !est.comparable}<span class="cost-line cost-line--none">Einheit ≠</span>{/if}
+                {#if est && est.depositCents > 0}<span class="deposit-line" title="Pfand">+ Pfand {formatEuroApprox(est.depositCents)}</span>
+                {:else if est && est.depositUnknown}<span class="cost-line cost-line--none" title="Pfand nicht berechenbar (Gebinde fehlt)">+ Pfand ?</span>{/if}
                 {#if cheapest}<span class="cheapest-hint" title="Günstigster Markt pro Basiseinheit">günstigster: {storeName(cheapest)}</span>{/if}
               </span>
             </div>
@@ -480,4 +490,5 @@
   .cost-line { font-weight: 600; color: var(--color-text-secondary); }
   .cost-line--none { font-weight: 400; color: var(--color-text-muted); font-style: italic; }
   .cheapest-hint { color: var(--color-success, #16a34a); font-size: 11px; font-weight: 600; }
+  .deposit-line { color: var(--color-text-muted); font-size: 11px; font-weight: 600; }
 </style>

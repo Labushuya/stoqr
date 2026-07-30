@@ -29,7 +29,7 @@ export const load: PageServerLoad = async ({ locals }) => {
     const packs = productIds.length
       ? await db.query.products.findMany({
           where: inArray(products.id, productIds),
-          columns: { id: true, defaultUnit: true, defaultVolumeMl: true, defaultWeightG: true },
+          columns: { id: true, defaultUnit: true, defaultVolumeMl: true, defaultWeightG: true, hasDeposit: true, depositCt: true },
         })
       : []
     return { items, units, stores: storeRows, trips, prices, packs, loadError: null }

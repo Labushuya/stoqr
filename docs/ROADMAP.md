@@ -196,9 +196,10 @@ Kein Text-/Pipe-Export (existiert so in Bring! nicht).
   volles Detail-HTML archiviert (`globus_snapshots.raw_detail_html`) + Feld-Landkarte (`extracted`: Feld/Wert/Quelle/
   Zugehörigkeit) im Katalog-Spiegel sichtbar. Migration 0020. **Stufe 2 (offen):** Headless-Chromium (Playwright) für
   JS-gerenderte Felder (exakter Pfandbetrag, Nährwerte) — Dockerfile-Umbau Alpine→Debian/`apk chromium`, arm64/non-root.
-- **Pfand / Leergut** (geplant, eigener Block — volles Handling gewünscht): Pfand-Betrag am Artikel + Leergut als eigener
-  Bestand/Kategorie mit Rückgabe-/Rückbuchungs-Logik; Pfand fließt ins Einkaufs-Estimate. (Migration: deposit-Felder +
-  ggf. Einweg/Mehrweg-Status ist bereits aus G44-JSON-LD-`description` ableitbar, exakter Betrag erst mit Stufe 2.)
+- **Pfand / Leergut** (**erledigt G47, Test auf Pi ausstehend**): Pfand am Artikel (`has_deposit` + `deposit_ct`,
+  Schnellwahl 0,08/0,15/0,16/0,25 € + frei, Herkunfts-Schutz); Preis-Flag `price_includes_deposit` (Fallback); Estimate
+  weist Ware + Pfand getrennt aus (Einkaufsliste/Einkauf), Pfand je Stück (mass/volume nur mit Gebinde, sonst Hinweis);
+  Katalog-Sicherung schlägt Pfand ja/nein aus dem JSON-LD vor. **Exakter Betrag aus dem Abruf = Stufe 2 (Headless).**
   ggf. Leergut-Verknüpfung.)
 - **Einkäufe umbenennen** (**bereits umgesetzt** — Feststellung 2026-07-24): Umbenennen-UI existiert auf
   `einkauf/[id]` (Button + Input + `saveRename` via PATCH `{name}`); PATCH-Route akzeptiert `name`. Kein offener Task.

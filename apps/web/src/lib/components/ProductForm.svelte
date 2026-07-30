@@ -24,6 +24,8 @@
     imageUrl: string | null
     defaultUnit: string
     description: string | null
+    hasDeposit?: boolean
+    depositCt?: number | null
   }
 
   let {
@@ -81,6 +83,9 @@
   let fImageUrl = $state('')
   let fUnit = $state('piece')
   let fDescription = $state('')
+  // Pfand (G47): Checkbox + Betrag in Cent.
+  let fHasDeposit = $state(false)
+  let fDepositCt = $state<number | null>(null)
   let saving = $state(false)
   let error = $state<string | null>(null)
 
@@ -98,6 +103,9 @@
     fImageUrl = product?.imageUrl ?? ''
     fUnit = product?.defaultUnit ?? 'piece'
     fDescription = product?.description ?? ''
+    // Pfand aus dem product-Prop reseeden (nicht aus $derived).
+    fHasDeposit = product?.hasDeposit ?? false
+    fDepositCt = product?.depositCt ?? null
     catSourceReset = false
     error = null
   })
@@ -133,6 +141,8 @@
       categoryId: fCategoryId || null,
       imageUrl: fImageUrl.trim() || null,
       description: fDescription.trim() || null,
+      hasDeposit: fHasDeposit,
+      depositCt: fHasDeposit ? fDepositCt : null,
     }
     if (showUnit) payload.defaultUnit = fUnit
     try {
@@ -239,6 +249,35 @@
           <span class="pf-label">Beschreibung</span>
           <textarea class="pf-input pf-textarea" bind:value={fDescription} rows="2" placeholder="optional"></textarea>
         </label>
+
+        <!-- Pfand (G47) -->
+        <div class="pf-field pf-field--full">
+          <label class="pf-check">
+            <input type="checkbox" bind:checked={fHasDeposit} />
+            <span class="pf-label">Pfand</span>
+          </label>
+          {#if fHasDeposit}
+            <div class="pf-deposit">
+              {#each [8, 15, 16, 25] as ct (ct)}
+                <button
+                  type="button"
+                  class="pf-chip"
+                  class:pf-chip--active={fDepositCt === ct}
+                  onclick={() => (fDepositCt = ct)}
+                >{(ct / 100).toLocaleString('de-DE', { minimumFractionDigits: 2 })} €</button>
+              {/each}
+              <input
+                class="pf-input pf-deposit-free"
+                type="number" min="0" step="0.01" placeholder="andere (€)"
+                value={fDepositCt != null ? fDepositCt / 100 : ''}
+                oninput={(e) => {
+                  const v = (e.currentTarget as HTMLInputElement).value
+                  fDepositCt = v === '' ? null : Math.round(Number(v.replace(',', '.')) * 100)
+                }}
+              />
+            </div>
+          {/if}
+        </div>
       </div>
 
       <div class="pf-actions">
@@ -302,6 +341,17 @@
     flex: 1 1 200px;
   }
   .pf-field--full { flex-basis: 100%; }
+  /* Pfand (G47) */
+  .pf-check { display: inline-flex; align-items: center; gap: var(--space-2); cursor: pointer; }
+  .pf-deposit { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin-top: var(--space-2); }
+  .pf-chip {
+    border: 1px solid var(--color-border); background: var(--color-surface); color: var(--color-text-secondary);
+    border-radius: var(--radius-full); padding: var(--space-1) var(--space-3); font-size: var(--text-sm);
+    font-weight: 600; cursor: pointer;
+  }
+  .pf-chip:hover { border-color: var(--color-primary); color: var(--color-primary); }
+  .pf-chip--active { background: var(--color-primary); border-color: var(--color-primary); color: var(--color-text-inverse); }
+  .pf-deposit-free { max-width: 140px; }
   .pf-label {
     font-size: var(--text-xs);
     font-weight: 600;

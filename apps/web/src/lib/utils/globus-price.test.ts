@@ -250,10 +250,12 @@ describe('parseGlobusDetailJsonLd', () => {
     expect(d.availability).toBe('InStock')
     expect(d.priceValidUntil).toBe('2026-07-25')
     expect(d.seller).toBe('GLOBUS Markthallen')
+    // Pfand-Signal (G47): "PET EW DUE" → Einweg → hasDeposit true.
+    expect(d.hasDeposit).toBe(true)
   })
   it('ignoriert Nicht-Product-Bloecke, liefert bei fehlendem Product alles null', () => {
     const d = parseGlobusDetailJsonLd('<script type="application/ld+json">{"@type":"LocalBusiness","name":"x"}</script>')
-    expect(d).toEqual({ brand: null, description: null, priceCt: null, availability: null, priceValidUntil: null, seller: null })
+    expect(d).toEqual({ brand: null, description: null, priceCt: null, availability: null, priceValidUntil: null, seller: null, hasDeposit: null })
   })
   it('robust bei kaputtem JSON / leerem Input', () => {
     expect(parseGlobusDetailJsonLd('<script type="application/ld+json">{kaputt</script>').brand).toBeNull()

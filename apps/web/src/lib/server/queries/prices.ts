@@ -21,6 +21,7 @@ export interface RecordPriceInput {
   priceCt: number
   unit: string
   isReduced?: boolean
+  priceIncludesDeposit?: boolean
   makePermanent?: boolean
   source: PriceSource
   note?: string | null
@@ -58,6 +59,7 @@ export async function recordPrice(input: RecordPriceInput) {
         priceCt: input.priceCt,
         unit: input.unit,
         isReduced: input.isReduced ?? false,
+        priceIncludesDeposit: input.priceIncludesDeposit ?? false,
         isCurrent: willBeCurrent,
         status: 'confirmed',
         source: input.source,
@@ -134,6 +136,8 @@ export async function getCurrentPricesForListProducts(householdId: string, produ
       // Grundpreis (G46): fuer den fairen günstigster-Markt-Vergleich pro Basiseinheit.
       basePriceCt: productPrices.basePriceCt,
       basePriceUnit: productPrices.basePriceUnit,
+      // Pfand (G47): fuer den getrennten Ware+Pfand-Ausweis der Einkaufsliste.
+      priceIncludesDeposit: productPrices.priceIncludesDeposit,
     })
     .from(productPrices)
     .where(
@@ -176,6 +180,7 @@ export interface RecordProposedPriceInput {
   unit: string
   basePriceCt?: number | null
   basePriceUnit?: string | null
+  priceIncludesDeposit?: boolean
   note?: string | null
   createdBy?: string | null
 }
@@ -209,6 +214,7 @@ export async function recordProposedPrice(input: RecordProposedPriceInput) {
         unit: input.unit,
         basePriceCt: input.basePriceCt ?? null,
         basePriceUnit: input.basePriceUnit ?? null,
+        priceIncludesDeposit: input.priceIncludesDeposit ?? false,
         isReduced: false,
         isCurrent: false,
         status: 'proposed',

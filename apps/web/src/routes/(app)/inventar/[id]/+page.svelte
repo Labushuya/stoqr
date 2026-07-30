@@ -365,6 +365,7 @@
     isReduced: boolean
     basePriceCt: number | null
     basePriceUnit: string | null
+    priceIncludesDeposit: boolean
     store: { id: string; name: string; chain: string | null } | null
   }
   const currentPrices = $derived((data.currentPrices as CurrentPrice[]) ?? [])
@@ -399,6 +400,7 @@
   let priceUnitInput = $state('')
   let priceReduced = $state(false)
   let pricePermanent = $state(false)
+  let priceInclDeposit = $state(false)
   let priceSaving = $state(false)
   let correctingProposalId = $state<string | null>(null)
 
@@ -408,6 +410,7 @@
     priceInput = existing ? String(existing.priceCt / 100).replace('.', ',') : ''
     priceUnitInput = existing?.unit ?? (product.defaultUnit as string) ?? 'piece'
     priceReduced = existing?.isReduced ?? false
+    priceInclDeposit = existing?.priceIncludesDeposit ?? false
     pricePermanent = false
   }
   function cancelPriceEdit() {
@@ -428,6 +431,7 @@
           priceCt: Math.round(euro * 100),
           unit: priceUnitInput,
           isReduced: priceReduced,
+          priceIncludesDeposit: priceInclDeposit,
           makePermanent: pricePermanent,
         }),
       })
@@ -1327,6 +1331,7 @@
                 <div class="price-flags">
                   <label class="flag-label"><input type="checkbox" bind:checked={priceReduced} /> reduziert</label>
                   <label class="flag-label"><input type="checkbox" bind:checked={pricePermanent} /> als Dauerpreis</label>
+                  <label class="flag-label"><input type="checkbox" bind:checked={priceInclDeposit} /> Preis enthält Pfand</label>
                 </div>
                 <div class="price-actions">
                   <button class="btn-save-inline" type="button" disabled={priceSaving} onclick={() => savePrice(s.id)}>Speichern</button>

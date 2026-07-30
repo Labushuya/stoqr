@@ -135,7 +135,7 @@ export async function fetchGlobusDetail(
 ): Promise<{ html: string | null; data: GlobusDetailData }> {
   const empty: GlobusDetailData = {
     brand: null, description: null, priceCt: null,
-    availability: null, priceValidUntil: null, seller: null,
+    availability: null, priceValidUntil: null, seller: null, hasDeposit: null,
   }
   const ctrl = new AbortController()
   const t = setTimeout(() => ctrl.abort(), TIMEOUT_MS)

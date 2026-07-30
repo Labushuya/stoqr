@@ -47,6 +47,7 @@
       categoryName: string | null
       brand: string | null
       description: string | null
+      hasDeposit: boolean
       categorySource: 'off' | 'globus' | 'manual' | null
     }
     snapshot: {
@@ -60,10 +61,11 @@
       catalogCategoryId: string | null
       brand: string | null
       description: string | null
+      hasDeposit: boolean | null
       extracted: { field: string; value: string | null; source: string; belongsTo: string }[] | null
       fetchedAt: string
     } | null
-    diff: { name: FieldDiff; image: FieldDiff; category: FieldDiff; brand: FieldDiff; description: FieldDiff; any: boolean }
+    diff: { name: FieldDiff; image: FieldDiff; category: FieldDiff; brand: FieldDiff; description: FieldDiff; hasDeposit: FieldDiff; any: boolean }
   }
   // Spiegel direkt aus den (reaktiven) Load-Daten ableiten — nach jedem
   // invalidateAll() automatisch aktuell (kein manuelles, stale-anfaelliges Setzen).
@@ -114,27 +116,30 @@
   // aufgebaut — dadurch ist der Eintrag bereits beim ERSTEN Render vorhanden (kein
   // $effect-Race, der frueher Badge und Panel auseinanderlaufen liess, G14-3).
   // Nutzer-Toggles bleiben ueber ein untracked Overlay erhalten.
-  const snapFieldOverrides: Record<string, { image: boolean; name: boolean; category: boolean; price: boolean; brand: boolean; description: boolean }> = {}
+  const snapFieldOverrides: Record<string, { image: boolean; name: boolean; category: boolean; price: boolean; brand: boolean; description: boolean; hasDeposit: boolean }> = {}
   let catalogMirrorTick = $state(0)
   const snapFields = $derived.by(() => {
     void catalogMirrorTick // Abhaengigkeit: Neuberechnung nach einem Toggle erzwingen.
-    const out: Record<string, { image: boolean; name: boolean; category: boolean; price: boolean; brand: boolean; description: boolean }> = {}
+    const out: Record<string, { image: boolean; name: boolean; category: boolean; price: boolean; brand: boolean; description: boolean; hasDeposit: boolean }> = {}
     for (const r of catalogMirror) {
       if (!r.snapshot) continue
-      out[r.snapshot.id] = snapFieldOverrides[r.snapshot.id] ?? defaultSnapFields({
-        imageDiffers: r.diff.image.differs,
-        nameDiffers: r.diff.name.differs,
-        categoryDiffers: r.diff.category.differs,
-        priceCt: r.snapshot.priceCt,
-        storeId: r.snapshot.storeId,
-        brandDiffers: r.diff.brand?.differs ?? false,
-        descriptionDiffers: r.diff.description?.differs ?? false,
-      })
+      out[r.snapshot.id] = snapFieldOverrides[r.snapshot.id] ?? {
+        ...defaultSnapFields({
+          imageDiffers: r.diff.image.differs,
+          nameDiffers: r.diff.name.differs,
+          categoryDiffers: r.diff.category.differs,
+          priceCt: r.snapshot.priceCt,
+          storeId: r.snapshot.storeId,
+          brandDiffers: r.diff.brand?.differs ?? false,
+          descriptionDiffers: r.diff.description?.differs ?? false,
+        }),
+        hasDeposit: r.diff.hasDeposit?.differs ?? false,
+      }
     }
     return out
   })
   // Checkbox-Toggle: schreibt ins Overlay (bleibt erhalten) + triggert Neuberechnung.
-  function toggleSnapField(id: string, field: 'image' | 'name' | 'category' | 'price' | 'brand' | 'description') {
+  function toggleSnapField(id: string, field: 'image' | 'name' | 'category' | 'price' | 'brand' | 'description' | 'hasDeposit') {
     const cur = snapFields[id]
     if (!cur) return
     snapFieldOverrides[id] = { ...cur, [field]: !cur[field] }
@@ -212,8 +217,8 @@
     snapshotBusy = id
     try {
       const fields = allFields
-        ? { image: true, name: true, category: true, price: true, brand: true, description: true }
-        : (snapFields[id] ?? { image: true, name: false, category: false, price: false, brand: false, description: false })
+        ? { image: true, name: true, category: true, price: true, brand: true, description: true, hasDeposit: true }
+        : (snapFields[id] ?? { image: true, name: false, category: false, price: false, brand: false, description: false, hasDeposit: false })
       // Nur eine MANUELLE Wahl wird als categoryId (Herkunft 'manual') gesendet. Ein
       // frischer Regel-/Auto-Vorschlag wird NICHT hier mitgegeben — der Server loest
       // ihn beim Uebernehmen selbst via matchCategoryId auf und schreibt Herkunft
@@ -698,6 +703,17 @@
                   <span class="snap-diff-arrow" aria-hidden="true">→</span>
                   <span class="snap-diff-new">{snap.description || '(Katalog: kein Wert)'}</span>
                 </label>
+
+                <!-- Pfandpflicht (G47) — nur ja/nein aus dem Katalog; Betrag pflegst du am Artikel -->
+                {#if snap.hasDeposit != null}
+                  <label class="snap-diff-row" class:snap-diff-row--diff={r.diff.hasDeposit?.differs}>
+                    <input type="checkbox" checked={snapFields[snap.id]?.hasDeposit} onchange={() => toggleSnapField(snap.id, 'hasDeposit')} />
+                    <span class="snap-diff-field">Pfandpflicht {#if r.diff.hasDeposit?.differs}<span class="snap-diff-tag">abweichend</span>{:else}<span class="snap-diff-tag snap-diff-tag--ok">gleich</span>{/if}</span>
+                    <span class="snap-diff-old">{r.product.hasDeposit ? 'ja' : 'nein'}</span>
+                    <span class="snap-diff-arrow" aria-hidden="true">→</span>
+                    <span class="snap-diff-new">{snap.hasDeposit ? 'ja (Betrag manuell)' : 'nein'}</span>
+                  </label>
+                {/if}
 
                 <!-- Bild -->
                 <label class="snap-diff-row" class:snap-diff-row--diff={r.diff.image.differs}>

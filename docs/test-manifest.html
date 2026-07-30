@@ -108,7 +108,7 @@
 <div class="wrap">
   <header class="top">
     <h1>stoqr — Test-Manifest</h1>
-    <p class="subtitle">Blöcke A–E + F/F2 + G/G6/G7/G8/G10/G11/G12/G13/G15/G16/G17/G18/G19/G20/G21/G22/G24/G25/G26/G27/G28/G29/G30/G31/G32/G33/G34/G35/G36/G37/G39/G40/G41/G42/G43/G44/G45/G46 · logisch aufbauender Durchlauf · Stand nach G46 (Günstigster-Markt-Ranking)</p>
+    <p class="subtitle">Blöcke A–E + F/F2 + G/G6/G7/G8/G10/G11/G12/G13/G15/G16/G17/G18/G19/G20/G21/G22/G24/G25/G26/G27/G28/G29/G30/G31/G32/G33/G34/G35/G36/G37/G39/G40/G41/G42/G43/G44/G45/G46/G47 · logisch aufbauender Durchlauf · Stand nach G47 (Pfand / Leergut)</p>
 
     <div class="pre">
       <h2>Voraussetzung (kein Testschritt)</h2>
@@ -720,6 +720,19 @@ const BLOCKS = [
         expect: 'Der Angebotsmarkt wird als „günstigster" markiert (Angebote zählen im Ranking mit; das bestehende „Angebot"-Badge bleibt).' },
       { id: 'G46-4', title: 'Günstigster-Markt-Hinweis auf der Einkaufsliste', steps: ['Einkaufsliste öffnen; ein Artikel, der bei mehreren Märkten einen aktuellen Preis hat, steht auf der Liste.'],
         expect: 'Die Listen-Zeile zeigt „günstigster: {Markt}". Bei nur einem Markt / keinem Preis kein Hinweis.' },
+    ]
+  },
+  {
+    tag: 'G47', name: 'Pfand / Leergut', desc: 'Pfand am Artikel (Checkbox + Betrag), Preis-enthält-Pfand-Flag als Fallback, getrennter Ware+Pfand-Ausweis im Estimate, Pfand-ja/nein-Vorschlag aus der Katalog-Sicherung.',
+    items: [
+      { id: 'G47-1', title: 'Pfand am Artikel setzen (Checkbox + Schnellwahl)', steps: ['Artikel bearbeiten → Checkbox „Pfand" aktivieren.', 'Schnellwahl 0,08/0,15/0,16/0,25 € ODER Freieingabe wählen → Speichern.', 'Artikel erneut öffnen.'],
+        expect: 'Die Pfand-Auswahl erscheint erst wenn die Checkbox an ist; der gewählte Betrag bleibt nach dem Speichern/erneuten Öffnen erhalten. Checkbox aus → Betrag wird entfernt.' },
+      { id: 'G47-2', title: 'Preis-Fallback: „Preis enthält Pfand"', steps: ['Beim Artikel Pfand 0,25 € setzen.', 'Preis 0,69 € erfassen mit Häkchen „Preis enthält Pfand" AUS.', 'Einkaufsliste (Markt gewählt) betrachten.'],
+        expect: 'Die Position zeigt Ware getrennt vom Pfand („+ Pfand 0,25 €"); die Gesamtsumme weist „Einkauf X + Pfand Y = Z" aus. Mit Häkchen AN wird kein zusätzliches Pfand addiert (kein Doppelzählen).' },
+      { id: 'G47-3', title: 'Pfand je Stück / nicht berechenbar ohne Gebinde', steps: ['Count-Artikel (z.B. Flaschen) mit Pfand → Einkaufsliste: Pfand = Anzahl × Betrag.', 'Mengen-Artikel (kg/l) mit Pfand aber OHNE hinterlegtes Gebinde → Einkaufsliste.'],
+        expect: 'Bei Stück-Artikeln wird das Pfand korrekt je Stück gerechnet. Bei kg/l ohne Gebinde erscheint „+ Pfand ?" bzw. der Hinweis „Pfand nicht berechenbar (Gebinde fehlt)", die Ware wird normal berechnet.' },
+      { id: 'G47-4', title: 'Pfand-ja/nein aus der Katalog-Sicherung', steps: ['„Katalog jetzt sichern" bei einem Einweg-Artikel (Beschreibung enthält z.B. „PET EW DUE").', 'Katalog-Spiegel betrachten.'],
+        expect: 'Es erscheint eine Diff-Zeile „Pfandpflicht" mit Vorschlag „ja (Betrag manuell)". Ankreuzen + Übernehmen setzt has_deposit am Artikel (Betrag pflegst du selbst). Manuell gesetztes Pfand wird durch erneuten Abruf nicht überschrieben.' },
     ]
   },
   {

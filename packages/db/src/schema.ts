@@ -164,6 +164,10 @@ export const products = pgTable('products', {
   isVerified: boolean('is_verified').notNull().default(false),
   expiryToleranceDays: integer('expiry_tolerance_days'),
   bringItemId: varchar('bring_item_id', { length: 128 }),
+  // Pfand (G47): has_deposit = Artikel bedarf Pfand; deposit_ct = Betrag in Cent
+  // (nullable — nur wenn bekannt). Pfand ist EAN-Eigenschaft (Artikel-Ebene).
+  hasDeposit: boolean('has_deposit').notNull().default(false),
+  depositCt: integer('deposit_ct'),
   createdBy: text('created_by').references(() => users.id, { relationName: 'productCreator' } as any),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
@@ -266,6 +270,9 @@ export const productPrices = pgTable(
     basePriceCt: integer('base_price_ct'),
     basePriceUnit: varchar('base_price_unit', { length: 16 }),
     isReduced: boolean('is_reduced').notNull().default(false),
+    // G47: true = der Preis (priceCt) enthält das Pfand bereits → nicht zusätzlich
+    // addieren; false (Default) = zzgl. Pfand (products.deposit_ct je Stück).
+    priceIncludesDeposit: boolean('price_includes_deposit').notNull().default(false),
     isCurrent: boolean('is_current').notNull().default(false),
     // Freigabe-Status: 'proposed' = Online-Vorschlag (Staging, nie is_current),
     // 'confirmed' = vom User bestaetigt/maßgeblich, 'rejected' = verworfen (Historie).

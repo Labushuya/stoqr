@@ -13,10 +13,15 @@ import { resolveUnitMeta, type UnitMeta, type PackSize } from './stock'
 export type PriceInfo = {
   priceCt: number // Preis pro Einheit (Cent)
   unit: string // Preis-Einheit (units.symbol)
+  // Pfand (G47): Betrag je Stück (Cent) + ob der priceCt das Pfand schon enthält.
+  depositCt?: number | null
+  priceIncludesDeposit?: boolean
 }
 
 export type LineEstimate = {
-  cents: number | null // geschätzte Kosten dieser Position (null = nicht bezifferbar)
+  cents: number | null // geschätzte WARE-Kosten dieser Position (OHNE Pfand; null = nicht bezifferbar)
+  depositCents: number // separat ausgewiesenes Pfand dieser Position (0 wenn keins/schon enthalten)
+  depositUnknown: boolean // true = Artikel hat Pfand, aber Stückzahl nicht ableitbar (kg/l ohne Gebinde)
   comparable: boolean // false = Einheit inkompatibel (kein Preis vs. inkompatibel unterscheiden)
   hasPrice: boolean // false = für (Artikel,Markt) kein aktueller Preis vorhanden
 }
@@ -34,7 +39,12 @@ export function estimateLineCost(
   metaMap: Map<string, UnitMeta>,
   packSize?: PackSize,
 ): LineEstimate {
-  if (!price) return { cents: null, comparable: true, hasPrice: false }
+  if (!price) return { cents: null, depositCents: 0, depositUnknown: false, comparable: true, hasPrice: false }
+
+  // Pfand (G47): fällt JE STÜCK an. depositCt gesetzt & Preis enthält es NICHT →
+  // separat ausweisen. Stückzahl: count = qty; mass/volume nur über packSize
+  // (Basismenge / Basismenge-je-Gebinde), sonst nicht bezifferbar → Hinweis.
+  const wantsDeposit = price.depositCt != null && price.depositCt > 0 && price.priceIncludesDeposit === false
 
   // packSize (Gebinde des Artikels) wird auf BEIDE Symbole angewandt, damit
   // „Preis pro Flasche" gegen „Bedarf in l" (und umgekehrt) vergleichbar wird.
@@ -44,33 +54,49 @@ export function estimateLineCost(
   // count ist nur bei exakt gleichem Symbol vergleichbar.
   if (needMeta.dimension === 'count' || priceMeta.dimension === 'count') {
     if (needMeta.symbol !== priceMeta.symbol) {
-      return { cents: null, comparable: false, hasPrice: true }
+      return { cents: null, depositCents: 0, depositUnknown: false, comparable: false, hasPrice: true }
     }
-    return { cents: Math.round(qty * price.priceCt), comparable: true, hasPrice: true }
+    const depositCents = wantsDeposit ? Math.round(qty * (price.depositCt as number)) : 0
+    return { cents: Math.round(qty * price.priceCt), depositCents, depositUnknown: false, comparable: true, hasPrice: true }
   }
 
   // mass/volume: nur bei gleicher Dimension umrechenbar.
   if (needMeta.dimension !== priceMeta.dimension) {
-    return { cents: null, comparable: false, hasPrice: true }
+    return { cents: null, depositCents: 0, depositUnknown: false, comparable: false, hasPrice: true }
   }
 
   const needBase = qty * needMeta.toBaseFactor // in Basiseinheit (g / ml)
   const pricePerBase = price.priceCt / (priceMeta.toBaseFactor || 1) // Cent pro Basiseinheit
-  return { cents: Math.round(needBase * pricePerBase), comparable: true, hasPrice: true }
+  // Stückzahl bei mass/volume nur über die Gebinde-Größe (packSize) rekonstruierbar.
+  let depositCents = 0
+  let depositUnknown = false
+  if (wantsDeposit) {
+    if (packSize && packSize.baseFactor > 0) {
+      const pieces = needBase / packSize.baseFactor
+      depositCents = Math.round(pieces * (price.depositCt as number))
+    } else {
+      depositUnknown = true // Pfand vorhanden, aber Stückzahl ohne Gebinde nicht ableitbar.
+    }
+  }
+  return { cents: Math.round(needBase * pricePerBase), depositCents, depositUnknown, comparable: true, hasPrice: true }
 }
 
 export type CostSummary = {
-  totalCents: number // Summe der bezifferbaren Positionen
+  totalCents: number // Summe der bezifferbaren WARE-Positionen (ohne Pfand)
+  totalDepositCents: number // separat: Summe des Pfands
   itemsWithoutPrice: number // Positionen ohne aktuellen Preis
   itemsNotComparable: number // Positionen mit inkompatibler Einheit
+  itemsDepositUnknown: number // Positionen mit Pfand, aber ohne ableitbare Stückzahl
   isPartial: boolean // true, wenn mind. eine Position nicht in die Summe einging
 }
 
 /** Summiert Positions-Schätzungen und zählt Lücken (für die Warnung). */
 export function summarizeCosts(lines: LineEstimate[]): CostSummary {
   let totalCents = 0
+  let totalDepositCents = 0
   let itemsWithoutPrice = 0
   let itemsNotComparable = 0
+  let itemsDepositUnknown = 0
   for (const l of lines) {
     if (l.cents != null) {
       totalCents += l.cents
@@ -79,11 +105,15 @@ export function summarizeCosts(lines: LineEstimate[]): CostSummary {
     } else if (!l.comparable) {
       itemsNotComparable++
     }
+    totalDepositCents += l.depositCents
+    if (l.depositUnknown) itemsDepositUnknown++
   }
   return {
     totalCents,
+    totalDepositCents,
     itemsWithoutPrice,
     itemsNotComparable,
+    itemsDepositUnknown,
     isPartial: itemsWithoutPrice > 0 || itemsNotComparable > 0,
   }
 }

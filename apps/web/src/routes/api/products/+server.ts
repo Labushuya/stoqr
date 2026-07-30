@@ -40,6 +40,8 @@ export const POST: RequestHandler = async ({ locals, request }) => {
     defaultVolumeMl,
     expiryToleranceDays,
     bringItemId,
+    hasDeposit,
+    depositCt,
     offData,
   } = body
 
@@ -63,6 +65,8 @@ export const POST: RequestHandler = async ({ locals, request }) => {
       defaultVolumeMl: defaultVolumeMl ?? undefined,
       expiryToleranceDays: expiryToleranceDays ?? undefined,
       bringItemId: bringItemId ?? undefined,
+      hasDeposit: hasDeposit ?? undefined,
+      depositCt: hasDeposit ? (depositCt ?? null) : null,
       offData: offData ?? undefined,
       createdBy: locals.user.id,
     })
@@ -76,6 +80,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
     if (imageUrl) srcs.image = 'manual'
     if (categoryId) srcs.category = 'manual'
     if (defaultUnit) srcs.unit = 'manual'
+    if (hasDeposit) srcs.deposit = 'manual'
     await setFieldSources(productId, srcs)
 
     await writeAudit({

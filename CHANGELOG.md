@@ -5,6 +5,32 @@ Neueste Einträge oben. Jeder Eintrag nennt den Commit-Kontext, damit andere LLM
 
 ---
 
+## [Unreleased] — G47: Pfand / Leergut (implementiert, Test auf Pi ausstehend)
+
+ROADMAP #5. Pfand als **Artikel**-Eigenschaft, mit Fallback für manuelle Pflege und getrenntem Ausweis.
+
+- **Migration 0021** (additiv): `products.has_deposit` + `products.deposit_ct`, `product_prices.price_includes_deposit`.
+- **Artikel-Formular:** Checkbox „Pfand" + Schnellwahl **0,08 / 0,15 / 0,16 / 0,25 €** + Freieingabe. Herkunfts-Schutz
+  (`ProductField` += `'deposit'`): ein Abruf-Vorschlag überschreibt kein manuell gesetztes Pfand.
+- **Preis-Flag „Preis enthält Pfand"** (`price_includes_deposit`) an der Preis-Erfassung — dein Fallback: Preis 0,69 €
+  ohne Pfand-Angabe → Pfand 0,25 € manuell + „enthält kein Pfand" → Estimate addiert es.
+- **Estimate:** Ware + Pfand **getrennt** (Einkaufsliste + Einkauf). Pfand fällt je Stück an (count = qty; mass/volume
+  nur über packSize). Ohne ableitbare Stückzahl → nicht berechnen + Hinweis „Pfand nicht berechenbar (Gebinde fehlt)".
+  `priceIncludesDeposit=true` → kein Doppelzählen. Reiner Helfer `prices.ts` erweitert (+ Tests).
+- **Katalog-Sicherung:** `parseGlobusDetailJsonLd` leitet **Pfand ja/nein** aus der `description` ab
+  (`/\b(EW|MW|DUE)\b|Einweg|Mehrweg|Pfand/i`; nur EW/DUE/Einweg real belegt); als ankreuzbare Spiegel-Zeile
+  „Pfandpflicht" übernehmbar (Betrag bleibt manuell — exakter Betrag = Stufe 2/Headless).
+
+Gate: typecheck 0, lint 0/33, build ✓, vitest 204/204 (+7). Migration 0021.
+
+### Commits
+G47 (dieser Commit) — Schema/Migration 0021; ProductForm + Whitelist-Kette (create/update/POST/PATCH) + ProductField
+'deposit'; prices.ts price_includes_deposit + Estimate mit depositCents/depositUnknown + Tests; getrennter Ausweis
+Einkaufsliste/Einkauf; Pfand-ja/nein aus JSON-LD + mirror-diff/listCatalogMirror/applySnapshotToProduct + Spiegel-Zeile.
+Exakter Hash: siehe `git log`.
+
+---
+
 ## [Unreleased] — G46: Günstigster-Markt-Ranking (Detailseite + Einkaufsliste) (implementiert, Test auf Pi ausstehend)
 
 ROADMAP #4b. Macht die Preis-/Grundpreis-Daten (G44) sichtbar nutzbar: je Artikel wird der **günstigste Markt pro

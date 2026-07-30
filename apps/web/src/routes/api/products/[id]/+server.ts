@@ -22,7 +22,7 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
     const householdId = await requireHouseholdId(locals.user.id)
 
     const body = await request.json()
-    const { name, brand, description, notes, categoryId, defaultUnit, gtin, imageUrl, packDimension, packSize } = body as {
+    const { name, brand, description, notes, categoryId, defaultUnit, gtin, imageUrl, packDimension, packSize, hasDeposit, depositCt } = body as {
       name?: string
       brand?: string | null
       description?: string | null
@@ -34,6 +34,9 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
       // Gebinde-Größe (Einheiten v2): packDimension 'volume'|'mass'|'none', packSize = Wert (ml bzw. g).
       packDimension?: 'volume' | 'mass' | 'none'
       packSize?: number | string | null
+      // Pfand (G47)
+      hasDeposit?: boolean
+      depositCt?: number | null
     }
 
     const patch: Parameters<typeof updateProduct>[1] = {}
@@ -57,6 +60,13 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
     if (gtin !== undefined) patch.gtin = gtin ? String(gtin).trim() : null
     // Bild-URL: leerer String → null
     if (imageUrl !== undefined) patch.imageUrl = imageUrl ? String(imageUrl).trim() : null
+    // Pfand (G47): has_deposit + Betrag; bei has_deposit=false Betrag auf null normalisieren.
+    if (hasDeposit !== undefined) {
+      patch.hasDeposit = hasDeposit
+      patch.depositCt = hasDeposit ? (depositCt ?? null) : null
+    } else if (depositCt !== undefined) {
+      patch.depositCt = depositCt
+    }
 
     // Gebinde-Größe: genau EINE Dimension. 'none' oder ungültig → beide null (kein Gebinde).
     if (packDimension !== undefined) {
@@ -110,6 +120,7 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
     if (changed('imageUrl')) srcs.image = 'manual'
     if (changed('categoryId')) srcs.category = 'manual'
     if (changed('defaultUnit')) srcs.unit = 'manual'
+    if (changed('hasDeposit') || changed('depositCt')) srcs.deposit = 'manual'
     await setFieldSources(params.id, srcs)
 
     return json(product ?? updated)

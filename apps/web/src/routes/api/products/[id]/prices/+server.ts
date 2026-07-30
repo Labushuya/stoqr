@@ -36,12 +36,13 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
   try {
     const householdId = await requireHouseholdId(locals.user.id)
     const body = await request.json()
-    const { storeId, priceCt, unit, isReduced, makePermanent } = body as {
+    const { storeId, priceCt, unit, isReduced, makePermanent, priceIncludesDeposit } = body as {
       storeId?: string
       priceCt?: number
       unit?: string
       isReduced?: boolean
       makePermanent?: boolean
+      priceIncludesDeposit?: boolean
     }
 
     if (!storeId) return json({ error: 'storeId erforderlich' }, { status: 400 })
@@ -65,6 +66,7 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
       unit,
       isReduced: isReduced ?? false,
       makePermanent: makePermanent ?? false,
+      priceIncludesDeposit: priceIncludesDeposit ?? false,
       source: 'manual',
       createdBy: locals.user.id,
     })

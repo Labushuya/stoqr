@@ -15,7 +15,7 @@ const meta = buildUnitMetaMap(SYSTEM_UNITS)
 describe('estimateLineCost', () => {
   it('kein Preis → cents null, hasPrice false', () => {
     const r = estimateLineCost(2, 'piece', null, meta)
-    expect(r).toEqual({ cents: null, comparable: true, hasPrice: false })
+    expect(r).toMatchObject({ cents: null, comparable: true, hasPrice: false })
   })
 
   it('count gleiche Einheit: Menge × Preis', () => {
@@ -27,7 +27,7 @@ describe('estimateLineCost', () => {
 
   it('count verschiedene Symbole → nicht vergleichbar', () => {
     const r = estimateLineCost(2, 'piece', { priceCt: 100, unit: 'Packung' }, meta)
-    expect(r).toEqual({ cents: null, comparable: false, hasPrice: true })
+    expect(r).toMatchObject({ cents: null, comparable: false, hasPrice: true })
   })
 
   it('mass: Preis pro kg, Bedarf in g (500 g bei 1,50 €/kg = 0,75 €)', () => {
@@ -48,7 +48,7 @@ describe('estimateLineCost', () => {
 
   it('dimension-mismatch (mass vs volume) → nicht vergleichbar', () => {
     const r = estimateLineCost(1, 'kg', { priceCt: 100, unit: 'l' }, meta)
-    expect(r).toEqual({ cents: null, comparable: false, hasPrice: true })
+    expect(r).toMatchObject({ cents: null, comparable: false, hasPrice: true })
   })
 
   it('count vs mass → nicht vergleichbar', () => {
@@ -67,10 +67,10 @@ describe('estimateLineCost', () => {
 describe('summarizeCosts', () => {
   it('summiert nur bezifferbare Positionen und zählt Lücken', () => {
     const lines = [
-      { cents: 238, comparable: true, hasPrice: true },
-      { cents: null, comparable: true, hasPrice: false }, // ohne Preis
-      { cents: 75, comparable: true, hasPrice: true },
-      { cents: null, comparable: false, hasPrice: true }, // inkompatibel
+      { cents: 238, depositCents: 0, depositUnknown: false, comparable: true, hasPrice: true },
+      { cents: null, depositCents: 0, depositUnknown: false, comparable: true, hasPrice: false }, // ohne Preis
+      { cents: 75, depositCents: 0, depositUnknown: false, comparable: true, hasPrice: true },
+      { cents: null, depositCents: 0, depositUnknown: false, comparable: false, hasPrice: true }, // inkompatibel
     ]
     const s = summarizeCosts(lines)
     expect(s.totalCents).toBe(313)
@@ -81,10 +81,52 @@ describe('summarizeCosts', () => {
 
   it('isPartial false, wenn alle Positionen beziffert', () => {
     const s = summarizeCosts([
-      { cents: 100, comparable: true, hasPrice: true },
-      { cents: 50, comparable: true, hasPrice: true },
+      { cents: 100, depositCents: 0, depositUnknown: false, comparable: true, hasPrice: true },
+      { cents: 50, depositCents: 0, depositUnknown: false, comparable: true, hasPrice: true },
     ])
-    expect(s).toEqual({ totalCents: 150, itemsWithoutPrice: 0, itemsNotComparable: 0, isPartial: false })
+    expect(s).toEqual({ totalCents: 150, totalDepositCents: 0, itemsWithoutPrice: 0, itemsNotComparable: 0, itemsDepositUnknown: 0, isPartial: false })
+  })
+
+  it('summiert Pfand separat (G47)', () => {
+    const s = summarizeCosts([
+      { cents: 100, depositCents: 25, depositUnknown: false, comparable: true, hasPrice: true },
+      { cents: 200, depositCents: 50, depositUnknown: false, comparable: true, hasPrice: true },
+      { cents: 80, depositCents: 0, depositUnknown: true, comparable: true, hasPrice: true }, // Pfand nicht berechenbar
+    ])
+    expect(s.totalCents).toBe(380)
+    expect(s.totalDepositCents).toBe(75)
+    expect(s.itemsDepositUnknown).toBe(1)
+  })
+})
+
+describe('estimateLineCost — Pfand (G47)', () => {
+  it('count: Pfand je Stück, getrennt von der Ware', () => {
+    // 6 Flaschen à 0,89 € + 0,25 € Pfand; Preis enthält Pfand NICHT.
+    const r = estimateLineCost(6, 'Flasche', { priceCt: 89, unit: 'Flasche', depositCt: 25, priceIncludesDeposit: false }, meta)
+    expect(r.cents).toBe(534) // reine Ware
+    expect(r.depositCents).toBe(150) // 6 × 25
+    expect(r.depositUnknown).toBe(false)
+  })
+  it('Preis enthält Pfand → kein zusätzliches Pfand', () => {
+    const r = estimateLineCost(6, 'Flasche', { priceCt: 114, unit: 'Flasche', depositCt: 25, priceIncludesDeposit: true }, meta)
+    expect(r.depositCents).toBe(0)
+  })
+  it('mass/volume mit Gebinde: Stückzahl aus packSize', () => {
+    // Bedarf 3000 ml, Gebinde 1500 ml/Flasche → 2 Flaschen × 25 ct = 50.
+    const pack = { unitSymbol: 'Flasche', baseFactor: 1500, dimension: 'volume' as const }
+    const r = estimateLineCost(3000, 'ml', { priceCt: 10, unit: 'l', depositCt: 25, priceIncludesDeposit: false }, meta, pack)
+    expect(r.depositCents).toBe(50)
+    expect(r.depositUnknown).toBe(false)
+  })
+  it('mass/volume OHNE Gebinde: Pfand nicht berechenbar → depositUnknown', () => {
+    const r = estimateLineCost(3000, 'ml', { priceCt: 10, unit: 'l', depositCt: 25, priceIncludesDeposit: false }, meta)
+    expect(r.depositCents).toBe(0)
+    expect(r.depositUnknown).toBe(true)
+  })
+  it('kein depositCt → kein Pfand, depositUnknown false', () => {
+    const r = estimateLineCost(2, 'Flasche', { priceCt: 89, unit: 'Flasche' }, meta)
+    expect(r.depositCents).toBe(0)
+    expect(r.depositUnknown).toBe(false)
   })
 })
 

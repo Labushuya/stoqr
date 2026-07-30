@@ -412,6 +412,8 @@ export async function createProduct(data: {
 	defaultVolumeMl?: number | string;
 	expiryToleranceDays?: number;
 	bringItemId?: string;
+	hasDeposit?: boolean;
+	depositCt?: number | null;
 	createdBy?: string;
 	offData?: unknown;
 }) {
@@ -431,6 +433,8 @@ export async function createProduct(data: {
 			defaultVolumeMl: data.defaultVolumeMl?.toString(),
 			expiryToleranceDays: data.expiryToleranceDays,
 			bringItemId: data.bringItemId,
+			hasDeposit: data.hasDeposit ?? false,
+			depositCt: data.depositCt ?? null,
 			createdBy: data.createdBy,
 			offData: data.offData as Record<string, unknown>,
 		})
@@ -480,6 +484,8 @@ export async function updateProduct(
 		defaultVolumeMl: number | string | null;
 		defaultWeightG: number | string | null;
 		defaultQuantity: number | string;
+		hasDeposit: boolean;
+		depositCt: number | null;
 	}>
 ) {
 	const patch: Record<string, unknown> = { updatedAt: new Date() };
@@ -491,6 +497,8 @@ export async function updateProduct(
 	if (data.defaultUnit !== undefined) patch.defaultUnit = data.defaultUnit;
 	if (data.gtin !== undefined) patch.gtin = data.gtin;
 	if (data.imageUrl !== undefined) patch.imageUrl = data.imageUrl;
+	if (data.hasDeposit !== undefined) patch.hasDeposit = data.hasDeposit;
+	if (data.depositCt !== undefined) patch.depositCt = data.depositCt;
 	// Gebinde-Größe (Einheiten v2): numeric-Felder als String; null = kein Gebinde.
 	if (data.defaultVolumeMl !== undefined)
 		patch.defaultVolumeMl = data.defaultVolumeMl == null ? null : String(data.defaultVolumeMl);
@@ -538,6 +546,8 @@ export async function getProductById(id: string) {
 			defaultQuantity: true,
 			defaultVolumeMl: true,
 			defaultWeightG: true,
+			hasDeposit: true,
+			depositCt: true,
 		},
 	});
 	return product ?? null;
@@ -547,7 +557,7 @@ export async function getProductById(id: string) {
 // Feld-Provenienz (G15) — Quelle je Stammdaten-Feld: 'off'|'globus'|'manual'.
 // ---------------------------------------------------------------------------
 
-export type ProductField = 'name' | 'brand' | 'image' | 'category' | 'unit' | 'description';
+export type ProductField = 'name' | 'brand' | 'image' | 'category' | 'unit' | 'description' | 'deposit';
 export type FieldSource = 'off' | 'globus' | 'manual';
 
 /** Setzt die Herkunft je Feld (Upsert auf (product_id, field)). Leere Map = no-op. */

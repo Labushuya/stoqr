@@ -32,10 +32,11 @@ export const load: PageServerLoad = async ({ locals, params }) => {
     const packRows = productIds.length
       ? await db.query.products.findMany({
           where: inArray(products.id, productIds),
-          columns: { id: true, defaultUnit: true, defaultVolumeMl: true, defaultWeightG: true },
+          columns: { id: true, defaultUnit: true, defaultVolumeMl: true, defaultWeightG: true, hasDeposit: true, depositCt: true },
         })
       : []
     const packByProduct = new Map(packRows.map((p) => [p.id, buildPackSize(p)]))
+    const depositByProduct = new Map(packRows.map((p) => [p.id, p.hasDeposit ? p.depositCt : null]))
     const metaMap = buildUnitMetaMap(units)
     const lines: LineEstimate[] = []
     for (const it of trip.items) {
@@ -44,7 +45,14 @@ export const load: PageServerLoad = async ({ locals, params }) => {
       const est = estimateLineCost(
         Number(it.quantity),
         it.unit,
-        price ? { priceCt: price.priceCt, unit: price.unit } : null,
+        price
+          ? {
+              priceCt: price.priceCt,
+              unit: price.unit,
+              depositCt: it.productId ? depositByProduct.get(it.productId) ?? null : null,
+              priceIncludesDeposit: price.priceIncludesDeposit,
+            }
+          : null,
         metaMap,
         packSize,
       )

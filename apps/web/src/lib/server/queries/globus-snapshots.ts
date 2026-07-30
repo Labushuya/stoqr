@@ -152,6 +152,7 @@ export type CatalogMirrorRow = {
     categoryName: string | null
     brand: string | null
     description: string | null
+    hasDeposit: boolean
     // Herkunft der gespeicherten Kategorie (G34) — fuer den "Herkunft zuruecksetzen"-
     // Button im Spiegel. null = nicht erfasst.
     categorySource: 'off' | 'globus' | 'manual' | null
@@ -165,9 +166,10 @@ export type CatalogMirrorRow = {
     storeId: string | null
     localImagePath: string | null
     catalogCategoryId: string | null
-    // Reichere Felder aus dem JSON-LD (G45), fuer die uebernehmbaren Diff-Zeilen.
+    // Reichere Felder aus dem JSON-LD (G45/G47), fuer die uebernehmbaren Diff-Zeilen.
     brand: string | null
     description: string | null
+    hasDeposit: boolean | null
     // Feld-Landkarte des Abrufs (G44): { field, value, source, belongsTo }[] — dokumentiert,
     // welcher Wert woher kam. null bei Alt-Snapshots ohne Anreicherung.
     extracted: unknown
@@ -198,7 +200,7 @@ export async function listCatalogMirror(householdId: string): Promise<CatalogMir
   const prods = await db.query.products.findMany({
     where: (p, { and, inArray, isNotNull }) =>
       and(inArray(p.id, productIds), isNotNull(p.gtin)),
-    columns: { id: true, name: true, gtin: true, imageUrl: true, categoryId: true, brand: true, description: true },
+    columns: { id: true, name: true, gtin: true, imageUrl: true, categoryId: true, brand: true, description: true, hasDeposit: true },
     with: { category: { columns: { name: true } } },
   })
   if (prods.length === 0) return []
@@ -237,10 +239,13 @@ export async function listCatalogMirror(householdId: string): Promise<CatalogMir
     }
     const snapBrand = extractedVal('brand')
     const snapDescription = extractedVal('description')
+    // Pfandpflicht-Signal (G47): extracted trägt 'ja'/'nein' (oder fehlt).
+    const depRaw = extractedVal('has_deposit')
+    const snapHasDeposit = depRaw == null ? null : depRaw.toLowerCase() === 'ja'
     const diff = computeMirrorDiff(
-      { name: p.name, imageUrl: p.imageUrl, categoryId: p.categoryId, brand: p.brand, description: p.description },
+      { name: p.name, imageUrl: p.imageUrl, categoryId: p.categoryId, brand: p.brand, description: p.description, hasDeposit: p.hasDeposit },
       snap
-        ? { name: snap.name, localImagePath: snap.localImagePath, categoryId: catalogCategoryId, brand: snapBrand, description: snapDescription }
+        ? { name: snap.name, localImagePath: snap.localImagePath, categoryId: catalogCategoryId, brand: snapBrand, description: snapDescription, hasDeposit: snapHasDeposit }
         : null
     )
     rows.push({
@@ -253,6 +258,7 @@ export async function listCatalogMirror(householdId: string): Promise<CatalogMir
         categoryName: p.category?.name ?? null,
         brand: p.brand ?? null,
         description: p.description ?? null,
+        hasDeposit: p.hasDeposit ?? false,
         categorySource: (catSourceByProduct.get(p.id) ?? null) as 'off' | 'globus' | 'manual' | null,
       },
       snapshot: snap
@@ -267,6 +273,7 @@ export async function listCatalogMirror(householdId: string): Promise<CatalogMir
             catalogCategoryId,
             brand: snapBrand,
             description: snapDescription,
+            hasDeposit: snapHasDeposit,
             extracted: snap.extracted ?? null,
             fetchedAt: snap.fetchedAt,
           }
@@ -331,7 +338,7 @@ export async function getSnapshotCounts(householdId: string) {
 export async function applySnapshotToProduct(
   id: string,
   householdId: string,
-  fields: { image?: boolean; name?: boolean; category?: boolean; price?: boolean; brand?: boolean; description?: boolean },
+  fields: { image?: boolean; name?: boolean; category?: boolean; price?: boolean; brand?: boolean; description?: boolean; hasDeposit?: boolean },
   reviewedBy?: string | null,
   // G20-2: explizit im Katalog-Spiegel manuell gewaehlte Ziel-Kategorie. Wenn
   // gesetzt (und fields.category), gewinnt sie ueber das Best-Effort-matchCategoryId
@@ -359,18 +366,18 @@ export async function applySnapshotToProduct(
   let product = snap.productId
     ? await db.query.products.findFirst({
         where: eq(products.id, snap.productId),
-        columns: { id: true, name: true, imageUrl: true, categoryId: true, defaultUnit: true, brand: true, description: true },
+        columns: { id: true, name: true, imageUrl: true, categoryId: true, defaultUnit: true, brand: true, description: true, hasDeposit: true },
       })
     : undefined
   if (!product && snap.gtin) {
     product = await db.query.products.findFirst({
       where: eq(products.gtin, snap.gtin),
-      columns: { id: true, name: true, imageUrl: true, categoryId: true, defaultUnit: true, brand: true, description: true },
+      columns: { id: true, name: true, imageUrl: true, categoryId: true, defaultUnit: true, brand: true, description: true, hasDeposit: true },
     })
   }
   if (!product) return { ok: false, reason: 'no-product' }
 
-  const patch: { name?: string; imageUrl?: string | null; categoryId?: string | null; brand?: string; description?: string } = {}
+  const patch: { name?: string; imageUrl?: string | null; categoryId?: string | null; brand?: string; description?: string; hasDeposit?: boolean } = {}
   // Herkunft der Kategorie: 'globus' beim Auto-Match, 'manual' bei expliziter Wahl (G20-2).
   let categorySource: 'globus' | 'manual' | null = null
 
@@ -395,6 +402,16 @@ export async function applySnapshotToProduct(
   if (snapDescription && (fields.description || !product.description?.trim())) {
     const srcs = await getFieldSources(product.id)
     if (fields.description || srcs.description !== 'manual') patch.description = snapDescription
+  }
+  // Pfandpflicht (G47): nur ja/nein aus dem JSON-LD; Betrag bleibt manuell. Regel wie
+  // oben — angekreuzt ODER am Artikel noch nicht gesetzt; manual-Schutz respektieren.
+  const snapDeposit = extractedVal('has_deposit')
+  if (snapDeposit != null) {
+    const catHasDeposit = snapDeposit.toLowerCase() === 'ja'
+    if (catHasDeposit && (fields.hasDeposit || !product.hasDeposit)) {
+      const srcs = await getFieldSources(product.id)
+      if (fields.hasDeposit || srcs.deposit !== 'manual') patch.hasDeposit = true
+    }
   }
   // Kategorie: 1) explizit manuell gewaehlt (gewinnt, Herkunft 'manual'); sonst
   // 2) Best-Effort per matchCategoryId (Herkunft 'globus'). Manuelle Wahl wird
@@ -436,6 +453,7 @@ export async function applySnapshotToProduct(
     if (patch.imageUrl !== undefined) srcs.image = 'globus'
     if (patch.brand !== undefined) srcs.brand = 'globus'
     if (patch.description !== undefined) srcs.description = 'globus'
+    if (patch.hasDeposit !== undefined) srcs.deposit = 'globus'
     if (patch.categoryId !== undefined && categorySource) srcs.category = categorySource
     await setFieldSources(product.id, srcs)
   }

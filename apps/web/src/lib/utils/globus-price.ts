@@ -196,7 +196,14 @@ export type GlobusDetailData = {
   availability: string | null // z.B. 'InStock'
   priceValidUntil: string | null // ISO-Datum
   seller: string | null
+  // Pfand-Signal (G47): aus der description abgeleitet (EW/Einweg/DUE/Mehrweg/Pfand).
+  // NUR ja/nein — der Betrag ist JS-gerendert (Stufe 2). null = kein Signal/keine description.
+  hasDeposit: boolean | null
 }
+
+// Pfand-Marker in der Globus-description. Belegt (real, Test): 'EW'/'DUE'/'Einweg'.
+// 'MW'/'Mehrwe'/'Pfand' additiv (plausibel, unbelegt — auch Mehrweg ist bepfandet).
+const DEPOSIT_RE = /\b(EW|MW|DUE)\b|Einweg|Mehrweg|Pfand/i
 
 /**
  * Parst die schema.org/Product-JSON-LD-Bloecke einer Globus-Detailseite und
@@ -207,7 +214,7 @@ export type GlobusDetailData = {
 export function parseGlobusDetailJsonLd(html: string | null | undefined): GlobusDetailData {
   const empty: GlobusDetailData = {
     brand: null, description: null, priceCt: null,
-    availability: null, priceValidUntil: null, seller: null,
+    availability: null, priceValidUntil: null, seller: null, hasDeposit: null,
   }
   if (typeof html !== 'string' || html.length === 0) return empty
 
@@ -251,7 +258,9 @@ export function parseGlobusDetailJsonLd(html: string | null | undefined): Globus
           ? ((sellerObj as Record<string, unknown>).name as string)
           : null
 
-      return { brand, description, priceCt, availability, priceValidUntil, seller }
+      const hasDeposit = description != null ? DEPOSIT_RE.test(description) : null
+
+      return { brand, description, priceCt, availability, priceValidUntil, seller, hasDeposit }
     }
   }
   return empty
@@ -308,6 +317,7 @@ export function buildFieldMap(
     push('availability', detail.availability, 'detail-jsonld', 'price')
     push('priceValidUntil', detail.priceValidUntil, 'detail-jsonld', 'price')
     push('seller', detail.seller, 'detail-jsonld', 'store')
+    push('has_deposit', detail.hasDeposit == null ? null : (detail.hasDeposit ? 'ja' : 'nein'), 'detail-jsonld', 'article')
   }
   return out
 }
