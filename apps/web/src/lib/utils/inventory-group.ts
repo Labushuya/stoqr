@@ -24,6 +24,8 @@ export type GroupableItem = {
     defaultUnit?: string | null
     defaultVolumeMl?: string | number | null
     defaultWeightG?: string | number | null
+    hasDeposit?: boolean
+    depositCt?: number | null
   }
 }
 

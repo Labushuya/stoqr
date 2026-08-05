@@ -2,6 +2,7 @@
   import ConfirmModal from '$lib/components/ConfirmModal.svelte'
   import Modal from '$lib/components/Modal.svelte'
   import ProductForm from '$lib/components/ProductForm.svelte'
+  import DepositBadge from '$lib/components/DepositBadge.svelte'
   import type { PageData } from './$types'
   import {
     getExpiryStatus,
@@ -58,6 +59,8 @@
       defaultUnit: string | null
       defaultVolumeMl: string | null
       defaultWeightG: string | null
+      hasDeposit: boolean
+      depositCt: number | null
     }
   }
 
@@ -609,6 +612,10 @@ Das Produkt bleibt im Katalog.`,
               <span class="item-ean">EAN {item.product.gtin}</span>
             {/if}
 
+            {#if item.product.hasDeposit}
+              <DepositBadge depositCt={item.product.depositCt} />
+            {/if}
+
             <!-- MHD badge -->
             {#if expiry.hasDate}
               <span class="mhd-badge {expiry.cssClass}">{expiry.label}</span>
@@ -680,6 +687,9 @@ Das Produkt bleibt im Katalog.`,
                 <span class="product-badge" title="Anzahl Bestände">{group.availableCount}×</span>
                 {#if mhd.hasDate}
                   <span class="mhd-badge {mhd.cssClass}">{mhd.label}</span>
+                {/if}
+                {#if group.product.hasDeposit}
+                  <DepositBadge depositCt={group.product.depositCt} />
                 {/if}
               </span>
             </span>

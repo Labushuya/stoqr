@@ -47,6 +47,9 @@ export async function getInventoryItems(
 					defaultWeightG: true,
 					gtin: true,
 					categoryId: true,
+					// Pfand (G48): fuer das DepositBadge in Inventar-Karten/Artikel-Ansicht.
+					hasDeposit: true,
+					depositCt: true,
 				},
 				with: {
 					category: true,
@@ -459,6 +462,9 @@ export async function listProducts() {
 			defaultUnit: true,
 			gtin: true,
 			imageUrl: true,
+			// Pfand (G48): fuer das DepositBadge in der Artikel-Liste (Einstellungen).
+			hasDeposit: true,
+			depositCt: true,
 		},
 		with: {
 			category: true,

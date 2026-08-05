@@ -108,7 +108,7 @@
 <div class="wrap">
   <header class="top">
     <h1>stoqr — Test-Manifest</h1>
-    <p class="subtitle">Blöcke A–E + F/F2 + G/G6/G7/G8/G10/G11/G12/G13/G15/G16/G17/G18/G19/G20/G21/G22/G24/G25/G26/G27/G28/G29/G30/G31/G32/G33/G34/G35/G36/G37/G39/G40/G41/G42/G43/G44/G45/G46/G47 · logisch aufbauender Durchlauf · Stand nach G47 (Pfand / Leergut)</p>
+    <p class="subtitle">Blöcke A–E + F/F2 + G/G6/G7/G8/G10/G11/G12/G13/G15/G16/G17/G18/G19/G20/G21/G22/G24/G25/G26/G27/G28/G29/G30/G31/G32/G33/G34/G35/G36/G37/G39/G40/G41/G42/G43/G44/G45/G46/G47/G48 · logisch aufbauender Durchlauf · Stand nach G48 (Pfand sichtbar — DepositBadge)</p>
 
     <div class="pre">
       <h2>Voraussetzung (kein Testschritt)</h2>
@@ -733,6 +733,17 @@ const BLOCKS = [
         expect: 'Bei Stück-Artikeln wird das Pfand korrekt je Stück gerechnet. Bei kg/l ohne Gebinde erscheint „+ Pfand ?" bzw. der Hinweis „Pfand nicht berechenbar (Gebinde fehlt)", die Ware wird normal berechnet.' },
       { id: 'G47-4', title: 'Pfand-ja/nein aus der Katalog-Sicherung', steps: ['„Katalog jetzt sichern" bei einem Einweg-Artikel (Beschreibung enthält z.B. „PET EW DUE").', 'Katalog-Spiegel betrachten.'],
         expect: 'Es erscheint eine Diff-Zeile „Pfandpflicht" mit Vorschlag „ja (Betrag manuell)". Ankreuzen + Übernehmen setzt has_deposit am Artikel (Betrag pflegst du selbst). Manuell gesetztes Pfand wird durch erneuten Abruf nicht überschrieben.' },
+    ]
+  },
+  {
+    tag: 'G48', name: 'Pfand sichtbar — einheitliches DepositBadge', desc: 'Pfand ist jetzt als einheitliches blaues Badge „Pfand X €" an allen relevanten Stellen erkennbar (kein Inline-Grautext mehr); Summe getrennt in Ware/Pfand/Summe.',
+    items: [
+      { id: 'G48-1', title: 'Pfand-Badge auf Artikel-Seiten', steps: ['Artikel mit gesetztem Pfand betrachten: (a) Artikel-Detailseite, (b) /inventar Einzelbestands-Karte, (c) /inventar Artikel-Ansicht (aufgeklappt/Karte), (d) Einstellungen → Artikel-Liste.'],
+        expect: 'An ALLEN vier Stellen erscheint dasselbe blaue Badge „Pfand 0,25 €" (eigene Farbe, nicht orange/grün). Artikel OHNE Pfand zeigen kein Badge.' },
+      { id: 'G48-2', title: 'Pfand-Badge in Einkaufsliste + Einkauf', steps: ['Einkaufsliste (Markt gewählt) mit einem pfandpflichtigen Artikel.', 'Denselben Artikel in einem Einkauf (Einkauf-Detailseite).'],
+        expect: 'Je Position erscheint das Pfand-Badge (statt des früheren grauen „+ Pfand"-Textes). Bei kg/l ohne Gebinde: Badge „Pfand ?" mit Tooltip.' },
+      { id: 'G48-3', title: 'Summe getrennt: Ware / Pfand / Summe', steps: ['Einkaufsliste bzw. Einkauf mit mind. einem pfandpflichtigen Artikel + gewähltem Markt.'],
+        expect: 'Die Summe zeigt drei klare Zeilen „Ware X €", „Pfand Y €", „Summe Z €" (kein langer Rechenstring mehr). Ohne Pfand nur eine „Einkauf X €"-Zeile.' },
     ]
   },
   {

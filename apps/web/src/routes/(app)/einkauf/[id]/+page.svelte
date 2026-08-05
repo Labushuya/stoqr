@@ -3,6 +3,7 @@
   import { goto, invalidateAll } from '$app/navigation'
   import { toast } from '$lib/stores/toast'
   import { formatEuroApprox, type LineEstimate, type CostSummary } from '$lib/utils/prices'
+  import DepositBadge from '$lib/components/DepositBadge.svelte'
 
   let { data }: { data: PageData } = $props()
 
@@ -190,9 +191,13 @@
 
     {#if costSummary}
       <div class="cost-summary">
-        <span class="cost-total">
-          Einkauf {formatEuroApprox(costSummary.totalCents)}{#if costSummary.totalDepositCents > 0} + Pfand {formatEuroApprox(costSummary.totalDepositCents)} = {formatEuroApprox(costSummary.totalCents + costSummary.totalDepositCents)}{/if}
-        </span>
+        {#if costSummary.totalDepositCents > 0}
+          <span class="cost-line-row">Ware {formatEuroApprox(costSummary.totalCents)}</span>
+          <span class="cost-line-row cost-line-row--deposit">Pfand {formatEuroApprox(costSummary.totalDepositCents)}</span>
+          <span class="cost-total">Summe {formatEuroApprox(costSummary.totalCents + costSummary.totalDepositCents)}</span>
+        {:else}
+          <span class="cost-total">Einkauf {formatEuroApprox(costSummary.totalCents)}</span>
+        {/if}
         {#if costSummary.isPartial}
           <span class="cost-warn">
             ⚠ Schätzung unvollständig{#if costSummary.itemsWithoutPrice > 0}: {costSummary.itemsWithoutPrice} ohne Preis{/if}{#if costSummary.itemsNotComparable > 0}, {costSummary.itemsNotComparable} Einheit nicht vergleichbar{/if}
@@ -225,6 +230,8 @@
                 {:else if est && !est.comparable}
                   <span class="cost-line cost-line--none">Einheit ≠</span>
                 {/if}
+                {#if est && est.depositCents > 0}<DepositBadge depositCt={est.depositCents} />
+                {:else if est && est.depositUnknown}<DepositBadge unknown />{/if}
               </span>
             </div>
             {#if !isDone}
@@ -311,6 +318,8 @@
   /* ── Kosten-Schätzung (Block F) ───────────────────────────────────────── */
   .cost-summary { display: flex; flex-direction: column; gap: 2px; margin: 0 0 var(--space-3); padding: var(--space-2) var(--space-3); background: var(--color-surface-sunken); border-radius: var(--radius-md); }
   .cost-total { font-size: var(--text-base); font-weight: 700; color: var(--color-text-primary); }
+  .cost-line-row { font-size: var(--text-sm); color: var(--color-text-secondary); }
+  .cost-line-row--deposit { color: #1d4ed8; font-weight: 600; }
   .cost-warn { font-size: var(--text-xs); color: #c2410c; }
   .cost-hint { font-size: var(--text-xs); color: var(--color-text-muted); margin: 0 0 var(--space-3); }
   .cost-line { font-weight: 600; color: var(--color-text-secondary); }

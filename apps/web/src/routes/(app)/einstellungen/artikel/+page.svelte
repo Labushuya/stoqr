@@ -3,6 +3,7 @@
   import { toast } from '$lib/stores/toast'
   import ConfirmModal from '$lib/components/ConfirmModal.svelte'
   import ProductForm from '$lib/components/ProductForm.svelte'
+  import DepositBadge from '$lib/components/DepositBadge.svelte'
 
   // ── Props ──────────────────────────────────────────────────────────────────
 
@@ -22,6 +23,8 @@
     defaultUnit: string
     gtin: string | null
     imageUrl: string | null
+    hasDeposit: boolean
+    depositCt: number | null
     category?: { id: string; name: string } | null
   }
 
@@ -193,6 +196,9 @@
                 <span class="store-name">{product.name}</span>
                 {#if categoryName(product.categoryId)}
                   <span class="chain-badge">{categoryName(product.categoryId)}</span>
+                {/if}
+                {#if product.hasDeposit}
+                  <DepositBadge depositCt={product.depositCt} />
                 {/if}
               </div>
               {#if product.gtin}

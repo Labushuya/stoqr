@@ -5,6 +5,30 @@ Neueste Einträge oben. Jeder Eintrag nennt den Commit-Kontext, damit andere LLM
 
 ---
 
+## [Unreleased] — G48: Pfand sichtbar machen — einheitliches DepositBadge überall (implementiert, Test auf Pi ausstehend)
+
+G47-Nachbesserung. Pfand war in der DB + berechnet, aber **nirgends erkennbar** (Detailseite gar nicht, Einkaufsliste
+nur als schwacher grauer Inline-Text, Einkauf pro Position gar nicht) — Nutzer zu Recht: „Textwüste". Ursache: G47 wich
+vom etablierten Badge-Design ab. Fix: EINE Komponente, überall gleich, im vorhandenen Pill-Muster.
+
+- **Neu `DepositBadge.svelte`** (Vorbild `SourceBadge`): eigene **neutrale Farbe (Blau)** — bewusst nicht orange
+  (Angebot/reserviert) oder grün (günstigster). Fälle: „Pfand 0,25 €" / „Pfand" (Betrag offen) / „Pfand ?" (nicht
+  berechenbar). Kein Badge ohne Pfand.
+- **Sichtbar an 5 Orten:** Artikel-Detailseite (Fakt-Zeile, read-only), Inventar-Karten (Einzel- + Artikel-Ansicht),
+  Einstellungen→Artikel-Liste, Einkaufsliste (Badge statt Grautext), Einkauf-Detail (pro Position, fehlte ganz).
+- **Loader-Lücken geschlossen** (die G47-Ursache): `getInventoryItems` + `listProducts` liefern jetzt
+  `hasDeposit`/`depositCt`.
+- **Summe getrennt & klar** (Einkaufsliste + Einkauf): drei Zeilen „Ware / Pfand / Summe" statt Rechenstring; alte
+  graue `.deposit-line` entfernt.
+
+Gate: typecheck 0, lint 0/33, build ✓, vitest 204/204. **Keine Migration** (Felder aus 0021).
+
+### Commits
+G48 (dieser Commit) — DepositBadge.svelte; getInventoryItems/listProducts +hasDeposit/depositCt + lokale Typen; Badge
+auf Detailseite/Inventar-Karten/Artikelliste/Einkaufsliste/Einkauf; getrennte Summenzeilen. Exakter Hash: siehe `git log`.
+
+---
+
 ## [Unreleased] — G47: Pfand / Leergut (implementiert, Test auf Pi ausstehend)
 
 ROADMAP #5. Pfand als **Artikel**-Eigenschaft, mit Fallback für manuelle Pflege und getrenntem Ausweis.

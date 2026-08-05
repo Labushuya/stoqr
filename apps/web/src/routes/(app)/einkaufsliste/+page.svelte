@@ -5,6 +5,7 @@
   import { buildUnitMetaMap, buildPackSize } from '$lib/utils/stock'
   import { estimateLineCost, summarizeCosts, formatEuroApprox } from '$lib/utils/prices'
   import { rankCheapestStore } from '$lib/utils/price-compare'
+  import DepositBadge from '$lib/components/DepositBadge.svelte'
 
   let { data }: { data: PageData } = $props()
 
@@ -312,9 +313,13 @@
     <p class="filter-hint">Zeigt Artikel für diesen Markt + Einträge ohne Markt. Kein Mischen mehrerer Märkte.</p>
     {#if listSummary}
       <div class="cost-summary">
-        <span class="cost-total">
-          Einkauf {formatEuroApprox(listSummary.totalCents)}{#if listSummary.totalDepositCents > 0} + Pfand {formatEuroApprox(listSummary.totalDepositCents)} = {formatEuroApprox(listSummary.totalCents + listSummary.totalDepositCents)}{/if}
-        </span>
+        {#if listSummary.totalDepositCents > 0}
+          <span class="cost-line-row">Ware {formatEuroApprox(listSummary.totalCents)}</span>
+          <span class="cost-line-row cost-line-row--deposit">Pfand {formatEuroApprox(listSummary.totalDepositCents)}</span>
+          <span class="cost-total">Summe {formatEuroApprox(listSummary.totalCents + listSummary.totalDepositCents)}</span>
+        {:else}
+          <span class="cost-total">Einkauf {formatEuroApprox(listSummary.totalCents)}</span>
+        {/if}
         {#if listSummary.isPartial}
           <span class="cost-warn">
             ⚠ Schätzung unvollständig{#if listSummary.itemsWithoutPrice > 0}: {listSummary.itemsWithoutPrice} ohne Preis{/if}{#if listSummary.itemsNotComparable > 0}, {listSummary.itemsNotComparable} Einheit nicht vergleichbar{/if}
@@ -352,8 +357,8 @@
                 {#if est && est.cents != null}<span class="cost-line">{formatEuroApprox(est.cents)}</span>
                 {:else if est && !est.hasPrice}<span class="cost-line cost-line--none">kein Preis</span>
                 {:else if est && !est.comparable}<span class="cost-line cost-line--none">Einheit ≠</span>{/if}
-                {#if est && est.depositCents > 0}<span class="deposit-line" title="Pfand">+ Pfand {formatEuroApprox(est.depositCents)}</span>
-                {:else if est && est.depositUnknown}<span class="cost-line cost-line--none" title="Pfand nicht berechenbar (Gebinde fehlt)">+ Pfand ?</span>{/if}
+                {#if est && est.depositCents > 0}<DepositBadge depositCt={est.depositCents} />
+                {:else if est && est.depositUnknown}<DepositBadge unknown />{/if}
                 {#if cheapest}<span class="cheapest-hint" title="Günstigster Markt pro Basiseinheit">günstigster: {storeName(cheapest)}</span>{/if}
               </span>
             </div>
@@ -490,5 +495,6 @@
   .cost-line { font-weight: 600; color: var(--color-text-secondary); }
   .cost-line--none { font-weight: 400; color: var(--color-text-muted); font-style: italic; }
   .cheapest-hint { color: var(--color-success, #16a34a); font-size: 11px; font-weight: 600; }
-  .deposit-line { color: var(--color-text-muted); font-size: 11px; font-weight: 600; }
+  .cost-line-row { font-size: var(--text-sm); color: var(--color-text-secondary); }
+  .cost-line-row--deposit { color: #1d4ed8; font-weight: 600; }
 </style>

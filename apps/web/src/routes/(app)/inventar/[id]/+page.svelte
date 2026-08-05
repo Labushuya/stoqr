@@ -5,6 +5,7 @@
   import Modal from '$lib/components/Modal.svelte'
   import ProductForm from '$lib/components/ProductForm.svelte'
   import SourceBadge from '$lib/components/SourceBadge.svelte'
+  import DepositBadge from '$lib/components/DepositBadge.svelte'
   import type { PageData } from './$types'
   import { formatDate, formatStockTotal } from '$lib/utils/format'
   import { getExpiryStatus, getDaysRemaining, getExpiryLabel, EXPIRY_CLASS } from '$lib/utils/expiry'
@@ -1209,6 +1210,13 @@
           </button>
         {/if}
       </div>
+
+      <!-- Pfand (G48): read-only Fakt-Zeile; Aendern ueber den Bearbeiten-Dialog. -->
+      {#if product.hasDeposit}
+        <div class="pack-row">
+          <span class="pack-view">Pfand: <DepositBadge depositCt={product.depositCt} /></span>
+        </div>
+      {/if}
     {/if}
   </div>
 
