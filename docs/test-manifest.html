@@ -108,7 +108,7 @@
 <div class="wrap">
   <header class="top">
     <h1>stoqr — Test-Manifest</h1>
-    <p class="subtitle">Blöcke A–E + F/F2 + G/G6/G7/G8/G10/G11/G12/G13/G15/G16/G17/G18/G19/G20/G21/G22/G24/G25/G26/G27/G28/G29/G30/G31/G32/G33/G34/G35/G36/G37/G39/G40/G41/G42/G43/G44/G45/G46/G47/G48/G49/G50 · logisch aufbauender Durchlauf · Stand nach G50 (Pfand-Betrag-fehlt-Hinweis)</p>
+    <p class="subtitle">Blöcke A–E + F/F2 + G/G6/G7/G8/G10/G11/G12/G13/G15/G16/G17/G18/G19/G20/G21/G22/G24/G25/G26/G27/G28/G29/G30/G31/G32/G33/G34/G35/G36/G37/G39/G40/G41/G42/G43/G44/G45/G46/G47/G48/G49/G50/G51 · logisch aufbauender Durchlauf · Stand nach G51 (Artikel direkt öffnen ohne Deeplink-Scroll)</p>
 
     <div class="pre">
       <h2>Voraussetzung (kein Testschritt)</h2>
@@ -762,6 +762,19 @@ const BLOCKS = [
     items: [
       { id: 'G50-1', title: 'Amber-Warn-Badge bei fehlendem Betrag', steps: ['Artikel per Katalog-Sicherung „Pfandpflicht: ja" übernehmen (Betrag nicht mitgeliefert).', 'Artikel auf Detailseite / Inventar-Karte / Artikelliste betrachten.'],
         expect: 'Das Pfand-Badge erscheint AMBER/gelb gestrichelt mit Text „Pfand — Betrag?" (nicht das ruhige Blau), Tooltip „bitte am Artikel nachpflegen". Nach manuellem Setzen eines Betrags → wieder blaues „Pfand X €".' },
+    ]
+  },
+  {
+    tag: 'G51', name: 'Artikel direkt öffnen ohne Deeplink-Scroll', desc: 'Zusaetzlich zum bestehenden Bestand-Klick (Artikelseite scrollt zum Bestand + rotes Flash) kann man den Artikel selbst oeffnen, ohne Scroll-to-Bestand. Beide Wege parallel. Neue Artikel-Links haengen ?scroll=0 an; die Artikelseite ueberspringt dann im onMount den Deeplink-Scroll+Flash.',
+    items: [
+      { id: 'G51-1', title: 'Bestand-Klick unveraendert (Regression)', steps: ['Inventar → Ansicht „Nach Artikel" (Accordion). Einen Artikel mit MEHREREN Beständen aufklappen.', 'Auf eine einzelne Bestand-Zeile klicken.'],
+        expect: 'Artikelseite oeffnet, scrollt automatisch zu genau diesem Bestand und hebt ihn ~5 s pulsierend rot hervor (wie bisher). URL ohne ?scroll=0.' },
+      { id: 'G51-2', title: 'Product-View: „Zur Artikelübersicht" ohne Scroll', steps: ['Inventar → „Nach Artikel". Einen Artikel aufklappen.', 'Ganz oben im aufgeklappten Bereich — ÜBER den Beständen — auf „Zur Artikelübersicht" klicken.'],
+        expect: 'Artikelseite oeffnet OHNE Scroll und OHNE rotes Flash; die Seite startet oben. Artikel + alle Bestände sind sichtbar. Das Aufklappen/Zuklappen der Karte selbst funktioniert weiterhin normal (Klick auf Kopfzeile/Chevron).' },
+      { id: 'G51-3', title: 'Item-View: Klick auf die Card ohne Scroll', steps: ['Inventar → Ansicht „Einzelbestände" (Grid).', 'Auf die Karten-FLÄCHE klicken (Bild/Name/Menge — NICHT die drei Punkte).'],
+        expect: 'Artikelseite oeffnet OHNE Scroll und OHNE rotes Flash (Seite startet oben) — wie „Bearbeiten" im Menue, nur ohne Scroll.' },
+      { id: 'G51-4', title: 'Item-View: 3-Punkte-Menü bleibt separat', steps: ['Gleiche Grid-Ansicht: auf die drei Punkte (⋮) einer Karte klicken.', 'Im Menü „Bearbeiten" wählen.'],
+        expect: 'Der Klick auf ⋮ oeffnet NUR das Menü (navigiert NICHT zur Artikelseite). „Bearbeiten" fuehrt wie gewohnt zur Artikelseite. Kein Doppel-Effekt / kein versehentliches Navigieren beim Menue-Oeffnen.' },
     ]
   },
   {
