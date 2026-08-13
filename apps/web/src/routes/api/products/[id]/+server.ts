@@ -4,6 +4,7 @@ import { deleteProduct, updateProduct, getProductById, setFieldSources, type Pro
 import { requireHouseholdId, getUnits } from '$lib/server/queries/households'
 import { writeAudit } from '$lib/server/queries/audit'
 import { isUniqueViolation } from '$lib/server/db-errors'
+import { buildUnitMetaMap, isCountUnit, type UnitRow } from '$lib/utils/stock'
 import { db } from '$lib/server/db'
 
 /**
@@ -60,12 +61,23 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
     if (gtin !== undefined) patch.gtin = gtin ? String(gtin).trim() : null
     // Bild-URL: leerer String → null
     if (imageUrl !== undefined) patch.imageUrl = imageUrl ? String(imageUrl).trim() : null
-    // Pfand (G47): has_deposit + Betrag; bei has_deposit=false Betrag auf null normalisieren.
-    if (hasDeposit !== undefined) {
-      patch.hasDeposit = hasDeposit
-      patch.depositCt = hasDeposit ? (depositCt ?? null) : null
-    } else if (depositCt !== undefined) {
-      patch.depositCt = depositCt
+    // Pfand (G49): NUR bei count-Einheiten (Flasche/Dose/Stück). Bei mass/volume
+    // (kg/l/g/ml) wird Pfand hart auf false/null erzwungen — robuste Invariante
+    // unabhängig vom UI (Nicht-Form-Pfade, Altdaten). Effektive Einheit = neue
+    // defaultUnit (falls im Patch) sonst die bestehende.
+    if (hasDeposit !== undefined || depositCt !== undefined) {
+      const units = await getUnits(householdId)
+      const metaMap = buildUnitMetaMap(units as UnitRow[])
+      const existing = await getProductById(params.id)
+      const effectiveUnit = (patch.defaultUnit as string | undefined) ?? existing?.defaultUnit ?? 'piece'
+      const countOk = isCountUnit(effectiveUnit, metaMap)
+      if (hasDeposit !== undefined) {
+        patch.hasDeposit = countOk ? hasDeposit : false
+        patch.depositCt = countOk && hasDeposit ? (depositCt ?? null) : null
+      } else if (depositCt !== undefined) {
+        // depositCt allein (ohne hasDeposit) nur akzeptieren, wenn count.
+        patch.depositCt = countOk ? depositCt : null
+      }
     }
 
     // Gebinde-Größe: genau EINE Dimension. 'none' oder ungültig → beide null (kein Gebinde).

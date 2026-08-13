@@ -14,7 +14,7 @@
   // ---------------------------------------------------------------------------
 
   type Category = { id: string; name: string; parentId?: string | null; icon?: string | null; sortOrder?: number }
-  type UnitOption = { symbol: string; name: string }
+  type UnitOption = { symbol: string; name: string; dimension?: string | null }
   type ProductInput = {
     id: string
     name: string
@@ -86,6 +86,15 @@
   // Pfand (G47): Checkbox + Betrag in Cent.
   let fHasDeposit = $state(false)
   let fDepositCt = $state<number | null>(null)
+  // Pfand nur bei count-Einheiten (G49): dimension der gewaehlten Standard-Einheit.
+  // Fehlt die Dimension in den Optionen (z.B. Detailseite ohne showUnit), Fallback
+  // ueber das Symbol: unbekannt gilt als count. Editiert wird die Einheit hier nur
+  // wenn showUnit; sonst zaehlt product.defaultUnit.
+  const fUnitIsCount = $derived.by(() => {
+    const sym = showUnit ? fUnit : (product?.defaultUnit ?? fUnit)
+    const dim = units.find((u) => u.symbol === sym)?.dimension
+    return (dim ?? 'count') === 'count'
+  })
   let saving = $state(false)
   let error = $state<string | null>(null)
 
@@ -141,8 +150,8 @@
       categoryId: fCategoryId || null,
       imageUrl: fImageUrl.trim() || null,
       description: fDescription.trim() || null,
-      hasDeposit: fHasDeposit,
-      depositCt: fHasDeposit ? fDepositCt : null,
+      hasDeposit: fUnitIsCount && fHasDeposit,
+      depositCt: fUnitIsCount && fHasDeposit ? fDepositCt : null,
     }
     if (showUnit) payload.defaultUnit = fUnit
     try {
@@ -250,13 +259,15 @@
           <textarea class="pf-input pf-textarea" bind:value={fDescription} rows="2" placeholder="optional"></textarea>
         </label>
 
-        <!-- Pfand (G47) -->
+        <!-- Pfand (G47/G49) — nur fuer count-Einheiten (Flasche/Dose/Stück) -->
         <div class="pf-field pf-field--full">
-          <label class="pf-check">
-            <input type="checkbox" bind:checked={fHasDeposit} />
+          <label class="pf-check" class:pf-check--disabled={!fUnitIsCount}>
+            <input type="checkbox" bind:checked={fHasDeposit} disabled={!fUnitIsCount} />
             <span class="pf-label">Pfand</span>
           </label>
-          {#if fHasDeposit}
+          {#if !fUnitIsCount}
+            <p class="pf-hint">Pfand nur für Stück-Einheiten (z.&nbsp;B. Flasche, Dose).</p>
+          {:else if fHasDeposit}
             <div class="pf-deposit">
               {#each [8, 15, 16, 25] as ct (ct)}
                 <button
@@ -343,6 +354,8 @@
   .pf-field--full { flex-basis: 100%; }
   /* Pfand (G47) */
   .pf-check { display: inline-flex; align-items: center; gap: var(--space-2); cursor: pointer; }
+  .pf-check--disabled { opacity: 0.55; cursor: not-allowed; }
+  .pf-hint { font-size: var(--text-xs); color: var(--color-text-muted); margin: var(--space-1) 0 0; }
   .pf-deposit { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin-top: var(--space-2); }
   .pf-chip {
     border: 1px solid var(--color-border); background: var(--color-surface); color: var(--color-text-secondary);

@@ -5,6 +5,33 @@ Neueste Einträge oben. Jeder Eintrag nennt den Commit-Kontext, damit andere LLM
 
 ---
 
+## [Unreleased] — G49: Pfand-Fixes — an count-Einheit gebunden + Card/Bearbeiten-Dialog korrigiert (implementiert, Test auf Pi ausstehend)
+
+Aus dem G47/G48-Test, zwei Bugs + fachliche Klarstellung (Root-Causes per Workflow belegt):
+
+- **Fachlich:** Pfand gibt es real NUR auf **count-Gebinde** (Flasche/Dose/Stück), nicht auf kg/l/g/ml. Damit entfällt
+  der ganze „Pfand ohne Gebinde nicht berechenbar" (`depositUnknown`/„Pfand ?")-Sonderfall komplett.
+  - `ProductForm`: Pfand-Checkbox nur aktiv bei count-Einheit; sonst **gesperrt + Hinweis** „Pfand nur für Stück-Einheiten".
+  - **Server-Guard** (POST/PATCH `/api/products`): Pfand hart auf false/null, wenn die effektive Einheit nicht count ist
+    (robuste Invariante gegen Nicht-Form-Pfade/Altdaten; behebt auch den else-if-Pfad, der `depositCt` ohne `hasDeposit` schrieb).
+  - `estimateLineCost`: Pfand nur im count-Zweig; mass/volume → kein Pfand. `depositUnknown` + `itemsDepositUnknown` entfernt.
+  - Alle Badges nur bei `hasDeposit && count` — Altdaten (kg+Pfand) werden ignoriert (kein Badge, keine Rechnung).
+- **Bug 1a (Card verschwand):** die Pfand-Fakt-Zeile auf der Detailseite hing fälschlich IM count-Gebinde-`{#if}`-Block
+  → bei kg (mass) nicht gerendert. Jetzt eigenständige Zeile (`isCountUnit`-gated).
+- **Bug 2 (Bearbeiten-Dialog spiegelt nicht):** der ProductForm-Aufruf baute ein reduziertes product-Literal OHNE
+  `hasDeposit`/`depositCt` → Checkbox blieb leer trotz gesetztem Pfand. Ergänzt (Marke/Beschreibung waren bereits drin)
+  → alle übernommenen Werte im Bearbeiten-Modus vorbefüllt.
+- Neuer reiner Helfer `isCountUnit(symbol, metaMap)` (stock.ts).
+
+Gate: typecheck 0, lint 0/33, build ✓, vitest 204/204. **Keine Migration** (nur Logik/Guards/Anzeige; Felder aus 0021).
+
+### Commits
+G49 (dieser Commit) — Pfand an count gebunden (ProductForm-Gate + Server-Guard + estimateLineCost); depositUnknown-UI
+entfernt; Card aus count-Block gelöst; ProductForm-Literal +hasDeposit/depositCt; Badges count-gated; isCountUnit + Tests.
+Exakter Hash: siehe `git log`.
+
+---
+
 ## [Unreleased] — G48: Pfand sichtbar machen — einheitliches DepositBadge überall (implementiert, Test auf Pi ausstehend)
 
 G47-Nachbesserung. Pfand war in der DB + berechnet, aber **nirgends erkennbar** (Detailseite gar nicht, Einkaufsliste

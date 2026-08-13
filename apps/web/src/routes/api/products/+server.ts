@@ -1,9 +1,10 @@
 import { json } from '@sveltejs/kit'
 import type { RequestHandler } from './$types'
 import { searchProducts, createProduct, getProductById, setFieldSources, type ProductField } from '$lib/server/queries/products'
-import { requireHouseholdId } from '$lib/server/queries/households'
+import { requireHouseholdId, getUnits } from '$lib/server/queries/households'
 import { writeAudit } from '$lib/server/queries/audit'
 import { isUniqueViolation } from '$lib/server/db-errors'
+import { buildUnitMetaMap, isCountUnit, type UnitRow } from '$lib/utils/stock'
 
 export const GET: RequestHandler = async ({ locals, url }) => {
   if (!locals.user) {
@@ -51,6 +52,10 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 
   try {
     const householdId = await requireHouseholdId(locals.user.id)
+    // Pfand (G49): nur bei count-Einheiten; sonst hart auf false/null.
+    const effectiveUnit = defaultUnit || 'piece'
+    const metaMap = buildUnitMetaMap((await getUnits(householdId)) as UnitRow[])
+    const countOk = isCountUnit(effectiveUnit, metaMap)
     const productId = await createProduct({
       name,
       brand: brand ?? undefined,
@@ -65,8 +70,8 @@ export const POST: RequestHandler = async ({ locals, request }) => {
       defaultVolumeMl: defaultVolumeMl ?? undefined,
       expiryToleranceDays: expiryToleranceDays ?? undefined,
       bringItemId: bringItemId ?? undefined,
-      hasDeposit: hasDeposit ?? undefined,
-      depositCt: hasDeposit ? (depositCt ?? null) : null,
+      hasDeposit: countOk ? (hasDeposit ?? undefined) : false,
+      depositCt: countOk && hasDeposit ? (depositCt ?? null) : null,
       offData: offData ?? undefined,
       createdBy: locals.user.id,
     })
@@ -80,7 +85,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
     if (imageUrl) srcs.image = 'manual'
     if (categoryId) srcs.category = 'manual'
     if (defaultUnit) srcs.unit = 'manual'
-    if (hasDeposit) srcs.deposit = 'manual'
+    if (countOk && hasDeposit) srcs.deposit = 'manual'
     await setFieldSources(productId, srcs)
 
     await writeAudit({

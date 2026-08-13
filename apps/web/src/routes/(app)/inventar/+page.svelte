@@ -11,7 +11,7 @@
     EXPIRY_CLASS,
   } from '$lib/utils/expiry'
   import { onMount } from 'svelte'
-  import { buildUnitMetaMap } from '$lib/utils/stock'
+  import { buildUnitMetaMap, isCountUnit } from '$lib/utils/stock'
   import { groupInventoryByProduct } from '$lib/utils/inventory-group'
   import { formatStockTotal } from '$lib/utils/format'
   import { formatRelativeDays } from '$lib/utils/relative-time'
@@ -132,7 +132,7 @@
 
   // Einheiten-Optionen für die Standard-Einheit (ProductForm).
   // svelte-ignore state_referenced_locally
-  const unitOptions = (data.units as { id: string; name: string; symbol: string }[]) ?? []
+  const unitOptions = (data.units as { id: string; name: string; symbol: string; dimension?: string | null }[]) ?? []
 
   // Expiry-Schwellen aus den Haushalts-Einstellungen (statt Hardcodes) — G39.
   // $derived, damit ein invalidateAll die Schwellen mitzieht (reaktivitätssicher).
@@ -612,7 +612,7 @@ Das Produkt bleibt im Katalog.`,
               <span class="item-ean">EAN {item.product.gtin}</span>
             {/if}
 
-            {#if item.product.hasDeposit}
+            {#if item.product.hasDeposit && isCountUnit(item.product.defaultUnit, unitMetaMap)}
               <DepositBadge depositCt={item.product.depositCt} />
             {/if}
 
@@ -688,7 +688,7 @@ Das Produkt bleibt im Katalog.`,
                 {#if mhd.hasDate}
                   <span class="mhd-badge {mhd.cssClass}">{mhd.label}</span>
                 {/if}
-                {#if group.product.hasDeposit}
+                {#if group.product.hasDeposit && isCountUnit(group.product.defaultUnit, unitMetaMap)}
                   <DepositBadge depositCt={group.product.depositCt} />
                 {/if}
               </span>

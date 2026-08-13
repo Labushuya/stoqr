@@ -1,31 +1,24 @@
 <script lang="ts">
   // ---------------------------------------------------------------------------
-  // DepositBadge — kleines Pfand-Pill (G48). EINE einheitliche Darstellung fuer
-  // Pfand an allen Stellen (Artikel-Detailseite, Inventar-Karten, Einstellungen>
-  // Artikel, Einkaufsliste, Einkauf). Eigene, neutrale Farbe (Blau) — bewusst NICHT
-  // orange (=Angebot/reserviert) oder gruen (=guenstigster), damit Pfand als eigenes
-  // Konzept erkennbar bleibt.
+  // DepositBadge — kleines Pfand-Pill (G48/G49). EINE einheitliche Darstellung fuer
+  // Pfand an allen Stellen. Eigene, neutrale Farbe (Blau) — bewusst NICHT orange
+  // (=Angebot/reserviert) oder gruen (=guenstigster). Pfand ist an count-Einheiten
+  // gebunden (Flasche/Dose/Stück), daher immer ein konkreter Betrag.
   //
-  //  depositCt > 0        → „Pfand 0,25 €"
-  //  depositCt == null    → „Pfand" (pflichtig, Betrag noch offen)
-  //  unknown == true      → „Pfand ?" (nicht berechenbar — Gebinde fehlt)
+  //  depositCt > 0     → „Pfand 0,25 €"
+  //  depositCt == null → „Pfand" (pflichtig, Betrag noch offen)
   // ---------------------------------------------------------------------------
 
-  let { depositCt = null, unknown = false }: { depositCt?: number | null; unknown?: boolean } = $props()
+  let { depositCt = null }: { depositCt?: number | null } = $props()
 
   const label = $derived(
-    unknown
-      ? 'Pfand ?'
-      : depositCt != null && depositCt > 0
-        ? `Pfand ${(depositCt / 100).toLocaleString('de-DE', { minimumFractionDigits: 2 })} €`
-        : 'Pfand'
-  )
-  const title = $derived(
-    unknown ? 'Pfand nicht berechenbar — Gebinde fehlt' : 'Pfand (Leergut)'
+    depositCt != null && depositCt > 0
+      ? `Pfand ${(depositCt / 100).toLocaleString('de-DE', { minimumFractionDigits: 2 })} €`
+      : 'Pfand'
   )
 </script>
 
-<span class="deposit-badge" class:deposit-badge--unknown={unknown} {title}>{label}</span>
+<span class="deposit-badge" title="Pfand (Leergut)">{label}</span>
 
 <style>
   .deposit-badge {
@@ -40,10 +33,5 @@
     vertical-align: middle;
     line-height: 1.4;
     white-space: nowrap;
-  }
-  .deposit-badge--unknown {
-    background: var(--color-surface-sunken);
-    color: var(--color-text-muted);
-    font-weight: 600;
   }
 </style>

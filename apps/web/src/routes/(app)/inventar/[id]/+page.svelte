@@ -9,7 +9,7 @@
   import type { PageData } from './$types'
   import { formatDate, formatStockTotal } from '$lib/utils/format'
   import { getExpiryStatus, getDaysRemaining, getExpiryLabel, EXPIRY_CLASS } from '$lib/utils/expiry'
-  import { buildUnitMetaMap, pickPackDisplayUnit, packToDisplay, type UnitRow } from '$lib/utils/stock'
+  import { buildUnitMetaMap, pickPackDisplayUnit, packToDisplay, isCountUnit, type UnitRow } from '$lib/utils/stock'
   import { rankCheapestStore } from '$lib/utils/price-compare'
   import { formatRelativeDays } from '$lib/utils/relative-time'
 
@@ -20,7 +20,7 @@
   // ── Types ─────────────────────────────────────────────────────────────────
 
   type NutrientType = { id: string; slug: string; name: string; unit: string; parentId: string | null; sortOrder: number }
-  type Unit = { id: string; name: string; symbol: string }
+  type Unit = { id: string; name: string; symbol: string; dimension?: string | null }
   type LocSegment = { id: string; name: string; kind: 'location' | 'storage' | 'place' }
   type Sibling = {
     id: string
@@ -1210,13 +1210,14 @@
           </button>
         {/if}
       </div>
+    {/if}
 
-      <!-- Pfand (G48): read-only Fakt-Zeile; Aendern ueber den Bearbeiten-Dialog. -->
-      {#if product.hasDeposit}
-        <div class="pack-row">
-          <span class="pack-view">Pfand: <DepositBadge depositCt={product.depositCt} /></span>
-        </div>
-      {/if}
+    <!-- Pfand (G49): eigenstaendige Fakt-Zeile (NICHT im count-Gebinde-Block),
+         read-only; Aendern ueber den Bearbeiten-Dialog. Nur bei count-Einheit. -->
+    {#if product.hasDeposit && isCountUnit(product.defaultUnit, unitMeta)}
+      <div class="pack-row">
+        <span class="pack-view">Pfand: <DepositBadge depositCt={product.depositCt} /></span>
+      </div>
     {/if}
   </div>
 
@@ -1733,6 +1734,8 @@
     imageUrl: product.imageUrl,
     defaultUnit: product.defaultUnit,
     description: product.description,
+    hasDeposit: product.hasDeposit,
+    depositCt: product.depositCt,
   }}
   {categories}
   units={units}

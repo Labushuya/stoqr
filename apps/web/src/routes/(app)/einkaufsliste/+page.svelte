@@ -325,9 +325,6 @@
             ⚠ Schätzung unvollständig{#if listSummary.itemsWithoutPrice > 0}: {listSummary.itemsWithoutPrice} ohne Preis{/if}{#if listSummary.itemsNotComparable > 0}, {listSummary.itemsNotComparable} Einheit nicht vergleichbar{/if}
           </span>
         {/if}
-        {#if listSummary.itemsDepositUnknown > 0}
-          <span class="cost-warn">Pfand bei {listSummary.itemsDepositUnknown} Position(en) nicht berechenbar (Gebinde fehlt).</span>
-        {/if}
       </div>
     {/if}
   {:else}
@@ -357,8 +354,7 @@
                 {#if est && est.cents != null}<span class="cost-line">{formatEuroApprox(est.cents)}</span>
                 {:else if est && !est.hasPrice}<span class="cost-line cost-line--none">kein Preis</span>
                 {:else if est && !est.comparable}<span class="cost-line cost-line--none">Einheit ≠</span>{/if}
-                {#if est && est.depositCents > 0}<DepositBadge depositCt={est.depositCents} />
-                {:else if est && est.depositUnknown}<DepositBadge unknown />{/if}
+                {#if est && est.depositCents > 0}<DepositBadge depositCt={est.depositCents} />{/if}
                 {#if cheapest}<span class="cheapest-hint" title="Günstigster Markt pro Basiseinheit">günstigster: {storeName(cheapest)}</span>{/if}
               </span>
             </div>

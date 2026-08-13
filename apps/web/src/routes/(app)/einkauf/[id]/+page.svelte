@@ -203,9 +203,6 @@
             ⚠ Schätzung unvollständig{#if costSummary.itemsWithoutPrice > 0}: {costSummary.itemsWithoutPrice} ohne Preis{/if}{#if costSummary.itemsNotComparable > 0}, {costSummary.itemsNotComparable} Einheit nicht vergleichbar{/if}
           </span>
         {/if}
-        {#if costSummary.itemsDepositUnknown > 0}
-          <span class="cost-warn">Pfand bei {costSummary.itemsDepositUnknown} Position(en) nicht berechenbar (Gebinde fehlt).</span>
-        {/if}
       </div>
     {:else if !trip.storeId && trip.items.length > 0}
       <p class="cost-hint">Kein Markt zugeordnet — keine Preisschätzung möglich.</p>
@@ -230,8 +227,7 @@
                 {:else if est && !est.comparable}
                   <span class="cost-line cost-line--none">Einheit ≠</span>
                 {/if}
-                {#if est && est.depositCents > 0}<DepositBadge depositCt={est.depositCents} />
-                {:else if est && est.depositUnknown}<DepositBadge unknown />{/if}
+                {#if est && est.depositCents > 0}<DepositBadge depositCt={est.depositCents} />{/if}
               </span>
             </div>
             {#if !isDone}

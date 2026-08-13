@@ -63,6 +63,16 @@ export function buildUnitMetaMap(units: UnitRow[]): Map<string, UnitMeta> {
   return map
 }
 
+/**
+ * Ist die Einheit eine count-Einheit (Stück/Flasche/Dose/…)? Pfand (G49) ist an
+ * count gebunden — mass/volume (kg/l/g/ml) haben kein Pfand. Unbekanntes Symbol
+ * ohne Meta gilt als count (Default in resolveUnitMeta).
+ */
+export function isCountUnit(unitSymbol: string | null | undefined, metaMap: Map<string, UnitMeta>): boolean {
+  if (!unitSymbol) return false
+  return (metaMap.get(unitSymbol)?.dimension ?? 'count') === 'count'
+}
+
 // Reihenfolge der Gruppen: count zuerst, dann mass, dann volume (deterministisch).
 const DIMENSION_ORDER: Record<Dimension, number> = { count: 0, mass: 1, volume: 2 }
 

@@ -4,6 +4,7 @@
   import ConfirmModal from '$lib/components/ConfirmModal.svelte'
   import ProductForm from '$lib/components/ProductForm.svelte'
   import DepositBadge from '$lib/components/DepositBadge.svelte'
+  import { buildUnitMetaMap, isCountUnit, type UnitRow } from '$lib/utils/stock'
 
   // ── Props ──────────────────────────────────────────────────────────────────
 
@@ -12,7 +13,7 @@
   // ── Types ────────────────────────────────────────────────────────────────
 
   type Category = { id: string; name: string }
-  type UnitOption = { symbol: string; name: string }
+  type UnitOption = { symbol: string; name: string; dimension?: string | null }
   type Product = {
     id: string
     name: string
@@ -37,6 +38,7 @@
 
   const categories = $derived(data.categories as Category[])
   const units = $derived((data.units as UnitOption[]) ?? [])
+  const unitMetaMap = $derived(buildUnitMetaMap(units as unknown as UnitRow[]))
 
   // Gemeinsame Artikel-Bearbeitung (G11): null-product = Anlegen.
   let formOpen = $state(false)
@@ -197,7 +199,7 @@
                 {#if categoryName(product.categoryId)}
                   <span class="chain-badge">{categoryName(product.categoryId)}</span>
                 {/if}
-                {#if product.hasDeposit}
+                {#if product.hasDeposit && isCountUnit(product.defaultUnit, unitMetaMap)}
                   <DepositBadge depositCt={product.depositCt} />
                 {/if}
               </div>

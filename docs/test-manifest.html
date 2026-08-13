@@ -108,7 +108,7 @@
 <div class="wrap">
   <header class="top">
     <h1>stoqr — Test-Manifest</h1>
-    <p class="subtitle">Blöcke A–E + F/F2 + G/G6/G7/G8/G10/G11/G12/G13/G15/G16/G17/G18/G19/G20/G21/G22/G24/G25/G26/G27/G28/G29/G30/G31/G32/G33/G34/G35/G36/G37/G39/G40/G41/G42/G43/G44/G45/G46/G47/G48 · logisch aufbauender Durchlauf · Stand nach G48 (Pfand sichtbar — DepositBadge)</p>
+    <p class="subtitle">Blöcke A–E + F/F2 + G/G6/G7/G8/G10/G11/G12/G13/G15/G16/G17/G18/G19/G20/G21/G22/G24/G25/G26/G27/G28/G29/G30/G31/G32/G33/G34/G35/G36/G37/G39/G40/G41/G42/G43/G44/G45/G46/G47/G48/G49 · logisch aufbauender Durchlauf · Stand nach G49 (Pfand an Stück-Einheit gebunden)</p>
 
     <div class="pre">
       <h2>Voraussetzung (kein Testschritt)</h2>
@@ -729,8 +729,8 @@ const BLOCKS = [
         expect: 'Die Pfand-Auswahl erscheint erst wenn die Checkbox an ist; der gewählte Betrag bleibt nach dem Speichern/erneuten Öffnen erhalten. Checkbox aus → Betrag wird entfernt.' },
       { id: 'G47-2', title: 'Preis-Fallback: „Preis enthält Pfand"', steps: ['Beim Artikel Pfand 0,25 € setzen.', 'Preis 0,69 € erfassen mit Häkchen „Preis enthält Pfand" AUS.', 'Einkaufsliste (Markt gewählt) betrachten.'],
         expect: 'Die Position zeigt Ware getrennt vom Pfand („+ Pfand 0,25 €"); die Gesamtsumme weist „Einkauf X + Pfand Y = Z" aus. Mit Häkchen AN wird kein zusätzliches Pfand addiert (kein Doppelzählen).' },
-      { id: 'G47-3', title: 'Pfand je Stück / nicht berechenbar ohne Gebinde', steps: ['Count-Artikel (z.B. Flaschen) mit Pfand → Einkaufsliste: Pfand = Anzahl × Betrag.', 'Mengen-Artikel (kg/l) mit Pfand aber OHNE hinterlegtes Gebinde → Einkaufsliste.'],
-        expect: 'Bei Stück-Artikeln wird das Pfand korrekt je Stück gerechnet. Bei kg/l ohne Gebinde erscheint „+ Pfand ?" bzw. der Hinweis „Pfand nicht berechenbar (Gebinde fehlt)", die Ware wird normal berechnet.' },
+      { id: 'G47-3', title: 'Pfand nur bei Stück-Einheiten (G49)', steps: ['Count-Artikel (Einheit Flasche/Dose/Stück) mit Pfand → Einkaufsliste: Pfand = Anzahl × Betrag.', 'Artikel mit Einheit kg/l bearbeiten: Pfand-Checkbox betrachten.'],
+        expect: 'Bei Stück-Artikeln wird das Pfand korrekt je Stück gerechnet + Badge gezeigt. Bei kg/l ist die Pfand-Checkbox GESPERRT mit Hinweis „Pfand nur für Stück-Einheiten"; kein Badge, keine Pfand-Rechnung. (Kein „Pfand ?"/„nicht berechenbar" mehr — Fall entfällt.)' },
       { id: 'G47-4', title: 'Pfand-ja/nein aus der Katalog-Sicherung', steps: ['„Katalog jetzt sichern" bei einem Einweg-Artikel (Beschreibung enthält z.B. „PET EW DUE").', 'Katalog-Spiegel betrachten.'],
         expect: 'Es erscheint eine Diff-Zeile „Pfandpflicht" mit Vorschlag „ja (Betrag manuell)". Ankreuzen + Übernehmen setzt has_deposit am Artikel (Betrag pflegst du selbst). Manuell gesetztes Pfand wird durch erneuten Abruf nicht überschrieben.' },
     ]
@@ -740,10 +740,21 @@ const BLOCKS = [
     items: [
       { id: 'G48-1', title: 'Pfand-Badge auf Artikel-Seiten', steps: ['Artikel mit gesetztem Pfand betrachten: (a) Artikel-Detailseite, (b) /inventar Einzelbestands-Karte, (c) /inventar Artikel-Ansicht (aufgeklappt/Karte), (d) Einstellungen → Artikel-Liste.'],
         expect: 'An ALLEN vier Stellen erscheint dasselbe blaue Badge „Pfand 0,25 €" (eigene Farbe, nicht orange/grün). Artikel OHNE Pfand zeigen kein Badge.' },
-      { id: 'G48-2', title: 'Pfand-Badge in Einkaufsliste + Einkauf', steps: ['Einkaufsliste (Markt gewählt) mit einem pfandpflichtigen Artikel.', 'Denselben Artikel in einem Einkauf (Einkauf-Detailseite).'],
-        expect: 'Je Position erscheint das Pfand-Badge (statt des früheren grauen „+ Pfand"-Textes). Bei kg/l ohne Gebinde: Badge „Pfand ?" mit Tooltip.' },
+      { id: 'G48-2', title: 'Pfand-Badge in Einkaufsliste + Einkauf', steps: ['Einkaufsliste (Markt gewählt) mit einem pfandpflichtigen Stück-Artikel (Flasche/Dose).', 'Denselben Artikel in einem Einkauf (Einkauf-Detailseite).'],
+        expect: 'Je Position erscheint das Pfand-Badge (statt des früheren grauen „+ Pfand"-Textes).' },
       { id: 'G48-3', title: 'Summe getrennt: Ware / Pfand / Summe', steps: ['Einkaufsliste bzw. Einkauf mit mind. einem pfandpflichtigen Artikel + gewähltem Markt.'],
         expect: 'Die Summe zeigt drei klare Zeilen „Ware X €", „Pfand Y €", „Summe Z €" (kein langer Rechenstring mehr). Ohne Pfand nur eine „Einkauf X €"-Zeile.' },
+    ]
+  },
+  {
+    tag: 'G49', name: 'Pfand-Fixes — an Stück-Einheit gebunden + Card/Dialog', desc: 'Pfand nur bei count-Einheiten; Pfand-Card auf der Detailseite auch bei nicht-count sichtbar korrigiert; Bearbeiten-Dialog spiegelt uebernommene Werte.',
+    items: [
+      { id: 'G49-1', title: 'Pfand-Card auf Detailseite (auch ohne Gebinde-Block)', steps: ['Stück-Artikel mit Pfand, KEIN Gebinde hinterlegt → Artikel-Detailseite.'],
+        expect: 'Die Pfand-Zeile mit Badge ist sichtbar (frueher verschwand sie, weil sie faelschlich im Gebinde-Block hing). Bei kg/l-Artikel: keine Pfand-Zeile.' },
+      { id: 'G49-2', title: 'Bearbeiten-Dialog spiegelt uebernommene Werte', steps: ['Artikel, dessen Pfand (und ggf. Marke/Beschreibung) per Katalog-Sicherung übernommen wurde.', 'Auf der Detailseite „Bearbeiten" öffnen.'],
+        expect: 'Die Pfand-Checkbox ist VORAUSGEWÄHLT und der Betrag gefüllt; Marke/Beschreibung ebenfalls vorbefüllt — der Dialog spiegelt den tatsächlichen Artikelzustand.' },
+      { id: 'G49-3', title: 'Pfand-Checkbox bei kg/l gesperrt', steps: ['Artikel bearbeiten, Standard-Einheit auf kg/l setzen.'],
+        expect: 'Die Pfand-Checkbox ist deaktiviert + Hinweis „Pfand nur für Stück-Einheiten". Bereits gesetztes Pfand auf kg/l-Artikeln wird ignoriert (kein Badge, keine Rechnung).' },
     ]
   },
   {
