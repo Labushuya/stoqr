@@ -891,6 +891,10 @@
   // landet an der falschen Position. scroll-margin-top (CSS) hält die Sticky-Navbar frei.
   onMount(() => {
     if (siblings.length <= 1) return
+    // Artikel-Klick aus der Inventar-Ansicht (Product-/Item-View) haengt ?scroll=0 an:
+    // Artikelseite normal laden, aber den Deeplink-Scroll+Flash bewusst ueberspringen.
+    // window.location ist im onMount (nur Browser) sicher verfuegbar; kein $app/stores noetig.
+    if (new URLSearchParams(window.location.search).get('scroll') === '0') return
     let flashTimer: ReturnType<typeof setTimeout> | undefined
     const raf1 = requestAnimationFrame(() => {
       requestAnimationFrame(() => {

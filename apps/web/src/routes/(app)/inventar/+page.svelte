@@ -567,6 +567,14 @@ Das Produkt bleibt im Katalog.`,
         {@const breadcrumb = placeBreadcrumb(item)}
         {@const icon = categoryIcon(item)}
         <li class="item-card" class:item-card--consumed={item.status !== 'available'}>
+          <!-- Klick auf die Card oeffnet die Artikelseite OHNE Deeplink-Scroll (?scroll=0).
+               Overlay-Link statt verschachtelter Interaktiv-Elemente; das 3-Punkte-Menue
+               liegt per z-index darueber und bleibt separat klickbar. -->
+          <a
+            class="item-card-overlay"
+            href="/inventar/{item.id}?scroll=0"
+            aria-label="Artikel öffnen: {item.product.name}"
+          ></a>
           <!-- Image / icon area -->
           <div class="item-thumb">
             {#if item.product.imageUrl}
@@ -704,6 +712,20 @@ Das Produkt bleibt im Katalog.`,
 
           {#if open}
             <ul class="product-body" role="list">
+              <li class="stock-row stock-row--overview">
+                <a
+                  class="stock-row-link article-overview-link"
+                  href="/inventar/{group.items[0].id}?scroll=0"
+                >
+                  <span class="article-overview-label">Zur Artikelübersicht</span>
+                  <svg
+                    class="article-overview-arrow"
+                    width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"
+                  >
+                    <path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                </a>
+              </li>
               {#each group.items as item (item.id)}
                 {@const expiry = expiryInfo(item)}
                 {@const breadcrumb = placeBreadcrumb(item)}
@@ -1354,6 +1376,32 @@ Das Produkt bleibt im Katalog.`,
     flex: 1;
   }
 
+  /* "Zur Artikelübersicht" — dezente Kopfzeile ueber den Beständen im aufgeklappten
+     Accordion. Fuehrt zur Artikelseite OHNE Deeplink-Scroll (?scroll=0). */
+  .stock-row--overview {
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .article-overview-link {
+    justify-content: space-between;
+    color: var(--color-primary);
+    font-size: var(--text-sm);
+    font-weight: 600;
+  }
+
+  .article-overview-label {
+    flex: 1;
+  }
+
+  .article-overview-arrow {
+    flex-shrink: 0;
+    transition: transform var(--transition-fast);
+  }
+
+  .article-overview-link:hover .article-overview-arrow {
+    transform: translateX(2px);
+  }
+
   /* ── Item grid ────────────────────────────────────────────────────────── */
 
   .item-grid {
@@ -1399,6 +1447,15 @@ Das Produkt bleibt im Katalog.`,
 
   .item-card--consumed {
     opacity: 0.6;
+  }
+
+  /* Ganzflaechiger Klick-Link: oeffnet die Artikelseite OHNE Deeplink-Scroll.
+     Liegt unter dem 3-Punkte-Menue (z-index), damit dieses separat klickbar bleibt. */
+  .item-card-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    border-radius: var(--radius-lg);
   }
 
   /* Thumb */
@@ -1577,6 +1634,7 @@ Das Produkt bleibt im Katalog.`,
   .menu-wrap {
     position: relative;
     flex-shrink: 0;
+    z-index: 2;
   }
 
   .btn-dots {
