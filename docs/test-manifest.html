@@ -108,7 +108,7 @@
 <div class="wrap">
   <header class="top">
     <h1>stoqr — Test-Manifest</h1>
-    <p class="subtitle">Blöcke A–E + F/F2 + G/G6/G7/G8/G10/G11/G12/G13/G15/G16/G17/G18/G19/G20/G21/G22/G24/G25/G26/G27/G28/G29/G30/G31/G32/G33/G34/G35/G36/G37/G39/G40/G41/G42/G43/G44/G45/G46/G47/G48/G49 · logisch aufbauender Durchlauf · Stand nach G49 (Pfand an Stück-Einheit gebunden)</p>
+    <p class="subtitle">Blöcke A–E + F/F2 + G/G6/G7/G8/G10/G11/G12/G13/G15/G16/G17/G18/G19/G20/G21/G22/G24/G25/G26/G27/G28/G29/G30/G31/G32/G33/G34/G35/G36/G37/G39/G40/G41/G42/G43/G44/G45/G46/G47/G48/G49/G50 · logisch aufbauender Durchlauf · Stand nach G50 (Pfand-Betrag-fehlt-Hinweis)</p>
 
     <div class="pre">
       <h2>Voraussetzung (kein Testschritt)</h2>
@@ -755,6 +755,13 @@ const BLOCKS = [
         expect: 'Die Pfand-Checkbox ist VORAUSGEWÄHLT und der Betrag gefüllt; Marke/Beschreibung ebenfalls vorbefüllt — der Dialog spiegelt den tatsächlichen Artikelzustand.' },
       { id: 'G49-3', title: 'Pfand-Checkbox bei kg/l gesperrt', steps: ['Artikel bearbeiten, Standard-Einheit auf kg/l setzen.'],
         expect: 'Die Pfand-Checkbox ist deaktiviert + Hinweis „Pfand nur für Stück-Einheiten". Bereits gesetztes Pfand auf kg/l-Artikeln wird ignoriert (kein Badge, keine Rechnung).' },
+    ]
+  },
+  {
+    tag: 'G50', name: 'Pfand-Betrag fehlt — sichtbar anmahnen', desc: 'Ist Pfand gesetzt aber ohne Betrag (z.B. nach Katalog-Sicherung, die nur ja/nein liefert), wird das Badge als Amber/gestrichelter „Betrag?"-Hinweis dargestellt (nachpflegen).',
+    items: [
+      { id: 'G50-1', title: 'Amber-Warn-Badge bei fehlendem Betrag', steps: ['Artikel per Katalog-Sicherung „Pfandpflicht: ja" übernehmen (Betrag nicht mitgeliefert).', 'Artikel auf Detailseite / Inventar-Karte / Artikelliste betrachten.'],
+        expect: 'Das Pfand-Badge erscheint AMBER/gelb gestrichelt mit Text „Pfand — Betrag?" (nicht das ruhige Blau), Tooltip „bitte am Artikel nachpflegen". Nach manuellem Setzen eines Betrags → wieder blaues „Pfand X €".' },
     ]
   },
   {

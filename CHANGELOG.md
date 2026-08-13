@@ -5,6 +5,23 @@ Neueste Einträge oben. Jeder Eintrag nennt den Commit-Kontext, damit andere LLM
 
 ---
 
+## [Unreleased] — G50: Pfand-Betrag-fehlt sichtbar anmahnen (implementiert, Test auf Pi ausstehend)
+
+Aus dem G49-Test: nach der Katalog-Sicherung ist Pfand gesetzt (`hasDeposit=true`), aber ohne Betrag (`depositCt=null`),
+weil der Abruf nur ja/nein liefert (Betrag = Stufe 2). Erwartetes Verhalten — aber der Nutzer soll den fehlenden Betrag
+sichtbar zum Nachpflegen angemahnt bekommen (Idee: wie „Kein MHD", andere Farbe).
+
+- **DepositBadge:** bei `hasDeposit && depositCt==null` jetzt „Pfand — Betrag?" im **Amber/gestrichelt**-Warnstil
+  (eigene Farbe, nicht MHD-orange, nicht Fehler-rot) + Tooltip „bitte am Artikel nachpflegen". Bei gesetztem Betrag
+  unverändert das ruhige blaue „Pfand X €". Greift automatisch überall (Detailseite, Inventar-Karten, Artikelliste).
+
+Gate: typecheck 0, lint 0/33, build ✓, vitest 204/204. Keine Migration.
+
+### Commits
+G50 (dieser Commit) — DepositBadge Amber-Warnvariante bei fehlendem Betrag. Exakter Hash: siehe `git log`.
+
+---
+
 ## [Unreleased] — G49: Pfand-Fixes — an count-Einheit gebunden + Card/Bearbeiten-Dialog korrigiert (implementiert, Test auf Pi ausstehend)
 
 Aus dem G47/G48-Test, zwei Bugs + fachliche Klarstellung (Root-Causes per Workflow belegt):
