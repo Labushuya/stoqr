@@ -2,6 +2,7 @@
   import { enhance } from '$app/forms'
   import { invalidateAll } from '$app/navigation'
   import { toast } from '$lib/stores/toast'
+  import Modal from '$lib/components/Modal.svelte'
   import { buildCategoryTree } from '$lib/utils/category-tree'
   import { resolveMirrorCategory, mirrorCategoryTag, canTakeMirrorPrice, defaultSnapFields, mirrorSubmitCategoryId } from '$lib/utils/mirror-category'
   import type { PageData, ActionData } from './$types'
@@ -300,7 +301,64 @@
     !!form && form.action === 'updatePriceScrape' && form.success === true
   )
 
+  // ── Danger Zone: dreistufiger Werksreset (G53) ─────────────────────────────
+  // Type-to-Confirm im GitHub-Stil: Modal oeffnen ist die 1. Bestaetigung, die
+  // Phrase exakt eintippen die 2. Der Reset-Button bleibt disabled, bis der
+  // getippte Text der Stufen-Phrase entspricht (serverseitig erneut geprueft).
+  type ResetStage = 'A' | 'B' | 'C'
+  const RESET_PHRASES: Record<ResetStage, string> = {
+    A: 'Bestand loeschen',
+    B: 'Artikel und Bestand loeschen',
+    C: 'stoqr zuruecksetzen',
+  }
+  const RESET_META: Record<ResetStage, { title: string; button: string; scope: string[] }> = {
+    A: {
+      title: 'Bestand löschen',
+      button: 'Alle Bestände löschen',
+      scope: ['Alle Bestände (Inventar-Einträge)'],
+    },
+    B: {
+      title: 'Artikel & Bestand löschen',
+      button: 'Artikel und Bestände löschen',
+      scope: [
+        'Alle Bestände (Inventar-Einträge)',
+        'Alle Artikel inkl. Nährwerte & Feldquellen',
+        'Alle Preise & Ziel-Bestände',
+      ],
+    },
+    C: {
+      title: 'Werksreset',
+      button: 'System auf Werkseinstellung zurücksetzen',
+      scope: [
+        'Alle Bestände, Artikel, Preise & Ziel-Bestände',
+        'Einkaufslisten & Einkäufe',
+        'Orte, Lager & Märkte',
+        'Eigene Einheiten & Aktivitätsprotokoll',
+        'Kategorien & Nährwert-Typen (Referenzdaten) — Re-Seed danach nötig!',
+      ],
+    },
+  }
+
+  let resetStage = $state<ResetStage | null>(null)
+  let resetConfirm = $state('')
+  let resetSaving = $state(false)
+  const resetPhrase = $derived(resetStage ? RESET_PHRASES[resetStage] : '')
+  const resetMatches = $derived(resetStage !== null && resetConfirm === resetPhrase)
+  const resetError = $derived(
+    form && (form as any).action === 'resetHousehold' ? (form as any).error : null
+  )
+
+  function openReset(stage: ResetStage) {
+    resetStage = stage
+    resetConfirm = ''
+  }
+  function closeReset() {
+    resetStage = null
+    resetConfirm = ''
+  }
+
 </script>
+
 
 <div class="page">
   <header class="page-header">
@@ -990,7 +1048,108 @@
       </button>
     </div>
   </section>
+
+  <!-- ── Danger Zone: Werksreset (G53) ─────────────────────────────────────── -->
+
+  <section class="settings-section settings-section--danger">
+    <div class="section-header">
+      <h2 class="section-title">Gefahrenzone</h2>
+      <span class="section-desc">
+        Unwiderrufliche Aktionen. Löscht Bestand und setzt das System zurück.
+      </span>
+    </div>
+    <div class="danger-actions">
+      <div class="danger-row">
+        <div class="danger-text">
+          <span class="danger-title">Bestand löschen</span>
+          <span class="danger-desc">Entfernt alle Bestände. Artikel, Orte und Märkte bleiben erhalten.</span>
+        </div>
+        <button class="btn-danger" type="button" onclick={() => openReset('A')}>Löschen</button>
+      </div>
+      <div class="danger-row">
+        <div class="danger-text">
+          <span class="danger-title">Artikel & Bestand löschen</span>
+          <span class="danger-desc">Zusätzlich zu den Beständen auch alle Artikel und Preise.</span>
+        </div>
+        <button class="btn-danger" type="button" onclick={() => openReset('B')}>Löschen</button>
+      </div>
+      <div class="danger-row">
+        <div class="danger-text">
+          <span class="danger-title">Werksreset</span>
+          <span class="danger-desc">Setzt das System vollständig zurück. Nutzer & Haushalt bleiben.</span>
+        </div>
+        <button class="btn-danger" type="button" onclick={() => openReset('C')}>Zurücksetzen</button>
+      </div>
+    </div>
+  </section>
 </div>
+
+<!-- Type-to-Confirm-Modal fuer den Werksreset -->
+{#if resetStage}
+  <Modal open={true} title={RESET_META[resetStage].title} size="sm" onClose={closeReset}>
+    <p class="reset-warn">
+      <strong>Diese Aktion kann nicht rückgängig gemacht werden.</strong>
+      Folgendes wird dauerhaft gelöscht:
+    </p>
+    <ul class="reset-scope">
+      {#each RESET_META[resetStage].scope as line}
+        <li>{line}</li>
+      {/each}
+    </ul>
+    <form
+      id="reset-form"
+      method="POST"
+      action="?/resetHousehold"
+      use:enhance={() => {
+        resetSaving = true
+        return async ({ update, result }) => {
+          await update({ reset: false })
+          resetSaving = false
+          if (result.type === 'success') {
+            await invalidateAll()
+            const doneStage = resetStage
+            closeReset()
+            toast.success(
+              doneStage === 'C'
+                ? 'System zurückgesetzt. Referenzdaten müssen neu geseedet werden.'
+                : 'Löschung abgeschlossen.'
+            )
+          }
+        }
+      }}
+    >
+      <input type="hidden" name="stage" value={resetStage} />
+      <label class="reset-label" for="reset-confirm">
+        Zum Bestätigen exakt eintippen: <code class="reset-phrase">{resetPhrase}</code>
+      </label>
+      <input
+        id="reset-confirm"
+        class="input reset-input"
+        type="text"
+        name="confirm"
+        bind:value={resetConfirm}
+        autocomplete="off"
+        autocapitalize="off"
+        spellcheck="false"
+        placeholder={resetPhrase}
+      />
+      {#if resetError}
+        <p class="reset-alert">{resetError}</p>
+      {/if}
+    </form>
+    {#snippet footer()}
+      <button class="btn-cancel" type="button" onclick={closeReset}>Abbrechen</button>
+      <button
+        class="btn-danger"
+        type="submit"
+        form="reset-form"
+        disabled={!resetMatches || resetSaving}
+      >
+        {resetSaving ? 'Wird gelöscht…' : (resetStage ? RESET_META[resetStage].button : '')}
+      </button>
+    {/snippet}
+  </Modal>
+{/if}
 
 <style>
   /* ── Page ─────────────────────────────────────────────────────────────── */
@@ -1027,6 +1186,114 @@
 
   .settings-section--disabled {
     opacity: 0.6;
+  }
+
+  /* ── Danger Zone (G53) ─────────────────────────────────────────────────── */
+
+  .settings-section--danger {
+    border-color: color-mix(in srgb, var(--color-danger, #dc2626) 40%, var(--color-border));
+  }
+
+  .danger-actions {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+  }
+
+  .danger-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-4);
+    padding: var(--space-3) 0;
+    border-top: 1px solid var(--color-border-subtle);
+  }
+  .danger-row:first-child {
+    border-top: none;
+  }
+
+  .danger-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+  .danger-title {
+    font-weight: 600;
+    color: var(--color-text-primary);
+  }
+  .danger-desc {
+    font-size: var(--text-sm);
+    color: var(--color-text-muted);
+  }
+
+  .btn-danger {
+    flex-shrink: 0;
+    padding: var(--space-2) var(--space-4);
+    border: 1px solid var(--color-danger, #dc2626);
+    background: var(--color-danger, #dc2626);
+    color: #fff;
+    border-radius: var(--radius-md);
+    font-weight: 600;
+    cursor: pointer;
+    transition: background var(--transition-fast), opacity var(--transition-fast);
+  }
+  .btn-danger:hover:not(:disabled) {
+    background: #901c12;
+    border-color: #901c12;
+  }
+  .btn-danger:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
+  .btn-cancel {
+    padding: var(--space-2) var(--space-4);
+    border: 1px solid var(--color-border);
+    background: var(--color-surface);
+    color: var(--color-text-primary);
+    border-radius: var(--radius-md);
+    font-weight: 600;
+    cursor: pointer;
+    transition: background var(--transition-fast);
+  }
+  .btn-cancel:hover {
+    background: var(--color-surface-sunken);
+  }
+
+  .reset-warn {
+    margin: 0 0 var(--space-3);
+    color: var(--color-text-primary);
+    line-height: 1.5;
+  }
+  .reset-scope {
+    margin: 0 0 var(--space-4);
+    padding-left: var(--space-5);
+    color: var(--color-text-secondary);
+    font-size: var(--text-sm);
+    line-height: 1.6;
+  }
+  .reset-label {
+    display: block;
+    margin-bottom: var(--space-2);
+    font-size: var(--text-sm);
+    color: var(--color-text-secondary);
+  }
+  .reset-phrase {
+    font-family: var(--font-mono, monospace);
+    background: var(--color-surface-sunken);
+    padding: 1px 6px;
+    border-radius: var(--radius-sm);
+    color: var(--color-danger, #dc2626);
+    user-select: all;
+  }
+  .reset-input {
+    width: 100%;
+  }
+  .reset-alert {
+    margin: var(--space-3) 0 0;
+    font-size: var(--text-sm);
+    color: var(--color-danger, #dc2626);
   }
 
   .section-header {

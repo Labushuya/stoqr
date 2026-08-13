@@ -5,7 +5,43 @@ Neueste Einträge oben. Jeder Eintrag nennt den Commit-Kontext, damit andere LLM
 
 ---
 
-## [Unreleased] — Login deaktivierbar per ENV-Flag `AUTH_DISABLED` (Bypass, voll reversibel)
+## [Unreleased] — Angezeigter Name „Die Merbotts" + Gefahrenzone (dreistufiger Werksreset, G52/G53)
+
+**(a) Geplant:** (1) Der oben rechts angezeigte Name soll von „Christopher" auf „Die Merbotts" (der Haushalt)
+wechseln. (2) In den Einstellungen eine geschützte Funktion einbetten, die den Bestand löscht und das System auf
+„Werkseinstellung" zurücksetzt — mit GitHub-artiger Type-to-Confirm-Bestätigung plus zweiter Abfrage, mehrstufig.
+
+**(b) Umgesetzt:**
+- **Name (DB-only, kein Code):** `users.display_name` des ältesten Nutzers auf „Die Merbotts" gesetzt. Kette:
+  `display_name` → `rowToBypassUser` (`name: displayName ?? email ?? id`) → `data.user.name` → Navbar
+  (`+layout.svelte` Desktop + mobiles Menü). Kein Code-Change; `auth-bypass.test.ts`-Fixture bleibt unberührt.
+- **Gefahrenzone (G53):** Neue Server-Action `resetHousehold` in `einstellungen/+page.server.ts` — dreistufig:
+  A = nur `inventory_items`; B = + `products`/`product_*`/`product_prices`/`product_stores`/`stock_targets`/
+  `globus_snapshots`; C = kompletter Werksreset aller Inhaltsdaten (zusätzlich Einkaufslisten/-käufe, Orte/Lager/
+  Märkte via `locations`-Cascade, eigene Einheiten, `category_mappings`, `expiry_config`, `audit_log`, `invites`
+  sowie die geseedeten Referenzdaten `categories` + `nutrient_types`). Alle Löschungen laufen **children-first in
+  EINER Transaktion** (die meisten Household-FKs sind RESTRICT). Feste Bestätigungsphrase je Stufe, serverseitig
+  erneut geprüft. Neue Danger-Zone-Karte + Type-to-Confirm-Modal (`Modal.svelte`) in `einstellungen/+page.svelte`;
+  Reset-Button bleibt disabled bis die Phrase exakt getippt ist (2-Stufen-Bestätigung: Modal öffnen + tippen).
+- Test-Manifest: G52 (Name) + G53 (Werksreset, 5 Checks inkl. Regression) in `docs/test-manifest.html`.
+
+**(c) Probleme / Hinweise (inkl. Testergebnis):**
+- **Cache-Fallstrick (bestätigt):** Nach dem DB-Namenswechsel zeigte die Navbar trotz Browser-Refresh weiter
+  „Christopher". Ursache: `getBypassUser()` cached den Nutzer **prozessweit**. Erst `docker compose up -d
+  --force-recreate stoqr` (nicht `restart`, nicht Browser-Reload) ließ „Die Merbotts" durchschlagen. Verifiziert.
+- **`products` ist global (keine `householdId`):** Bei Stufe B/C werden Artikel **hart global** gelöscht (bewusste
+  Entscheidung fürs Single-Household-Setup; `gtin` ist global unique). `product_nutrients`/`product_field_sources`
+  cascaden mit.
+- **Stufe C entfernt Referenzdaten:** Kategorien + Nährwert-Typen sind danach leer → **Re-Seed nötig**
+  (`docker compose exec -T postgres psql -U stoqr -d stoqr -f /seed.sql`, `ON CONFLICT DO NOTHING`, re-run-safe).
+  Dieser Hinweis steht im Warntext von Stufe C und im Erfolgs-Toast.
+- **SvelteKit-Fallstrick:** Ein freier `export const RESET_PHRASES` in `+page.server.ts` bricht den Build
+  („Invalid export") — Phrasen sind server-lokal (ohne `export`), der Client hält seine eigene Kopie.
+- **Gate grün:** typecheck ✓, lint 0 Fehler / 35 Warnungen (33 Baseline + 2 erwartete `form as any`), 208 Tests ✓,
+  build ✓.
+
+---
+
 
 **(a) Geplant:** Login vollständig deaktivierbar machen — die App soll direkt (ohne Login-Seite) laden, „Benutzer überall
 abschalten ohne Funktion zu beeinträchtigen", und der Zustand per Schalter umkehrbar sein. Kein Ausbau der Auth-Infra
