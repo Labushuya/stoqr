@@ -28,6 +28,9 @@ services:
     image: ghcr.io/labushuya/stoqr:main
     restart: unless-stopped
     env_file: /srv/hubdata/state/stoqr/.env
+    # Login deaktivieren: AUTH_DISABLED=true in die .env eintragen -> App laedt
+    # direkt ohne Login als vorhandener Nutzer/Haushalt. Zeile aus der .env
+    # entfernen -> Login kommt unveraendert zurueck. (Siehe .env.example.)
     # Bilder MUESSEN persistent gemountet sein — sonst gehen sie bei JEDEM
     # Image-Update verloren (Container-Layer ist fluechtig). MEDIA_DIR=/data/media.
     volumes:

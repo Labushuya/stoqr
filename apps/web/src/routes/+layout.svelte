@@ -155,9 +155,11 @@
               </svg>
             {/if}
           </button>
-          <button class="btn-logout" onclick={logout} type="button">
-            Abmelden
-          </button>
+          {#if !data.authDisabled}
+            <button class="btn-logout" onclick={logout} type="button">
+              Abmelden
+            </button>
+          {/if}
         </div>
 
         <!-- Hamburger (mobile only) -->
@@ -219,9 +221,11 @@
                   </svg>
                 {/if}
               </button>
-              <button class="btn-logout" onclick={logout} type="button">
-                Abmelden
-              </button>
+              {#if !data.authDisabled}
+                <button class="btn-logout" onclick={logout} type="button">
+                  Abmelden
+                </button>
+              {/if}
             </div>
           </div>
         </div>

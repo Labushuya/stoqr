@@ -3,7 +3,7 @@
 > Kanonisches Datenmodell und Entwicklungsplan. Diese Datei ist führend für Absicht,
 > Logik und Ziel von stoqr. Bei Widersprüchen zwischen Code und dieser Datei gilt diese Datei.
 
-Letzte Aktualisierung: 2026-08-13 (Baseline: Test-Manifest A–E vollständig grün, 203/203 auf Pi getestet inkl. Pfand G47–G50; Per-Turn-Handover-Format als verbindliche Prozessregel verankert)
+Letzte Aktualisierung: 2026-08-13 (Login per ENV-Flag AUTH_DISABLED deaktivierbar — Bypass, reversibel; Baseline: Test-Manifest A–E vollständig grün, 203/203 auf Pi getestet inkl. Pfand G47–G50; Per-Turn-Handover-Format als verbindliche Prozessregel verankert)
 
 ---
 
@@ -281,6 +281,12 @@ Inventur (Ist erfassen) → Soll-Ist-Bedarf → Einkaufsliste (virtuelle Bestän
 >   inkl. Testergebnis (pass/fail je relevantem Manifest-Punkt). Kein „grün ohne Beleg".
 >
 > So wandert das bisher nur im Browser-localStorage des Testers lebende Testergebnis dauerhaft ins Repo.
+
+**Auth deaktivierbar (`AUTH_DISABLED`) — Test auf Pi ausstehend:**
+- Login lässt sich per ENV-Flag `AUTH_DISABLED=true` komplett abschalten; die App lädt dann direkt als der (erste)
+  vorhandene Nutzer/Haushalt, „Abmelden" ist ausgeblendet, `/login` leitet auf `/` um. Bypass in `hooks.server.ts` +
+  `lib/server/auth-bypass.ts`; DB-Schema/Better-Auth/Guards unangetastet, voll reversibel (Flag entfernen → Login zurück).
+  Leere DB fällt bewusst auf Login zurück, damit `/register` erreichbar bleibt. Details: CHANGELOG-Eintrag.
 
 **G9 — Katalog-Regressionsfixes — Test auf Pi ausstehend:**
 - **G9-1:** „Katalog jetzt sichern" → die Vorschläge werden wieder angezeigt (Regression behoben); Übernehmen/Verwerfen aktualisiert die Liste.

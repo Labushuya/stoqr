@@ -5,7 +5,37 @@ Neueste Einträge oben. Jeder Eintrag nennt den Commit-Kontext, damit andere LLM
 
 ---
 
-## [Unreleased] — Baseline: Test-Manifest A–E vollständig grün (auf Pi getestet ✓ 2026-08-13)
+## [Unreleased] — Login deaktivierbar per ENV-Flag `AUTH_DISABLED` (Bypass, voll reversibel)
+
+**(a) Geplant:** Login vollständig deaktivierbar machen — die App soll direkt (ohne Login-Seite) laden, „Benutzer überall
+abschalten ohne Funktion zu beeinträchtigen", und der Zustand per Schalter umkehrbar sein. Kein Ausbau der Auth-Infra
+(Better Auth, `/api/auth`, Login-/Register-Seiten bleiben liegen), nur ein Bypass.
+
+**(b) Umgesetzt:**
+- Neues Modul `apps/web/src/lib/server/auth-bypass.ts`: `AUTH_DISABLED = process.env.AUTH_DISABLED === 'true'`,
+  `getBypassUser()` (prozessweit gecacht, liest den ältesten `users`-Datensatz und formt ihn zu Better Auths `User`),
+  `makeBypassSession()` (minimales, typkonformes Session-Objekt).
+- `hooks.server.ts`: bei `AUTH_DISABLED` wird die Default-Identität in `locals.user`/`locals.session` injiziert, statt
+  `auth.api.getSession` zu lesen. Damit passieren alle ~65 `if (!locals.user)`-Guards, die App-Shell rendert und
+  `requireHouseholdId(userId)` löst normal auf — **keine** der Guards/Queries/Schemas wurde angefasst.
+- `(auth)/login/+page.server.ts`: bei aktivem Flag Redirect auf `/` (tote Login-Seite nicht anzeigen).
+- `+layout.server.ts` reicht `authDisabled` durch; `+layout.svelte` blendet beide „Abmelden"-Buttons aus, wenn
+  deaktiviert. `logout()` bleibt unverändert (aktiv, sobald das Flag wieder weg ist).
+- Doku: `.env.example` + `docs/docker-compose.fam.ily.yml` um `AUTH_DISABLED` ergänzt.
+
+**(c) Probleme / Hinweise (inkl. Testergebnis):**
+- **Bewusster Fallback:** Auf einer völlig leeren DB (noch nie ein Nutzer angelegt) gibt `getBypassUser()` `null` zurück
+  → der Hook fällt auf den normalen Login-Pfad zurück und `/register` bleibt erreichbar, damit man sich nicht aussperrt.
+- **FK-Zwang:** Die injizierte `locals.user.id` ist die eines **real existierenden** Nutzers (Inserts schreiben
+  `createdBy`/`userId` mit FK auf `users.id`) — deshalb DB-getrieben statt hart kodiert, und **keine** Migration/kein Seed
+  nötig; auf dem Pi existiert der Nutzer bereits.
+- **Reaktivierung:** `AUTH_DISABLED` aus der `.env` entfernen → Login-Verhalten exakt wie zuvor.
+- Testergebnis: siehe Gate unten; Pi-Verifikation durch Christopher ausstehend (`.env` setzen, `docker compose pull`).
+
+Gate: typecheck 0, lint 0/33, build ✓, vitest 204/204. Keine Migration, kein Seed.
+
+---
+
 
 Der Tester (Christopher) hat den kompletten Test-Manifest-Durchlauf **A–E, 203/203 Punkte, als getestet und
 funktional bestätigt** — inklusive des gesamten Pfand-Strangs G47–G50. Damit gilt der Stand bei Commit `d7290aa`
