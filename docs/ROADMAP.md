@@ -3,7 +3,7 @@
 > Kanonisches Datenmodell und Entwicklungsplan. Diese Datei ist führend für Absicht,
 > Logik und Ziel von stoqr. Bei Widersprüchen zwischen Code und dieser Datei gilt diese Datei.
 
-Letzte Aktualisierung: 2026-07-24 (G38: Härtung — Katalog-Spiegel-Entscheidungslogik (Kategorie-Vorrang, Status-Tag, Preis-/Feld-Defaults) in reine, unit-getestete Helfer (lib/utils/mirror-category.ts, +16 Tests) extrahiert; kein Verhaltenswechsel; Test auf Pi ausstehend)
+Letzte Aktualisierung: 2026-08-13 (Baseline: Test-Manifest A–E vollständig grün, 203/203 auf Pi getestet inkl. Pfand G47–G50; Per-Turn-Handover-Format als verbindliche Prozessregel verankert)
 
 ---
 
@@ -191,12 +191,12 @@ Kein Text-/Pipe-Export (existiert so in Bring! nicht).
   Zutaten-Ampel via aggregateStock/compareToTarget, fehlende Zutaten → Einkaufsliste.
 
 ### Weitere geplante Features (aufgenommen 2026-07-18, Reihenfolge offen)
-- **Reichere Globus-Daten (Stufe 1)** (**erledigt G44, Test auf Pi ausstehend**): Grundpreis (PAngV, „0,19 €/l") aus
+- **Reichere Globus-Daten (Stufe 1)** (**erledigt G44, auf Pi getestet ✓ 2026-08-13**): Grundpreis (PAngV, „0,19 €/l") aus
   dem Suggest-HTML + Detailseiten-JSON-LD (brand/description/offers) abgerufen; `product_prices.base_price_ct/unit`;
   volles Detail-HTML archiviert (`globus_snapshots.raw_detail_html`) + Feld-Landkarte (`extracted`: Feld/Wert/Quelle/
   Zugehörigkeit) im Katalog-Spiegel sichtbar. Migration 0020. **Stufe 2 (offen):** Headless-Chromium (Playwright) für
   JS-gerenderte Felder (exakter Pfandbetrag, Nährwerte) — Dockerfile-Umbau Alpine→Debian/`apk chromium`, arm64/non-root.
-- **Pfand / Leergut** (**erledigt G47, Test auf Pi ausstehend**): Pfand am Artikel (`has_deposit` + `deposit_ct`,
+- **Pfand / Leergut** (**erledigt G47–G50, auf Pi getestet ✓ 2026-08-13**): Pfand am Artikel (`has_deposit` + `deposit_ct`,
   Schnellwahl 0,08/0,15/0,16/0,25 € + frei, Herkunfts-Schutz); Preis-Flag `price_includes_deposit` (Fallback); Estimate
   weist Ware + Pfand getrennt aus (Einkaufsliste/Einkauf), Pfand je Stück (mass/volume nur mit Gebinde, sonst Hinweis);
   Katalog-Sicherung schlägt Pfand ja/nein aus dem JSON-LD vor. **Exakter Betrag aus dem Abruf = Stufe 2 (Headless).**
@@ -208,12 +208,12 @@ Kein Text-/Pipe-Export (existiert so in Bring! nicht).
   aggregiert Bestände je Artikel (Accordion: Icon + Name + EAN + Gesamtmenge + Anzahl + frühestes MHD; aufgeklappt die
   einzelnen Bestände). Reiner Helfer `lib/utils/inventory-group.ts` über `aggregateStock`/`buildPackSize`. Bestehende
   Filter greifen; MHD-Ampel nutzt `expirySettings` statt Hardcodes.
-- **„Verbraucht"-Handling + Wiederherstellen** (**erledigt G41, Test auf Pi ausstehend**): `consumedAt` wird jetzt bei
+- **„Verbraucht"-Handling + Wiederherstellen** (**erledigt G41, auf Pi getestet ✓ 2026-08-13**): `consumedAt` wird jetzt bei
   jedem Statuswechsel gepflegt (in `updateInventoryItem`); „Wiederherstellen" (zurück auf `available`, bei Menge 0 mit
   Mengen-Abfrage) im Kontextmenü + auf der Detailseite; „Verbraucht vor X Tagen" neben dem Status-Badge
   (`lib/utils/relative-time.ts`). Nicht-verfügbare Bestände bleiben unbegrenzt sichtbar (kein Zeitfenster/Cleanup).
   Der „Nur verfügbare"-Toggle war entgegen der alten Notiz bereits funktional (seit G8-5).
-- **Günstigster-Preis-Hinweis (Einkaufsliste)** (**erledigt G46, Test auf Pi ausstehend**): reiner Helfer
+- **Günstigster-Preis-Hinweis (Einkaufsliste)** (**erledigt G46, auf Pi getestet ✓ 2026-08-13**): reiner Helfer
   `lib/utils/price-compare.ts` — Vergleich pro Basiseinheit, **Grundpreis (G44) bevorzugt**, sonst Eigenrechnung;
   Angebote zählen mit; nur vergleichbare Einheiten. Anzeige: Badge „günstigster" auf der Artikel-Detailseite
   (Preise-Card) + Hinweis „günstigster: {Markt}" je Einkaufslisten-Zeile. Nicht vergleichbare Einheiten → Hinweis
@@ -264,6 +264,23 @@ Inventur (Ist erfassen) → Soll-Ist-Bedarf → Einkaufsliste (virtuelle Bestän
 ---
 
 ## Offene Punkte / noch zu testen (nicht bestätigt)
+
+> **✅ Baseline 2026-08-13 — Test-Manifest A–E vollständig grün (auf Pi getestet):** Der Tester hat den kompletten
+> Durchlauf **A–E, 203/203 Punkte, als getestet und funktional bestätigt** (Stand Commit `d7290aa`,
+> `ghcr.io/labushuya/stoqr:main`), inklusive des Pfand-Strangs G47–G50. **Alle unten mit „Test auf Pi ausstehend"
+> markierten G-Blöcke bis einschließlich G50 gelten damit als bestätigt** — die Einzelvermerke sind historisch und
+> werden bewusst NICHT rückwirkend umgeschrieben (sie dokumentieren den Zustand zum Zeitpunkt des jeweiligen Commits).
+> Ab hier gilt das **Per-Turn-Handover-Format** (siehe unten „Handover-Prozess pro Test-Turn").
+>
+> ### Handover-Prozess pro Test-Turn (verbindlich ab Baseline 2026-08-13)
+> Jeder künftige Test-Manifest-Turn endet mit **genau einem Commit**, dessen CHANGELOG-Eintrag drei Dinge festhält,
+> damit jede fremde LLM-Instanz nahtlos übernehmen kann (Format-Vorlage: `docs/chatgpt-handover-prompt.md §12`):
+> - **(a) Was war geplant** — Ziel/Erwartung des Turns (aus Test-Manifest-Notiz oder User-Auftrag).
+> - **(b) Was wurde umgesetzt** — Dateien/Funktionen/Invarianten + Migrationshinweis + Gate-Ergebnis.
+> - **(c) Was hat nicht funktioniert / wo gab es Probleme** — bestätigte Bugs, Root-Cause, Regressionen, offene Reste
+>   inkl. Testergebnis (pass/fail je relevantem Manifest-Punkt). Kein „grün ohne Beleg".
+>
+> So wandert das bisher nur im Browser-localStorage des Testers lebende Testergebnis dauerhaft ins Repo.
 
 **G9 — Katalog-Regressionsfixes — Test auf Pi ausstehend:**
 - **G9-1:** „Katalog jetzt sichern" → die Vorschläge werden wieder angezeigt (Regression behoben); Übernehmen/Verwerfen aktualisiert die Liste.

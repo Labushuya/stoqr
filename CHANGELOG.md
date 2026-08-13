@@ -5,7 +5,28 @@ Neueste Einträge oben. Jeder Eintrag nennt den Commit-Kontext, damit andere LLM
 
 ---
 
-## [Unreleased] — G50: Pfand-Betrag-fehlt sichtbar anmahnen (implementiert, Test auf Pi ausstehend)
+## [Unreleased] — Baseline: Test-Manifest A–E vollständig grün (auf Pi getestet ✓ 2026-08-13)
+
+Der Tester (Christopher) hat den kompletten Test-Manifest-Durchlauf **A–E, 203/203 Punkte, als getestet und
+funktional bestätigt** — inklusive des gesamten Pfand-Strangs G47–G50. Damit gilt der Stand bei Commit `d7290aa`
+(`ghcr.io/labushuya/stoqr:main`) als **auf dem Pi verifizierte Baseline**. Alle bis hierher als „implementiert, Test auf
+Pi ausstehend" geführten G-Blöcke bis G50 sind hiermit bestätigt.
+
+Ab dieser Baseline gilt das verbindliche **Per-Turn-Handover-Format** (dokumentiert in `docs/ROADMAP.md` und
+`docs/chatgpt-handover-prompt.md §12`): jeder künftige Test-Manifest-Turn endet mit genau einem Commit, dessen
+CHANGELOG-Eintrag drei Dinge festhält — **(a) was war geplant, (b) was wurde umgesetzt, (c) was hat nicht funktioniert /
+wo gab es Probleme (inkl. Testergebnis)**. So kann jede fremde LLM-Instanz nahtlos übernehmen, ohne den Chat-Verlauf zu
+kennen; das bisher nur im Browser-localStorage des Testers lebende Testergebnis wird dadurch dauerhaft im Repo verankert.
+
+Keine Code-Änderung, keine Migration — reine Doku-/Status-Konsolidierung. Gate unverändert grün.
+
+### Commits
+Baseline (dieser Commit) — G47–G50 + Manifest A–E als „auf Pi getestet ✓ 2026-08-13" markiert; Per-Turn-Handover-Format
+als Prozessregel verankert. Exakter Hash: siehe `git log`.
+
+---
+
+## [Unreleased] — G50: Pfand-Betrag-fehlt sichtbar anmahnen (auf Pi getestet ✓ 2026-08-13)
 
 Aus dem G49-Test: nach der Katalog-Sicherung ist Pfand gesetzt (`hasDeposit=true`), aber ohne Betrag (`depositCt=null`),
 weil der Abruf nur ja/nein liefert (Betrag = Stufe 2). Erwartetes Verhalten — aber der Nutzer soll den fehlenden Betrag
@@ -22,7 +43,7 @@ G50 (dieser Commit) — DepositBadge Amber-Warnvariante bei fehlendem Betrag. Ex
 
 ---
 
-## [Unreleased] — G49: Pfand-Fixes — an count-Einheit gebunden + Card/Bearbeiten-Dialog korrigiert (implementiert, Test auf Pi ausstehend)
+## [Unreleased] — G49: Pfand-Fixes — an count-Einheit gebunden + Card/Bearbeiten-Dialog korrigiert (auf Pi getestet ✓ 2026-08-13)
 
 Aus dem G47/G48-Test, zwei Bugs + fachliche Klarstellung (Root-Causes per Workflow belegt):
 
@@ -49,7 +70,7 @@ Exakter Hash: siehe `git log`.
 
 ---
 
-## [Unreleased] — G48: Pfand sichtbar machen — einheitliches DepositBadge überall (implementiert, Test auf Pi ausstehend)
+## [Unreleased] — G48: Pfand sichtbar machen — einheitliches DepositBadge überall (auf Pi getestet ✓ 2026-08-13)
 
 G47-Nachbesserung. Pfand war in der DB + berechnet, aber **nirgends erkennbar** (Detailseite gar nicht, Einkaufsliste
 nur als schwacher grauer Inline-Text, Einkauf pro Position gar nicht) — Nutzer zu Recht: „Textwüste". Ursache: G47 wich
@@ -73,7 +94,7 @@ auf Detailseite/Inventar-Karten/Artikelliste/Einkaufsliste/Einkauf; getrennte Su
 
 ---
 
-## [Unreleased] — G47: Pfand / Leergut (implementiert, Test auf Pi ausstehend)
+## [Unreleased] — G47: Pfand / Leergut (auf Pi getestet ✓ 2026-08-13)
 
 ROADMAP #5. Pfand als **Artikel**-Eigenschaft, mit Fallback für manuelle Pflege und getrenntem Ausweis.
 

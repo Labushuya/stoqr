@@ -224,26 +224,17 @@ Diese Punkte sind Regressionstests.
 
 ## 7. Aktueller kritischer Stand
 
-Christopher hat die jüngsten Tests des neuesten Deployments noch nicht durchgeführt.
+**Baseline 2026-08-13:** Christopher hat den kompletten Test-Manifest-Durchlauf **A–E, 203/203 Punkte, als getestet und
+funktional bestätigt** (Stand Commit `d7290aa`, `ghcr.io/labushuya/stoqr:main`) — inklusive des Pfand-Strangs G47–G50.
+Dieser Stand gilt als **auf dem Pi verifizierte Baseline**. Details: `CHANGELOG.md` (Eintrag „Baseline: Test-Manifest
+A–E vollständig grün") und `docs/ROADMAP.md` („Offene Punkte / noch zu testen" → Baseline-Banner).
 
-Deshalb darf nicht angenommen werden, dass der neueste Commit korrekt funktioniert.
+Ab dieser Baseline gilt: der jeweils **neueste** Commit ist erst dann als funktionierend anzunehmen, wenn Christopher ihn
+auf dem Pi getestet und zurückgemeldet hat (Format siehe §12). Vor jedem Test zieht Christopher das Image und prüft den
+SHA gegen den erwarteten Commit.
 
-Nach dem nächsten Deployment sind zuerst diese Minimaltests zu validieren:
-
-```text
-1. Artikel bearbeiten wieder möglich?
-2. MHD-Felder aus Artikelanlage komplett weg?
-3. Kategorie wird beim Anlegen gespeichert?
-4. Kategorie wird beim Bearbeiten gespeichert?
-5. Suche zeigt richtiges Kategorie-Emoji?
-6. Easy-Add-Suche zeigt richtiges Kategorie-Emoji?
-7. Löschen nutzt stoqr Modal statt Browser Alert?
-8. Gelöschter Artikel verschwindet aus Suche/Easy-Add/normaler UI?
-9. Kein „Speichern fehlgeschlagen“ bei tatsächlicher Speicherung?
-10. Keine partiellen kaputten Datensätze bei Fehlern?
-```
-
-Erst wenn diese Tests grün sind, lohnt sich tieferes Testen von Märkten, Bezugsquellen, Mobile UI und Komfortfeatures.
+Die früheren Minimaltests (Artikel bearbeiten, MHD-Felder, Kategorie speichern, Löschen-Modal, keine partiellen
+Datensätze) sind Teil der bestätigten Baseline und gelten als grün.
 
 ---
 
@@ -732,6 +723,11 @@ Für Christophers Setup gilt: nicht als vollständig erledigt markieren, solange
 ---
 
 ## 12. Künftiges Testprotokoll-Format
+
+> **Verbindlich ab Baseline 2026-08-13:** Jeder Test-Manifest-Turn endet mit **genau einem Commit**, dessen
+> CHANGELOG-Eintrag (a) was geplant war, (b) was umgesetzt wurde, (c) was nicht funktionierte / wo es Probleme gab
+> (inkl. Testergebnis) festhält. Das ist der einzige Weg, wie das Testergebnis dauerhaft ins Repo wandert (bisher nur im
+> localStorage des Testers). Siehe `docs/ROADMAP.md` → „Handover-Prozess pro Test-Turn".
 
 Christopher-Rückmeldungen sollen künftig in dieses Format überführt werden:
 
