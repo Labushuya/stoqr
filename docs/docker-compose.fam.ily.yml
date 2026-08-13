@@ -31,6 +31,10 @@ services:
     # Login deaktivieren: AUTH_DISABLED=true in die .env eintragen -> App laedt
     # direkt ohne Login als vorhandener Nutzer/Haushalt. Zeile aus der .env
     # entfernen -> Login kommt unveraendert zurueck. (Siehe .env.example.)
+    # Explizit gespiegelt, damit die Variable garantiert im Container-Env landet
+    # (env_file allein reicht; dieser Block macht es sichtbar/robust). Default leer.
+    environment:
+      AUTH_DISABLED: ${AUTH_DISABLED:-}
     # Bilder MUESSEN persistent gemountet sein — sonst gehen sie bei JEDEM
     # Image-Update verloren (Container-Layer ist fluechtig). MEDIA_DIR=/data/media.
     volumes:

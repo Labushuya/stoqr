@@ -1,6 +1,7 @@
 import { db } from '$lib/server/db'
 import { asc } from 'drizzle-orm'
-import type { User, Session } from 'better-auth'
+import type { User } from 'better-auth'
+import { rowToBypassUser, makeBypassSession, type BypassUserRow } from './auth-bypass-transform'
 
 /**
  * Auth-Bypass — Login vollständig deaktivierbar per ENV-Flag.
@@ -15,56 +16,32 @@ import type { User, Session } from 'better-auth'
  */
 export const AUTH_DISABLED = process.env.AUTH_DISABLED === 'true'
 
+export { rowToBypassUser, makeBypassSession }
+
 // Prozessweiter Cache: der Default-Nutzer wird höchstens einmal aus der DB gelesen.
 // `undefined` = noch nicht geladen, `null` = geladen, aber kein Nutzer vorhanden.
 let cachedUser: User | null | undefined = undefined
 
 /**
  * Liest den ersten (ältesten) existierenden Nutzer als Default-Identität.
- * Gibt `null` zurück, wenn kein Nutzer existiert (frische DB) — dann fällt der
- * Hook auf den normalen Login-Pfad zurück, damit Erst-Registrierung möglich bleibt.
+ * Gibt `null` zurück, wenn kein Nutzer existiert (frische DB) oder die Abfrage
+ * fehlschlägt — dann fällt der Hook auf den normalen Login-Pfad zurück, damit man
+ * sich weder aussperrt noch bei einem DB-Hänger einen harten 500 bekommt.
  */
 export async function getBypassUser(): Promise<User | null> {
   if (cachedUser !== undefined) return cachedUser
 
-  const row = await db.query.users.findFirst({
-    orderBy: (u) => [asc(u.createdAt)],
-  })
-
-  if (!row) {
-    cachedUser = null
+  try {
+    const row = await db.query.users.findFirst({
+      orderBy: (u) => [asc(u.createdAt)],
+    })
+    cachedUser = row ? rowToBypassUser(row as BypassUserRow) : null
+  } catch (err) {
+    // DB (noch) nicht erreichbar o.ä. — nicht cachen, damit ein späterer Request
+    // es erneut versucht; für diesen Request auf Login-Pfad zurückfallen.
+    console.error('[auth-bypass] getBypassUser konnte keinen Nutzer laden:', err)
     return null
   }
 
-  // In die Form von Better Auths `User` bringen (name = displayName).
-  cachedUser = {
-    id: row.id,
-    name: row.displayName ?? row.email ?? row.id,
-    email: row.email ?? '',
-    emailVerified: row.emailVerified,
-    image: row.image ?? null,
-    createdAt: row.createdAt,
-    updatedAt: row.updatedAt,
-  } as User
-
   return cachedUser
-}
-
-/**
- * Minimales, typkonformes Session-Objekt für den Bypass. `locals.session` wird
- * aktuell nirgends gelesen, soll aber nicht `null` sein, wenn ein Nutzer da ist.
- */
-export function makeBypassSession(user: User): Session {
-  const now = new Date()
-  const farFuture = new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000)
-  return {
-    id: 'bypass',
-    token: 'bypass',
-    userId: user.id,
-    expiresAt: farFuture,
-    createdAt: now,
-    updatedAt: now,
-    ipAddress: null,
-    userAgent: null,
-  } as Session
 }

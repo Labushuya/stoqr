@@ -15,6 +15,9 @@ services:
       MEDIA_DIR: /data/media
       TZ: ${TZ:-Europe/Berlin}
       NODE_ENV: production
+      # Login deaktivieren: auf "true" setzen -> App laedt direkt ohne Login.
+      # Leer/nicht "true" -> Login normal. Wird beim Container-Start gelesen.
+      AUTH_DISABLED: ${AUTH_DISABLED:-}
     volumes:
       - stoqr_media:/data/media
     depends_on:
