@@ -29,8 +29,16 @@ abschalten ohne Funktion zu beeinträchtigen", und der Zustand per Schalter umke
 - **FK-Zwang:** Die injizierte `locals.user.id` ist die eines **real existierenden** Nutzers (Inserts schreiben
   `createdBy`/`userId` mit FK auf `users.id`) — deshalb DB-getrieben statt hart kodiert, und **keine** Migration/kein Seed
   nötig; auf dem Pi existiert der Nutzer bereits.
-- **Reaktivierung:** `AUTH_DISABLED` aus der `.env` entfernen → Login-Verhalten exakt wie zuvor.
-- Testergebnis: siehe Gate unten; Pi-Verifikation durch Christopher ausstehend (`.env` setzen, `docker compose pull`).
+- **Reaktivierung:** `AUTH_DISABLED` aus der `.env` entfernen → Login-Verhalten exakt wie zuvor. Schritt-für-Schritt
+  (an-/abschalten, inkl. `--force-recreate`-Fallstrick) steht in `docs/chatgpt-handover-prompt.md` §8.5.
+- **Pi-Verifikation (erledigt):** Nach `AUTH_DISABLED=true` + `--force-recreate` liefert `curl .../login` jetzt
+  **302 → Location: /** (vorher 200) und die App lädt unter `/` direkt — das ist der **erwartete Erfolgsbeweis**, dass
+  der Bypass greift, kein Fehler. Der Smoke-Test in §8.4 wurde entsprechend angepasst: bei aktivem Flag prüft man `/`
+  auf 200 und erwartet auf `/login` bewusst 302→/.
+- **Ursache „kein Unterschied" beim ersten Versuch:** Die Variable war nie im Container (`printenv AUTH_DISABLED` leer),
+  weil die Pi-Compose nur `env_file` nutzt und `env_file` erst beim **Neu-Erzeugen** (`--force-recreate`), nicht beim
+  bloßen `restart` neu gelesen wird — plus AUTH_DISABLED fehlte in der `.env`. Kein Code-Bug; Compose spiegelt die
+  Variable jetzt zusätzlich explizit in den `environment:`-Block.
 
 Gate: typecheck 0, lint 0/33, build ✓, vitest 204/204. Keine Migration, kein Seed.
 

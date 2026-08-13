@@ -315,7 +315,7 @@ docker inspect stoqr-stoqr-1 \
 
 ```bash
 docker exec stoqr-stoqr-1 wget -qO- http://127.0.0.1:3000/api/health
-curl -k -i https://stoqr.fam.ily/login | head -40
+curl -k -i https://stoqr.fam.ily/ | head -5
 ```
 
 Erwartung:
@@ -325,6 +325,24 @@ Erwartung:
 HTTP/2 200
 ```
 
+**WICHTIG — `/login` bei aktivem AUTH_DISABLED:** Ist `AUTH_DISABLED=true`
+gesetzt (Login abgeschaltet, App laedt direkt), leitet `/login` **absichtlich**
+auf `/` um. Der richtige "App laedt"-Check ist dann die Wurzel `/` (siehe oben),
+NICHT `/login`.
+
+```bash
+# Nur bei AUTH_DISABLED=true — Erwartung: HTTP/2 302 + location: /
+curl -k -i https://stoqr.fam.ily/login | head -5
+```
+
+| Zustand              | `curl .../login` erwartet | `curl .../` erwartet |
+|----------------------|---------------------------|----------------------|
+| AUTH_DISABLED=true   | HTTP/2 **302**, location: / | HTTP/2 **200** (App) |
+| Login aktiv (Flag weg)| HTTP/2 **200** (Login-Seite)| HTTP/2 302 -> /login (ohne Session) |
+
+Das `302 -> /` auf `/login` ist bei aktivem Flag also das **gewuenschte**
+Ergebnis, kein Fehler — es beweist, dass der Login-Bypass greift.
+
 Logs/Migrationen prüfen:
 
 ```bash
@@ -332,6 +350,64 @@ docker compose logs stoqr | grep -Ei "migrat|0002|0003|0004|0005|stores|products
 ```
 
 Wenn Fehler/Stacktrace/500 auftauchen: nicht weiter testen, erst Logs analysieren.
+
+---
+
+### 8.5 Login abschalten / wieder anschalten (AUTH_DISABLED)
+
+Der Login ist per ENV-Flag `AUTH_DISABLED` schaltbar. Kein Code-, Schema- oder
+Datenverlust — reiner Bypass, jederzeit reversibel.
+
+- **AUTH_DISABLED=true**  -> Login AUS. `https://stoqr.fam.ily` laedt direkt die
+  App als der erste (aelteste) vorhandene Nutzer/Haushalt. `/login` -> 302 auf /.
+  "Abmelden" ist ausgeblendet.
+- **Flag entfernt / != "true"** -> Login AN, exakt wie vorher. Register/Login-Seiten
+  und Better Auth sind unveraendert vorhanden (nichts wurde entfernt).
+
+Die Variable liegt in der Pi-.env: `/srv/hubdata/state/stoqr/.env`. Das Compose
+spiegelt sie zusaetzlich explizit ins Container-Env (`environment:`-Block), damit
+sie garantiert ankommt.
+
+**Login ABSCHALTEN:**
+
+```bash
+# 1) Flag in die .env schreiben (falls noch nicht vorhanden)
+grep -q '^AUTH_DISABLED=' /srv/hubdata/state/stoqr/.env \
+  && sed -i 's/^AUTH_DISABLED=.*/AUTH_DISABLED=true/' /srv/hubdata/state/stoqr/.env \
+  || echo 'AUTH_DISABLED=true' >> /srv/hubdata/state/stoqr/.env
+
+# 2) Container NEU ERZEUGEN (nicht nur restart! env_file wird nur bei recreate neu gelesen)
+cd /srv/hubdata/stacks/stoqr
+docker compose up -d --force-recreate stoqr
+
+# 3) Beweis: Variable ist jetzt im Container
+docker exec stoqr-stoqr-1 printenv AUTH_DISABLED   # erwartet: true
+```
+
+**Login WIEDER ANSCHALTEN (Accounts zurück):**
+
+```bash
+# 1) Zeile aus der .env entfernen (oder auf false setzen)
+sed -i '/^AUTH_DISABLED=/d' /srv/hubdata/state/stoqr/.env
+
+# 2) Container neu erzeugen
+cd /srv/hubdata/stacks/stoqr
+docker compose up -d --force-recreate stoqr
+
+# 3) Beweis: Variable ist weg
+docker exec stoqr-stoqr-1 printenv AUTH_DISABLED   # erwartet: leer
+
+# 4) Login-Seite ist wieder eine echte 200-Seite
+curl -k -i https://stoqr.fam.ily/login | head -5   # erwartet: HTTP/2 200
+```
+
+> **Fallstrick (einmal reingefallen):** `docker compose restart` reicht NICHT —
+> `env_file` wird nur beim **Neu-Erzeugen** (`up -d --force-recreate`) neu gelesen.
+> Nach einem blossen restart bleibt die alte Env im Container. Immer `--force-recreate`.
+
+> **Leere DB:** Existiert noch KEIN Nutzer (fabrikneue DB), liefert der Bypass
+> keine Identitaet und faellt bewusst auf den normalen Login-/Register-Pfad zurueck
+> — so kann man sich den ersten Account noch anlegen und sperrt sich nicht aus.
 
 ---
 
