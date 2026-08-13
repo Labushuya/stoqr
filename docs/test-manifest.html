@@ -773,8 +773,8 @@ const BLOCKS = [
         expect: 'Artikelseite oeffnet OHNE Scroll und OHNE rotes Flash; die Seite startet oben. Artikel + alle Bestände sind sichtbar. Das Aufklappen/Zuklappen der Karte selbst funktioniert weiterhin normal (Klick auf Kopfzeile/Chevron).' },
       { id: 'G51-3', title: 'Item-View: Klick auf die Card ohne Scroll', steps: ['Inventar → Ansicht „Einzelbestände" (Grid).', 'Auf die Karten-FLÄCHE klicken (Bild/Name/Menge — NICHT die drei Punkte).'],
         expect: 'Artikelseite oeffnet OHNE Scroll und OHNE rotes Flash (Seite startet oben) — wie „Bearbeiten" im Menue, nur ohne Scroll.' },
-      { id: 'G51-4', title: 'Item-View: 3-Punkte-Menü bleibt separat', steps: ['Gleiche Grid-Ansicht: auf die drei Punkte (⋮) einer Karte klicken.', 'Im Menü „Bearbeiten" wählen.'],
-        expect: 'Der Klick auf ⋮ oeffnet NUR das Menü (navigiert NICHT zur Artikelseite). „Bearbeiten" fuehrt wie gewohnt zur Artikelseite. Kein Doppel-Effekt / kein versehentliches Navigieren beim Menue-Oeffnen.' },
+      { id: 'G51-4', title: 'Item-View: 3-Punkte-Menü „Zur Artikelübersicht"', steps: ['Grid-Ansicht: auf die drei Punkte (⋮) einer Karte klicken.', 'Im Menü „Zur Artikelübersicht" wählen.'],
+        expect: 'Der Klick auf ⋮ oeffnet NUR das Menü (navigiert NICHT). Der Eintrag heisst „Zur Artikelübersicht" (nicht mehr „Bearbeiten", da man dort einsehen UND bearbeiten kann). Er fuehrt zur Artikelseite OHNE Scroll und OHNE rotes Flash (Seite startet oben) — kein automatisch ausgewaehlter/angescrollter Bestand.' },
     ]
   },
   {

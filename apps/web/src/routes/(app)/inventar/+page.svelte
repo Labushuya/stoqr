@@ -782,13 +782,13 @@ Das Produkt bleibt im Katalog.`,
         <li role="menuitem">
           <a
             class="dropdown-item"
-            href="/inventar/{portalItem.id}"
+            href="/inventar/{portalItem.id}?scroll=0"
             onclick={() => closeMenu()}
           >
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-              <path d="M9.5 2.5L11.5 4.5L5 11H3V9L9.5 2.5Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+              <path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
-            Bearbeiten
+            Zur Artikelübersicht
           </a>
         </li>
         <li role="menuitem">
