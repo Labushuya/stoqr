@@ -3,7 +3,7 @@
 > Kanonisches Datenmodell und Entwicklungsplan. Diese Datei ist führend für Absicht,
 > Logik und Ziel von stoqr. Bei Widersprüchen zwischen Code und dieser Datei gilt diese Datei.
 
-Letzte Aktualisierung: 2026-08-13 (Login per ENV-Flag AUTH_DISABLED deaktivierbar — Bypass, reversibel; Baseline: Test-Manifest A–E vollständig grün, 203/203 auf Pi getestet inkl. Pfand G47–G50; Per-Turn-Handover-Format als verbindliche Prozessregel verankert)
+Letzte Aktualisierung: 2026-08-14 (Angezeigter Name „Die Merbotts" + Gefahrenzone mit dreistufigem Werksreset G52/G53, Stufe C mit automatischem Re-Seed der Referenzdaten — kein manuelles seed.sql mehr; Baseline: Test-Manifest A–E vollständig grün, 214/214 auf Pi getestet, Stand Commit 7c2d49c)
 
 ---
 
@@ -191,6 +191,20 @@ Kein Text-/Pipe-Export (existiert so in Bring! nicht).
   Zutaten-Ampel via aggregateStock/compareToTarget, fehlende Zutaten → Einkaufsliste.
 
 ### Weitere geplante Features (aufgenommen 2026-07-18, Reihenfolge offen)
+- **Angezeigter Name = Haushalt „Die Merbotts"** (**erledigt G52, auf Pi getestet ✓ 2026-08-14**): Der oben rechts
+  angezeigte Name kommt aus `users.display_name` des ältesten Nutzers (Kette `display_name` → `rowToBypassUser` →
+  `data.user.name` → Navbar). Reiner DB-Wert, kein Code. Fallstrick: `getBypassUser()` cached prozessweit → Änderung
+  greift erst nach `docker compose up -d --force-recreate stoqr` (nicht `restart`, nicht Browser-Reload).
+- **Gefahrenzone — dreistufiger Werksreset** (**erledigt G53, auf Pi getestet ✓ 2026-08-14**): Einstellungen → Danger
+  Zone mit drei Stufen: **A** = nur Bestände (`inventory_items`), **B** = + Artikel & Preise (`products` global hart +
+  `product_*`/`product_prices`/`product_stores`/`stock_targets`/`globus_snapshots`), **C** = kompletter Werksreset
+  aller Inhaltsdaten (zusätzlich Einkaufslisten/-käufe, Orte/Lager/Märkte via `locations`-Cascade, eigene Einheiten,
+  `category_mappings`/`expiry_config`/`audit_log`/`invites` sowie Referenzdaten `categories`/`nutrient_types`).
+  Alle Löschungen children-first in **EINER Transaktion** (RESTRICT-FKs). GitHub-artige Type-to-Confirm (feste Phrase
+  je Stufe, serverseitig erneut geprüft) + Modal = 2-Stufen-Bestätigung. Nutzer/Haushalt/Sessions bleiben erhalten,
+  man bleibt eingeloggt. **Stufe C mit Auto-Re-Seed:** Kategorien + Nährwert-Typen werden am Ende **derselben
+  Transaktion** aus `categorySeeds`/`nutrientTypeSeeds` (über `@stoqr/db` re-exportiert) wieder auf Werkszustand
+  eingespielt — **kein manuelles `psql -f /seed.sql`** mehr nötig, echter Frischstart ohne Nachpflege. Keine Migration.
 - **Reichere Globus-Daten (Stufe 1)** (**erledigt G44, auf Pi getestet ✓ 2026-08-13**): Grundpreis (PAngV, „0,19 €/l") aus
   dem Suggest-HTML + Detailseiten-JSON-LD (brand/description/offers) abgerufen; `product_prices.base_price_ct/unit`;
   volles Detail-HTML archiviert (`globus_snapshots.raw_detail_html`) + Feld-Landkarte (`extracted`: Feld/Wert/Quelle/
@@ -265,12 +279,15 @@ Inventur (Ist erfassen) → Soll-Ist-Bedarf → Einkaufsliste (virtuelle Bestän
 
 ## Offene Punkte / noch zu testen (nicht bestätigt)
 
-> **✅ Baseline 2026-08-13 — Test-Manifest A–E vollständig grün (auf Pi getestet):** Der Tester hat den kompletten
-> Durchlauf **A–E, 203/203 Punkte, als getestet und funktional bestätigt** (Stand Commit `d7290aa`,
-> `ghcr.io/labushuya/stoqr:main`), inklusive des Pfand-Strangs G47–G50. **Alle unten mit „Test auf Pi ausstehend"
-> markierten G-Blöcke bis einschließlich G50 gelten damit als bestätigt** — die Einzelvermerke sind historisch und
-> werden bewusst NICHT rückwirkend umgeschrieben (sie dokumentieren den Zustand zum Zeitpunkt des jeweiligen Commits).
-> Ab hier gilt das **Per-Turn-Handover-Format** (siehe unten „Handover-Prozess pro Test-Turn").
+> **✅ Baseline 2026-08-14 — Test-Manifest A–E vollständig grün (auf Pi getestet):** Der Tester hat den kompletten
+> Durchlauf **A–E, 214/214 Punkte, als getestet und funktional bestätigt** (Stand Commit `7c2d49c`,
+> `ghcr.io/labushuya/stoqr:main`), inklusive des neuen Namens „Die Merbotts" (G52) und der Gefahrenzone mit
+> dreistufigem Werksreset (G53) — Stufe C setzt jetzt auch die Referenzdaten (Kategorien + Nährwert-Typen)
+> **automatisch** wieder auf Werkszustand (Auto-Re-Seed in derselben Transaktion), **kein manuelles `seed.sql`**
+> mehr nötig. **Alle unten mit „Test auf Pi ausstehend" markierten G-Blöcke bis einschließlich G53 gelten damit als
+> bestätigt** — die Einzelvermerke sind historisch und werden bewusst NICHT rückwirkend umgeschrieben (sie
+> dokumentieren den Zustand zum Zeitpunkt des jeweiligen Commits). Es gilt das **Per-Turn-Handover-Format**
+> (siehe unten „Handover-Prozess pro Test-Turn").
 >
 > ### Handover-Prozess pro Test-Turn (verbindlich ab Baseline 2026-08-13)
 > Jeder künftige Test-Manifest-Turn endet mit **genau einem Commit**, dessen CHANGELOG-Eintrag drei Dinge festhält,

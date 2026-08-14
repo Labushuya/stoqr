@@ -47,6 +47,7 @@ Stoqr ist eine **self-hosted Web-App** zur Verwaltung von Lebensmitteln im Haush
 | 📲 Bring! Direktintegration (API, nach Markt gruppiert) | Phase 3 |
 | 📴 PWA / Offline-Einkaufsliste | Phase 3 |
 | 👥 Multi-User / Haushalt-Sharing | Phase 3 |
+| ♻️ Werksreset (Danger Zone, 3-stufig, mit Auto-Re-Seed) | Phase 3 |
 
 ---
 
@@ -94,6 +95,10 @@ docker compose exec postgres psql -U stoqr -d stoqr -f /tmp/seed.sql
 ```
 
 > Servicename ggf. anpassen (`docker compose ps` zeigt den genauen Namen).
+>
+> **Tipp:** Diesen Schritt braucht man nur beim **allerersten** Bootstrap einer leeren DB. Ein späterer
+> Werksreset (Einstellungen → Danger Zone, Stufe C) spielt die Referenzdaten automatisch in derselben
+> Transaktion wieder ein — kein erneutes `seed.sql` nötig.
 
 ### 4. Ersten Account anlegen
 

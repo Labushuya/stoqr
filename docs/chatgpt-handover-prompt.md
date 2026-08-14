@@ -224,10 +224,14 @@ Diese Punkte sind Regressionstests.
 
 ## 7. Aktueller kritischer Stand
 
-**Baseline 2026-08-13:** Christopher hat den kompletten Test-Manifest-Durchlauf **A–E, 203/203 Punkte, als getestet und
-funktional bestätigt** (Stand Commit `d7290aa`, `ghcr.io/labushuya/stoqr:main`) — inklusive des Pfand-Strangs G47–G50.
-Dieser Stand gilt als **auf dem Pi verifizierte Baseline**. Details: `CHANGELOG.md` (Eintrag „Baseline: Test-Manifest
-A–E vollständig grün") und `docs/ROADMAP.md` („Offene Punkte / noch zu testen" → Baseline-Banner).
+**Baseline 2026-08-14:** Christopher hat den kompletten Test-Manifest-Durchlauf **A–E, 214/214 Punkte, als getestet und
+funktional bestätigt** (Stand Commit `7c2d49c`, `ghcr.io/labushuya/stoqr:main`) — inklusive des angezeigten Namens
+„Die Merbotts" (G52) und der Gefahrenzone mit dreistufigem Werksreset (G53). **Wichtig:** Stufe C des Werksresets
+re-seedet Kategorien + Nährwert-Typen jetzt **automatisch in derselben Transaktion** — nach einem Werksreset ist
+**kein manuelles `seed.sql`** mehr nötig (echter Frischstart ohne Nachpflege). Dieser Stand gilt als **auf dem Pi
+verifizierte Baseline** (löst die frühere 203/203-Baseline auf Commit `d7290aa` ab). Details: `CHANGELOG.md`
+(Eintrag „Angezeigter Name Die Merbotts + Gefahrenzone") und `docs/ROADMAP.md` (Baseline-Banner + Feature-Einträge
+G52/G53).
 
 Ab dieser Baseline gilt: der jeweils **neueste** Commit ist erst dann als funktionierend anzunehmen, wenn Christopher ihn
 auf dem Pi getestet und zurückgemeldet hat (Format siehe §12). Vor jedem Test zieht Christopher das Image und prüft den
