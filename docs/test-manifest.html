@@ -108,7 +108,7 @@
 <div class="wrap">
   <header class="top">
     <h1>stoqr — Test-Manifest</h1>
-    <p class="subtitle">Blöcke A–E + F/F2 + G/G6/G7/G8/G10/G11/G12/G13/G15/G16/G17/G18/G19/G20/G21/G22/G24/G25/G26/G27/G28/G29/G30/G31/G32/G33/G34/G35/G36/G37/G39/G40/G41/G42/G43/G44/G45/G46/G47/G48/G49/G50/G51/G52/G53 · logisch aufbauender Durchlauf · Stand nach G53 (Name „Die Merbotts" + Gefahrenzone/Werksreset)</p>
+    <p class="subtitle">Blöcke A–E + F/F2 + G/G6/G7/G8/G10/G11/G12/G13/G15/G16/G17/G18/G19/G20/G21/G22/G24/G25/G26/G27/G28/G29/G30/G31/G32/G33/G34/G35/G36/G37/G39/G40/G41/G42/G43/G44/G45/G46/G47/G48/G49/G50/G51/G52/G53 · logisch aufbauender Durchlauf · Stand nach G53 (Name „Die Merbotts" + Gefahrenzone/Werksreset mit Auto-Re-Seed)</p></p>
 
     <div class="pre">
       <h2>Voraussetzung (kein Testschritt)</h2>
@@ -787,7 +787,7 @@ const BLOCKS = [
     ]
   },
   {
-    tag: 'G53', name: 'Gefahrenzone: dreistufiger Werksreset', desc: 'Einstellungen → „Gefahrenzone" (letzte Karte). Drei Stufen mit Type-to-Confirm (GitHub-Stil): A = nur Bestaende, B = + Artikel & Preise, C = kompletter Werksreset (Nutzer & Haushalt bleiben). Zwei Bestaetigungen: Modal oeffnen (1.) + feste Phrase exakt eintippen (2.). Serverseitig laufen die Loeschungen children-first in EINER Transaktion (RESTRICT-FKs). ACHTUNG: Stufe C entfernt auch die geseedeten Referenzdaten (Kategorien, Naehrwert-Typen) → danach ist ein Re-Seed noetig (seed.sql, ON CONFLICT DO NOTHING).',
+    tag: 'G53', name: 'Gefahrenzone: dreistufiger Werksreset', desc: 'Einstellungen → „Gefahrenzone" (letzte Karte). Drei Stufen mit Type-to-Confirm (GitHub-Stil): A = nur Bestaende, B = + Artikel & Preise, C = kompletter Werksreset (Nutzer & Haushalt bleiben). Zwei Bestaetigungen: Modal oeffnen (1.) + feste Phrase exakt eintippen (2.). Serverseitig laufen die Loeschungen children-first in EINER Transaktion (RESTRICT-FKs). Stufe C entfernt auch die geseedeten Referenzdaten (Kategorien, Naehrwert-Typen) und spielt sie in derselben Transaktion AUTOMATISCH wieder ein (Auto-Re-Seed) → kein manuelles seed.sql/psql, keine Nachpflege.',
     items: [
       { id: 'G53-1', title: 'Schutz: falsche Phrase → Button disabled (Regression)', steps: ['Einstellungen → Gefahrenzone. Bei einer Stufe auf den Loesch-/Reset-Button klicken → Modal oeffnet.', 'Nichts oder etwas Falsches ins Textfeld tippen.'],
         expect: 'Der Bestaetigungs-Button im Modal bleibt DEAKTIVIERT, solange der getippte Text nicht exakt der angezeigten Phrase entspricht. Abbrechen/X/Escape schliesst das Modal ohne Aenderung. (Selbst bei manipuliertem Request lehnt der Server mit „Bestätigungstext stimmt nicht" ab.)' },
@@ -795,8 +795,8 @@ const BLOCKS = [
         expect: 'Alle Bestaende (Inventar) sind weg. Artikel, Preise, Orte, Lager, Maerkte, Einheiten und Kategorien bleiben unveraendert erhalten. Toast „Löschung abgeschlossen".' },
       { id: 'G53-3', title: 'Stufe B: + Artikel & Preise', steps: ['Gefahrenzone → „Artikel & Bestand löschen" → Phrase „Artikel und Bestand loeschen" eintippen → bestaetigen.'],
         expect: 'Zusaetzlich zu den Bestaenden sind ALLE Artikel (inkl. Naehrwerte/Feldquellen), Preise und Ziel-Bestaende weg. Orte, Lager, Maerkte, Einheiten und Kategorien bleiben. Einkaufslisten/Einkaeufe bleiben (das ist Stufe C).' },
-      { id: 'G53-4', title: 'Stufe C: kompletter Werksreset + Re-Seed', steps: ['Gefahrenzone → „Werksreset" → Warntext lesen (nennt ausdruecklich Kategorien/Naehrwert-Typen + Re-Seed).', 'Phrase „stoqr zuruecksetzen" eintippen → bestaetigen.', 'Danach seed.sql erneut einspielen: docker compose exec -T postgres psql -U stoqr -d stoqr -f /seed.sql'],
-        expect: 'Alle Inhaltsdaten weg (Bestaende, Artikel, Preise, Listen, Einkaeufe, Orte, Lager, Maerkte, eigene Einheiten, Aktivitaetsprotokoll, Kategorien, Naehrwert-Typen). Nutzer, Session, Haushalt und Mitgliedschaft bleiben — man bleibt eingeloggt. Toast weist auf noetigen Re-Seed hin. Nach dem Re-Seed sind Kategorien/Naehrwert-Typen wieder vorhanden (Auswahllisten gefuellt).' },
+      { id: 'G53-4', title: 'Stufe C: kompletter Werksreset (Auto-Re-Seed)', steps: ['Gefahrenzone → „Werksreset" → Warntext lesen (nennt Kategorien/Naehrwert-Typen; KEIN manuelles Re-Seed mehr noetig).', 'Phrase „stoqr zuruecksetzen" eintippen → bestaetigen.', 'OHNE weiteren Schritt: Einstellungen → Kategorien oeffnen und einen Artikel anlegen (Naehrwert-Typen pruefen).'],
+        expect: 'Alle Inhaltsdaten weg (Bestaende, Artikel, Preise, Listen, Einkaeufe, Orte, Lager, Maerkte, eigene Einheiten, Aktivitaetsprotokoll). Nutzer, Session, Haushalt und Mitgliedschaft bleiben — man bleibt eingeloggt. Kategorien & Naehrwert-Typen sind AUTOMATISCH sofort wieder auf Werkszustand vorhanden (9 Kategorien, Naehrwert-Typen in Auswahllisten) — OHNE manuelles seed.sql / psql. Toast bestaetigt „auf Werkszustand zurueckgesetzt".' },
       { id: 'G53-5', title: 'Zwei-Stufen-Bestaetigung & a11y', steps: ['Eine Stufe oeffnen und den Ablauf beobachten.'],
         expect: 'Das Oeffnen des Modals ist die 1. Bestaetigung, das exakte Eintippen der Phrase die 2. Die erwartete Phrase steht sichtbar im Modal (anklickbar/markierbar). Kein verschachteltes interaktives Element; Modal per X/Escape/Backdrop schliessbar.' },
     ]

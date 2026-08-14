@@ -20,6 +20,8 @@ import {
   stores,
   units,
   nutrientTypes,
+  categorySeeds,
+  nutrientTypeSeeds,
 } from '@stoqr/db'
 import { eq, asc, and, isNotNull, isNull } from 'drizzle-orm'
 import { requireHouseholdId, getUnits } from '$lib/server/queries/households'
@@ -263,6 +265,54 @@ export const actions: Actions = {
       // categories (self-ref) children-first.
       await tx.delete(categories).where(isNotNull(categories.parentId))
       await tx.delete(categories).where(isNull(categories.parentId))
+
+      // ── Auto-Re-Seed: Referenzdaten auf Werkszustand ────────────────────────
+      // Gleiche Daten wie seed.sql, aber in DERSELBEN Transaktion → nach dem
+      // Werksreset ist alles sofort wieder da, KEIN manuelles psql -f /seed.sql.
+      // Tabellen wurden unmittelbar davor geleert → kein onConflict noetig.
+      await tx.insert(categories).values(
+        categorySeeds.map((s) => ({
+          slug: s.slug,
+          name: s.name,
+          icon: s.icon,
+          defaultExpiryToleranceDays: s.defaultExpiryToleranceDays ?? 0,
+          sortOrder: s.sortOrder,
+          parentId: null,
+        })),
+      )
+      // nutrient_types: erst Wurzeln, dann Kinder (parentSlug → neue UUID aufloesen).
+      const seedRoots = nutrientTypeSeeds.filter((s) => s.parentSlug === null)
+      await tx.insert(nutrientTypes).values(
+        seedRoots.map((s) => ({
+          slug: s.slug,
+          name: s.name,
+          unit: s.unit,
+          parentId: null,
+          sortOrder: s.sortOrder,
+          offKey: s.offKey,
+        })),
+      )
+      const seedChildren = nutrientTypeSeeds.filter((s) => s.parentSlug !== null)
+      if (seedChildren.length > 0) {
+        const insertedRoots = await tx.query.nutrientTypes.findMany()
+        const slugToId = new Map(insertedRoots.map((r) => [r.slug, r.id]))
+        await tx.insert(nutrientTypes).values(
+          seedChildren.map((s) => {
+            const parentId = slugToId.get(s.parentSlug!)
+            if (!parentId) {
+              throw new Error(`Re-Seed: parentSlug "${s.parentSlug}" fuer "${s.slug}" nicht aufloesbar`)
+            }
+            return {
+              slug: s.slug,
+              name: s.name,
+              unit: s.unit,
+              parentId,
+              sortOrder: s.sortOrder,
+              offKey: s.offKey,
+            }
+          }),
+        )
+      }
     })
 
     // Nach der Transaktion protokollieren. Bei Stufe C wurde audit_log gerade

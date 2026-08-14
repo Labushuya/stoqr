@@ -334,7 +334,7 @@
         'Einkaufslisten & Einkäufe',
         'Orte, Lager & Märkte',
         'Eigene Einheiten & Aktivitätsprotokoll',
-        'Kategorien & Nährwert-Typen (Referenzdaten) — Re-Seed danach nötig!',
+        'Kategorien & Nährwert-Typen werden auf Werkszustand zurückgesetzt',
       ],
     },
   }
@@ -1111,7 +1111,7 @@
             closeReset()
             toast.success(
               doneStage === 'C'
-                ? 'System zurückgesetzt. Referenzdaten müssen neu geseedet werden.'
+                ? 'System auf Werkszustand zurückgesetzt. Kategorien & Nährwerte sind wieder da.'
                 : 'Löschung abgeschlossen.'
             )
           }

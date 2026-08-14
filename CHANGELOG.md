@@ -32,9 +32,11 @@ wechseln. (2) In den Einstellungen eine geschützte Funktion einbetten, die den 
 - **`products` ist global (keine `householdId`):** Bei Stufe B/C werden Artikel **hart global** gelöscht (bewusste
   Entscheidung fürs Single-Household-Setup; `gtin` ist global unique). `product_nutrients`/`product_field_sources`
   cascaden mit.
-- **Stufe C entfernt Referenzdaten:** Kategorien + Nährwert-Typen sind danach leer → **Re-Seed nötig**
-  (`docker compose exec -T postgres psql -U stoqr -d stoqr -f /seed.sql`, `ON CONFLICT DO NOTHING`, re-run-safe).
-  Dieser Hinweis steht im Warntext von Stufe C und im Erfolgs-Toast.
+- **Stufe C mit Auto-Re-Seed:** Kategorien + Nährwert-Typen werden am Ende **derselben Transaktion** wieder auf
+  Werkszustand eingespielt (Datenquelle: `categorySeeds`/`nutrientTypeSeeds` aus `packages/db/seeds/*`, jetzt über
+  `@stoqr/db` re-exportiert — kein Duplikat). Folge: nach dem Werksreset ist **ohne manuelles `psql -f /seed.sql`**
+  alles sofort wieder da (Auswahllisten gefüllt), man bleibt eingeloggt. „Von vorne beginnen ohne Nachpflege."
+  Warntext/Toast der Stufe C entsprechend angepasst (kein Re-Seed-Hinweis mehr).
 - **SvelteKit-Fallstrick:** Ein freier `export const RESET_PHRASES` in `+page.server.ts` bricht den Build
   („Invalid export") — Phrasen sind server-lokal (ohne `export`), der Client hält seine eigene Kopie.
 - **Gate grün:** typecheck ✓, lint 0 Fehler / 35 Warnungen (33 Baseline + 2 erwartete `form as any`), 208 Tests ✓,
