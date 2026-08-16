@@ -860,6 +860,23 @@ const BLOCKS = [
         expect: "Kein horizontales Scrollen/Overflow; Buttons und Felder gut bedienbar; FABs erreichbar." },
     ]
   },
+  {
+    tag: "G16", name: "Import / Export (Datentransfer)", desc: "Datei-basierter Import/Export zur Erstbefuellung (Pi <-> App). Envelope-Format (.stoqr), Tier-Wahl (minimal..maximal), Merge=Replace, Abbildung auf lokale Identitaet, Auth-Tabellen nie exportiert, Produkt-Dedup per GTIN, Import mit Tippbestaetigung. Auf dem Pi: Browser-Download (GET) + JSON-POST-Import.",
+    items: [
+      { id: "G16-1", title: "Import/Export-Section in den Einstellungen sichtbar", steps: ["/einstellungen oeffnen und die Abschnitte durchgehen.", "Den Link „Daten uebertragen“ anklicken."],
+        expect: "Es gibt einen Abschnitt „Import / Export“ mit dem Link „Daten uebertragen“; er fuehrt auf /einstellungen/datentransfer. Die Karten sind optisch konform (settings-section, Buttons wie ueberall), inkl. der deaktivierten „Sync in Vorbereitung“-Karte mit Badge (keine bricht das Layout, dark-mode-sicher)." },
+      { id: "G16-2", title: "Export: Tier waehlen -> Download (Pi)", steps: ["/einstellungen/datentransfer oeffnen.", "Einen Tier waehlen (z.B. „alles“) -> Export ausloesen."],
+        expect: "Der Browser laedt eine .stoqr-Datei (Envelope-JSON) herunter; Erfolgsmeldung erscheint. Der Envelope enthaelt die Tabellen des gewaehlten Tiers und KEINE Auth-Tabellen (users/sessions/accounts etc.)." },
+      { id: "G16-3", title: "Export-Endpoint liefert gueltigen Envelope (GET)", steps: ["GET /api/transfer/export?scope=alles aufrufen (Browser oder curl mit Login-Cookie)."],
+        expect: "200 + JSON-Envelope mit Meta (Version/Scope/Zeitstempel) und den erwarteten Tabellen. Auth-Tabellen fehlen. Ungueltiger scope -> saubere Fehlermeldung, kein 500." },
+      { id: "G16-4", title: "Import: Datei einlesen + Tippbestaetigung", steps: ["Auf /einstellungen/datentransfer eine .stoqr-Datei ueber das Dateifeld waehlen.", "Das Bestaetigungsfeld ausfuellen („stoqr ueberschreiben“ eintippen).", "Import ausloesen."],
+        expect: "Ohne exakte Tippbestaetigung bleibt der Import-Button gesperrt. Eine offensichtlich ungueltige Datei wird frueh abgelehnt (Envelope-Plausipruefung), ohne Import. Nach gueltigem Import: Zusammenfassung (eingespielte Zeilen je Tabelle)." },
+      { id: "G16-5", title: "Import bildet auf lokale Identitaet ab + GTIN-Dedup", steps: ["Einen Export aus einer anderen Instanz (fremder Haushalt/User) importieren.", "Danach Artikel/Bestand betrachten; einen bereits bekannten GTIN pruefen."],
+        expect: "Alle Daten landen im lokalen Haushalt/User (kein fremdes Household/User-Id sichtbar). Produkte mit bereits vorhandenem GTIN werden dedupliziert (kein Duplikat). Merge-Semantik ist Replace, nicht additiv." },
+      { id: "G16-6", title: "Import-Endpoint schreibt Audit + saubere Fehler (POST)", steps: ["POST /api/transfer/import mit {confirm:true, file:<envelope-text>}.", "Aktivitaet/Audit-Log nach dem Import ansehen."],
+        expect: "200 + Insert-Summary; ein Audit-Eintrag zum Import ist vorhanden. Fehlender confirm oder kaputter Envelope -> klarer 4xx-Fehler (kein 500, keine Teilschreibung)." },
+    ]
+  },
 ];
 
 // ── Rendering ───────────────────────────────────────────────────────────────

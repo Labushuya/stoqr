@@ -7,3 +7,9 @@ export * from './client'
 export { categorySeeds } from '../seeds/categories'
 export { nutrientTypeSeeds } from '../seeds/nutrient-types'
 
+// Datei-basierter Import/Export (Erstbefuellung Pi <-> App). Dialekt-neutral,
+// haengt nur an drizzle-orm (getTableColumns) — kein Client-Zug, fuer beide
+// Targets sicher.
+export * from './transfer'
+export * from './transfer-io'
+
