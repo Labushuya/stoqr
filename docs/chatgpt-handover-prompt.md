@@ -233,9 +233,19 @@ verifizierte Baseline** (löst die frühere 203/203-Baseline auf Commit `d7290aa
 (Eintrag „Angezeigter Name Die Merbotts + Gefahrenzone") und `docs/ROADMAP.md` (Baseline-Banner + Feature-Einträge
 G52/G53).
 
-Ab dieser Baseline gilt: der jeweils **neueste** Commit ist erst dann als funktionierend anzunehmen, wenn Christopher ihn
-auf dem Pi getestet und zurückgemeldet hat (Format siehe §12). Vor jedem Test zieht Christopher das Image und prüft den
-SHA gegen den erwarteten Commit.
+**Nach der Baseline (noch nicht auf dem Pi getestet):**
+
+- **Commit `699f599` / PR #1 (2026-08-16):** Transfer-Feature (Import/Export zwischen Pi und Android-App via `.stoqr`-
+  Datei) in dieses Repo portiert. Einstellungen → Datentransfer: Export aller Haushaltsdaten als Datei; Import mit
+  type-to-confirm-Modal. G16 im Test-Manifest (Datentransfer-Block). Auf Pi noch nicht getestet.
+- **Commit `97c75f6` (2026-10-14):** CI-Lint-Fehler behoben, die beim Merge von PR #1 aufgetreten sind
+  (`__STOQR_TARGET__` als ESLint-Global registriert; `eslint-disable` für Stub-Parameter in Pi-only-Stubs). Kein
+  Verhalten geändert, kein neuer Code. CI + Docker-Build grün. **Aktuellster Stand auf `main`.**
+
+**Migrations-Stand:** 23 Migrationen (0000–0021), letzte: `0021_deposit_fields` (Pfand-Felder).
+
+**Testformat:** Vor jedem Test zieht Christopher das Image und prüft den SHA gegen den erwarteten Commit.
+Jeder Turn endet mit Handover-Format §12 (a/b/c im CHANGELOG).
 
 Die früheren Minimaltests (Artikel bearbeiten, MHD-Felder, Kategorie speichern, Löschen-Modal, keine partiellen
 Datensätze) sind Teil der bestätigten Baseline und gelten als grün.
