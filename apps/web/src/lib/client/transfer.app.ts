@@ -24,10 +24,12 @@ export interface ImportResult {
   [key: string]: unknown
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export async function exportToFile(_scope: ExportTier): Promise<ExportResult> {
   throw new Error('exportToFile: App-only stub, nicht auf dem Pi (node-Target) erreichbar')
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export async function importFromText(_fileText: string): Promise<ImportResult> {
   throw new Error('importFromText: App-only stub, nicht auf dem Pi (node-Target) erreichbar')
 }

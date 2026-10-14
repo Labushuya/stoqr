@@ -12,6 +12,8 @@ export default [
       globals: {
         ...globals.browser,
         ...globals.node,
+        // Vite-Define-Global (vite.config.ts): gesetzt auf 'node' (Pi) oder 'app' (Android).
+        __STOQR_TARGET__: 'readonly',
       },
     },
   },

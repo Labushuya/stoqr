@@ -10,6 +10,7 @@
 // Die volle Implementierung (SQLite/Query-Router) lebt ausschliesslich im
 // App-Repo (Labushuya/stoqr-android).
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export async function routeApp(_path: string, _init?: RequestInit): Promise<Response> {
   throw new Error('routeApp: App-only stub, nicht auf dem Pi (node-Target) erreichbar')
 }
